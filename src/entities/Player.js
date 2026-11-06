@@ -263,13 +263,13 @@ class Player {
 
         // 7. Presión de la persecución
         if (this.hasStartedRunning) {
-            if (speedRatio > 0.72 || this.shoveSlowdownTimer > 0) {
+            if ((isHoldingA && speedRatio > 0.72) || this.shoveSlowdownTimer > 0) {
                 this.pursuitDistance = Math.min(
                     pursuitCfg.INITIAL_DISTANCE,
                     this.pursuitDistance + pursuitCfg.RECOVERY_RATE * dt
                 );
             } else if (!this.sandboxImmortal) {
-                const deficit = 1.0 - speedRatio;
+                const deficit = Math.max(0.32, 1.0 - speedRatio);
                 this.pursuitDistance -= pursuitCfg.APPROACH_RATE_WHEN_SLOW * deficit * dt;
                 if (this.pursuitDistance <= 0) {
                     this.pursuitDistance = 0;
