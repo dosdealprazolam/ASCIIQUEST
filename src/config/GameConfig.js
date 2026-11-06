@@ -61,8 +61,8 @@ const DEFAULT_CONFIG = {
         B_MIN_RANGE: -42,
         // Guardado únicamente para el obstáculo tentativo (TENTATIVE_HEAVY_TOWER)
         TENTATIVE_KNOCKBACK_Z: 95,
-        TRIGGER_THRESHOLD: 0.12,
-        TRIGGER_RAPID_DELTA: 0.06
+        TRIGGER_THRESHOLD: 0.35,
+        TRIGGER_RAPID_DELTA: 0.16
     },
 
     // --- MÚSICA DEL NIVEL (CARPETA /music/ DEL PROYECTO) ---
@@ -74,11 +74,11 @@ const DEFAULT_CONFIG = {
         DEATH_REVERB_DURATION_MS: 680
     },
 
-    // --- PROGRESIÓN DE DIFICULTAD: RUTA DUPLICADA (10,000 METROS / 2,000m POR NIVEL) ---
+    // --- PROGRESIÓN DE DIFICULTAD: RUTA DE 10,200 METROS ---
     DIFFICULTY: {
         METERS_PER_LEVEL: 2000,       // Cada nivel dura 2000m para una curva suave y progresiva sin picos abruptos
         MAX_LEVEL: 5,
-        RACE_GOAL_METERS: 10000,      // Largo de la ruta duplicado a 10,000 metros (meta final)
+        RACE_GOAL_METERS: 10200,      // Largo de la ruta con +200 metros adicionales (10,200 metros)
         LEVELS: [
             {
                 level: 1,
@@ -131,7 +131,7 @@ const DEFAULT_CONFIG = {
             {
                 level: 5,
                 name: 'NIVEL 5 — PESADILLA TOTAL',
-                subtitle: '8000m a 10000m: Recta final extrema hacia la meta',
+                subtitle: '8000m a 10200m: Recta final extrema hacia la meta',
                 speedMultiplier: 1.26,
                 spawnSpacing: 330,
                 doubleLaneChance: 0.66,

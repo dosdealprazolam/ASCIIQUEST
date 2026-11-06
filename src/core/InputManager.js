@@ -36,6 +36,7 @@ class InputManager {
         this.currentLogicalLane = this.config.LANES.DEFAULT_LANE;
 
         // Estado Rapid-Trigger para gatillos analógicos de mando
+        this.gamepadUserActivated = false;
         this.gamepadPrevA = false;
         this.gamepadPrevB = false;
         this.peakTriggerA = 0;
@@ -47,6 +48,10 @@ class InputManager {
     }
 
     reset(initialLane = this.config.LANES.DEFAULT_LANE) {
+        this.isHoldingA = false;
+        this.isHoldingB = false;
+        this.gamepadPrevA = false;
+        this.gamepadPrevB = false;
         this.currentLogicalLane = initialLane;
         this.switchOriginLane = initialLane;
         this.tapCount = 0;
@@ -54,8 +59,17 @@ class InputManager {
         this.lastTapIntervalMs = 0;
         this.bPressTimestamps = [];
         this.totalBMashes = 0;
-        this.hasRunAtLeastOnce = this.isHoldingA;
+        this.hasRunAtLeastOnce = false;
         this.laneSwitchReady = false;
+    }
+
+    _forceSilentReleaseAll() {
+        this.isHoldingA = false;
+        this.isHoldingB = false;
+        this.gamepadPrevA = false;
+        this.gamepadPrevB = false;
+        this.laneSwitchReady = false;
+        this.tapCount = 0;
     }
 
     syncLane(laneIndex) {
@@ -135,13 +149,16 @@ class InputManager {
         });
 
         window.addEventListener('blur', () => {
-            if (this.isHoldingA) {
-                this._onAReleased(performance.now());
-            }
-            if (this.isHoldingB) {
-                this._onBReleased(performance.now());
-            }
+            this._forceSilentReleaseAll();
         });
+
+        if (typeof document !== 'undefined' && document.addEventListener) {
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    this._forceSilentReleaseAll();
+                }
+            });
+        }
 
         window.addEventListener('touchstart', (e) => {
             if (e.target && e.target.closest && e.target.closest('.sandbox-ui-interactive')) return;
@@ -302,28 +319,45 @@ class InputManager {
      * Permite mashear LT/RT (L2/R2), LB/RB o botones frontales con recorrido mínimo.
      */
     _pollGamepadRapidTriggers(now) {
+        if (typeof document !== 'undefined') {
+            if (document.hidden || (typeof document.hasFocus === 'function' && !document.hasFocus())) {
+                if (this.gamepadPrevA || this.gamepadPrevB) {
+                    this._forceSilentReleaseAll();
+                }
+                return;
+            }
+        }
         if (!navigator.getGamepads) return;
         const gamepads = navigator.getGamepads();
         const gp = gamepads && gamepads[0];
-        if (!gp) return;
+        if (!gp || !gp.connected) return;
 
-        const threshold = this.config.CONTROLS.TRIGGER_THRESHOLD || 0.12;
-        const rapidDelta = this.config.CONTROLS.TRIGGER_RAPID_DELTA || 0.06;
+        const threshold = this.config.CONTROLS.TRIGGER_THRESHOLD || 0.35;
+        const rapidDelta = this.config.CONTROLS.TRIGGER_RAPID_DELTA || 0.16;
 
         // Valor analógico máximo entre Botón A (0), LB (4) y Gatillo Izquierdo LT/L2 (6)
         const valA = Math.max(
-            gp.buttons[0] ? gp.buttons[0].value : 0,
-            gp.buttons[4] ? gp.buttons[4].value : 0,
+            gp.buttons[0] && gp.buttons[0].pressed ? gp.buttons[0].value : 0,
+            gp.buttons[4] && gp.buttons[4].pressed ? gp.buttons[4].value : 0,
             gp.buttons[6] ? gp.buttons[6].value : 0
         );
 
         // Valor analógico máximo entre Botones B/X (1, 2), RB (5) y Gatillo Derecho RT/R2 (7)
         const valB = Math.max(
-            gp.buttons[1] ? gp.buttons[1].value : 0,
-            gp.buttons[2] ? gp.buttons[2].value : 0,
-            gp.buttons[5] ? gp.buttons[5].value : 0,
+            gp.buttons[1] && gp.buttons[1].pressed ? gp.buttons[1].value : 0,
+            gp.buttons[2] && gp.buttons[2].pressed ? gp.buttons[2].value : 0,
+            gp.buttons[5] && gp.buttons[5].pressed ? gp.buttons[5].value : 0,
             gp.buttons[7] ? gp.buttons[7].value : 0
         );
+
+        // Evitar que ruido de mandos o pedales en reposo mueva/esquive al personaje solo:
+        // requiere una pulsación firme (>0.75 en botón presionado) para activar la lectura de mando
+        if (!this.gamepadUserActivated) {
+            const intentionalPress = (gp.buttons[0] && gp.buttons[0].pressed && valA > 0.75)
+                || (gp.buttons[1] && gp.buttons[1].pressed && valB > 0.75);
+            if (!intentionalPress) return;
+            this.gamepadUserActivated = true;
+        }
 
         // Evaluación Rapid-Trigger para A
         let gpA = this.gamepadPrevA;

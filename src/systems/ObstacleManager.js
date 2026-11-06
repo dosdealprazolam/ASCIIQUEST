@@ -61,12 +61,17 @@ class ObstacleManager {
      *    a los 3000m cae hasta 30%... y así sucesivamente hasta llegar a 10000m (100%).
      */
     getKilometerBarProgress(distMeters) {
-        const goalMeters = (this.config.DIFFICULTY && this.config.DIFFICULTY.RACE_GOAL_METERS) || 10000;
+        const goalMeters = (this.config.DIFFICULTY && this.config.DIFFICULTY.RACE_GOAL_METERS) || 10200;
         const m = Math.max(0, distMeters);
         if (m >= goalMeters) return 100;
 
-        const kmIndex = Math.floor(m / 1000); // 0..9
-        const floorPct = kmIndex * 10;         // 0%, 10%, 20%, ..., 90%
+        if (m >= 9000) {
+            const finalSpan = Math.max(1, goalMeters - 9000);
+            return 90 + ((m - 9000) / finalSpan) * 10;
+        }
+
+        const kmIndex = Math.floor(m / 1000); // 0..8
+        const floorPct = kmIndex * 10;         // 0%, 10%, 20%, ..., 80%
         const progressInKm = (m % 1000) / 1000;
         return floorPct + progressInKm * (100 - floorPct);
     }

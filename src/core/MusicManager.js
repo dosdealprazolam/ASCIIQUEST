@@ -26,6 +26,7 @@ class MusicManager {
         this.hasTrackLoaded = false;
         this.playOnlyWhileRunning = true;
         this.isCurrentlyPlaying = false;
+        this.lastActiveSongTimeSec = 0;
 
         // Bandera para asegurar que al empezar una carrera nueva (o tras morir) inicie desde 0:00
         this.needsRestartFromZero = true;
@@ -97,6 +98,7 @@ class MusicManager {
             this.audio.currentTime = 0;
             this.audio.playbackRate = 1.0;
             this.audio.volume = this.baseVolume;
+            this.lastActiveSongTimeSec = 0;
         } catch (e) {}
 
         const playPromise = this.audio.play();
@@ -125,6 +127,9 @@ class MusicManager {
 
         const durationMs = (this.config.MUSIC && this.config.MUSIC.DEATH_REVERB_DURATION_MS) || 680;
         const currentPos = this.audio.currentTime || 0;
+        if (currentPos > 0) {
+            this.lastActiveSongTimeSec = currentPos;
+        }
 
         try {
             this.audio.playbackRate = 0.90;
@@ -366,6 +371,40 @@ class MusicManager {
             this.isCurrentlyPlaying = false;
             this._updateMusicUI(false);
         }
+        if (this.audio && this.isCurrentlyPlaying && !this.isDyingReverbActive) {
+            this.lastActiveSongTimeSec = this.audio.currentTime || 0;
+        }
+    }
+
+    _formatTimeMmSs(seconds) {
+        const s = Math.max(0, Number(seconds) || 0);
+        const mins = Math.floor(s / 60);
+        const secs = Math.floor(s % 60);
+        const tenths = Math.floor((s % 1) * 10);
+        const mm = mins < 10 ? '0' + mins : String(mins);
+        const ss = secs < 10 ? '0' + secs : String(secs);
+        return `${mm}:${ss}.${tenths}`;
+    }
+
+    /**
+     * Devuelve el tiempo actual de la canción (y el último tiempo activo antes de morir)
+     * para que DevUser pueda tomar notas exactas del segundo de la canción.
+     */
+    getSongTimeInfo() {
+        const liveTime = (this.audio && this.audio.currentTime) ? this.audio.currentTime : 0;
+        const activeTime = liveTime > 0 ? liveTime : this.lastActiveSongTimeSec;
+        const duration = (this.audio && this.audio.duration && !isNaN(this.audio.duration) && isFinite(this.audio.duration))
+            ? this.audio.duration
+            : 0;
+        const fmtCurrent = this._formatTimeMmSs(activeTime);
+        const fmtDuration = duration > 0 ? this._formatTimeMmSs(duration) : '--:--.-';
+        return {
+            currentTimeSec: Number(activeTime.toFixed(2)),
+            durationSec: Number(duration.toFixed(2)),
+            formattedCurrent: fmtCurrent,
+            formattedDuration: fmtDuration,
+            formattedLabel: `${fmtCurrent} / ${fmtDuration} (${activeTime.toFixed(1)}s)`
+        };
     }
 
     _updateMusicUI(playing) {

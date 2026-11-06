@@ -73,6 +73,23 @@ class DatabaseManager {
     }
 
     /**
+     * Indica si ya existe al menos un ganador que haya completado toda la carrera (10,200m).
+     */
+    hasFullRaceWinner(goalMeters = 10200) {
+        return this.winners.some(w => (w.distance_meters || 0) >= goalMeters);
+    }
+
+    updateWinnerName(id, newName) {
+        const cleanName = (newName || '').trim();
+        if (!cleanName) return null;
+        const found = this.winners.find(w => w.id === id);
+        if (!found) return null;
+        found.player_name = cleanName;
+        this._saveTable(DB_WINNERS_KEY, this.winners);
+        return found;
+    }
+
+    /**
      * Registra un ganador que llegó al final de la carrera (tabla `race_winners`).
      * Solo guarda los primeros 30 en ganar para no saturar la lista.
      */

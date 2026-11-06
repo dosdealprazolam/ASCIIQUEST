@@ -65,6 +65,9 @@ class GameApp {
 
         // Apartado chiquito de Nombre + botones exclusivos de DevUser
         this.inputPlayerName = document.getElementById('player-name-input');
+        this.btnToggleMusicDrawer = document.getElementById('btn-toggle-music-drawer');
+        this.musicDiscreteDrawer = document.getElementById('music-discrete-drawer');
+        this.uiDevSongTime = document.getElementById('hud-dev-song-time');
         this.btnOpenDevAdmin = document.getElementById('btn-open-dev-admin');
         this.linkSandboxDev = document.getElementById('link-sandbox-dev');
 
@@ -74,6 +77,10 @@ class GameApp {
         this.deathDetailEl = document.getElementById('death-detail');
         this.deathAdviceEl = document.getElementById('death-advice');
         this.deathScoreEl = document.getElementById('death-score');
+        this.milestone5000Box = document.getElementById('death-5000m-milestone-box');
+        this.milestoneNameInput = document.getElementById('milestone-name-input');
+        this.btnSaveMilestoneWinner = document.getElementById('btn-save-milestone-winner');
+        this.milestoneSavedMsg = document.getElementById('milestone-saved-msg');
 
         // Formulario de Reportar Problema (para jugadores normales)
         this.btnToggleBugReport = document.getElementById('btn-toggle-bug-report');
@@ -86,6 +93,7 @@ class GameApp {
         this.devInspectorBox = document.getElementById('death-dev-inspector');
         this.devVerdictEl = document.getElementById('dev-diag-verdict');
         this.devExplanationEl = document.getElementById('dev-diag-explanation');
+        this.devSongTimeEl = document.getElementById('dev-diag-song-time');
         this.devObstacleEl = document.getElementById('dev-diag-obstacle');
         this.devPlayerEl = document.getElementById('dev-diag-player');
         this.devBLogEl = document.getElementById('dev-diag-b-log');
@@ -159,6 +167,21 @@ class GameApp {
      */
     _applyDevModeVisibility() {
         const dev = this.isDevMode();
+        if (this.btnToggleMusicDrawer) {
+            this.btnToggleMusicDrawer.classList.toggle('hidden', !dev);
+        }
+        if (this.uiDevSongTime) {
+            this.uiDevSongTime.classList.toggle('hidden', !dev);
+        }
+        if (this.uiControlA) {
+            this.uiControlA.classList.toggle('hidden', !dev);
+        }
+        if (this.uiControlB) {
+            this.uiControlB.classList.toggle('hidden', !dev);
+        }
+        if (!dev && this.musicDiscreteDrawer) {
+            this.musicDiscreteDrawer.classList.add('hidden');
+        }
         if (this.btnOpenDevAdmin) {
             this.btnOpenDevAdmin.classList.toggle('hidden', !dev);
         }
@@ -198,10 +221,11 @@ class GameApp {
         this.eventBus.on('input:b_action', () => {
             if (this.hasWonCurrentRun) return;
             if (!this.player.isAlive) {
-                // No reiniciar si el jugador está escribiendo un reporte de problema o con el modal dev abierto
+                // No reiniciar si el jugador está escribiendo un reporte, su nombre (+5000m) o con el modal dev abierto
                 const reportOpen = this.bugReportForm && !this.bugReportForm.classList.contains('hidden');
+                const milestoneNeedsName = this.milestone5000Box && !this.milestone5000Box.classList.contains('hidden') && !this.winnerSavedForRun;
                 const devModalOpen = this.devAdminModal && !this.devAdminModal.classList.contains('hidden');
-                if (!reportOpen && !devModalOpen && performance.now() - this.deathTimestamp > 750) {
+                if (!reportOpen && !milestoneNeedsName && !devModalOpen && performance.now() - this.deathTimestamp > 750) {
                     this.resetRun();
                 }
                 return;
@@ -243,8 +267,9 @@ class GameApp {
             if (this.hasWonCurrentRun) return;
             if (!this.player.isAlive) {
                 const reportOpen = this.bugReportForm && !this.bugReportForm.classList.contains('hidden');
+                const milestoneNeedsName = this.milestone5000Box && !this.milestone5000Box.classList.contains('hidden') && !this.winnerSavedForRun;
                 const devModalOpen = this.devAdminModal && !this.devAdminModal.classList.contains('hidden');
-                if (!reportOpen && !devModalOpen && timestamp - this.deathTimestamp > 750) {
+                if (!reportOpen && !milestoneNeedsName && !devModalOpen && timestamp - this.deathTimestamp > 750) {
                     this.resetRun();
                 }
             }
@@ -366,9 +391,53 @@ class GameApp {
             if (this.bugReportForm) this.bugReportForm.classList.add('hidden');
             if (this.bugReportStatus) this.bugReportStatus.textContent = '';
 
+            // Temporalmente: si superó los 5000m y aún nadie ha ganado la carrera completa (10200m),
+            // permite guardar su nombre en la lista SQL (y lo auto-guarda si ya tenía escrito su Nombre)
+            const goalMeters = (this.config.DIFFICULTY && this.config.DIFFICULTY.RACE_GOAL_METERS) || 10200;
+            const canSave5000Milestone = this.db && distance >= 5000 && !this.db.hasFullRaceWinner(goalMeters);
+            this.lastMilestoneRowId = null;
+
+            if (this.milestone5000Box) {
+                this.milestone5000Box.classList.toggle('hidden', !canSave5000Milestone);
+            }
+            if (canSave5000Milestone) {
+                const currentName = this.getCurrentPlayerName();
+                if (this.milestoneNameInput) {
+                    this.milestoneNameInput.value = (currentName && currentName !== 'DevUser') ? currentName : '';
+                }
+                if (currentName && currentName !== 'DevUser') {
+                    const row = this.db.insertWinner({
+                        playerName: currentName,
+                        distanceMeters: distance,
+                        finalBpm: this.player.bpm
+                    });
+                    if (row) {
+                        this.lastMilestoneRowId = row.id;
+                        this.winnerSavedForRun = true;
+                        if (this.milestoneSavedMsg) {
+                            this.milestoneSavedMsg.textContent = `✅ ¡${currentName} (${distance} m) guardado en la lista (+5000m)!`;
+                        }
+                    } else if (this.milestoneSavedMsg) {
+                        this.milestoneSavedMsg.textContent = `⚠️ La lista ya alcanzó el límite de ${this.db.maxWinners} registros.`;
+                    }
+                    this._refreshDevAdminUI();
+                } else if (this.milestoneSavedMsg) {
+                    this.milestoneSavedMsg.textContent = '';
+                }
+            }
+
             // Actualizar telemetría (solo visible si Nombre === DevUser)
             this._applyDevModeVisibility();
+            const songInfo = (this.musicManager && this.musicManager.getSongTimeInfo)
+                ? this.musicManager.getSongTimeInfo()
+                : null;
+            if (this.devSongTimeEl && songInfo) {
+                this.devSongTimeEl.textContent = `${songInfo.formattedLabel} (en ${distance} m)`;
+            }
             if (diagnostics) {
+                if (songInfo) {
+                    diagnostics.songTimeAtDeath = songInfo.formattedLabel;
+                }
                 if (this.devVerdictEl) {
                     this.devVerdictEl.textContent = diagnostics.verdict;
                     this.devVerdictEl.className = diagnostics.isBugSuspect
@@ -421,6 +490,43 @@ class GameApp {
             this.btnVictoryPlayAgain.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.resetRun();
+            });
+        }
+
+        if (this.btnSaveMilestoneWinner) {
+            this.btnSaveMilestoneWinner.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (!this.db) return;
+                const nameVal = (this.milestoneNameInput && this.milestoneNameInput.value.trim())
+                    || this.getCurrentPlayerName()
+                    || 'Sobreviviente';
+                if (this.inputPlayerName) {
+                    this.inputPlayerName.value = nameVal;
+                }
+                this.db.setSavedPlayerName(nameVal);
+                this._applyDevModeVisibility();
+
+                const distMeters = Math.floor(this.player.z / 10);
+                let savedRow = null;
+                if (this.lastMilestoneRowId) {
+                    savedRow = this.db.updateWinnerName(this.lastMilestoneRowId, nameVal);
+                } else if (!this.winnerSavedForRun) {
+                    savedRow = this.db.insertWinner({
+                        playerName: nameVal,
+                        distanceMeters: distMeters,
+                        finalBpm: this.player.bpm
+                    });
+                    if (savedRow) this.lastMilestoneRowId = savedRow.id;
+                }
+                this.winnerSavedForRun = true;
+                if (this.milestoneSavedMsg) {
+                    if (savedRow) {
+                        this.milestoneSavedMsg.textContent = `✅ ¡${nameVal} (${distMeters} m) guardado en la lista (+5000m)!`;
+                    } else {
+                        this.milestoneSavedMsg.textContent = `⚠️ La lista ya alcanzó el límite de ${this.db.maxWinners} registros.`;
+                    }
+                }
+                this._refreshDevAdminUI();
             });
         }
     }
@@ -666,6 +772,10 @@ class GameApp {
         if (this.uiLevelName) {
             this.uiLevelName.textContent = `[DEV] ${lvlCfg.name} (${lvl}/5) — ${lvlCfg.subtitle}`;
         }
+        if (this.uiDevSongTime && this.musicManager && this.musicManager.getSongTimeInfo) {
+            const songInfo = this.musicManager.getSongTimeInfo();
+            this.uiDevSongTime.textContent = `🎵 CANCIÓN: ${songInfo.formattedLabel}`;
+        }
 
         // Barra que sube cada 1000m y apenas sube cae en picada a 10% (1000m), 20% (2000m), 30% (3000m)...
         const barPct = this.obstacleManager.getKilometerBarProgress
@@ -679,26 +789,27 @@ class GameApp {
         }
 
         const ctrl = this.input.getControlState(now);
+        const devSuffix = this.isDevMode() ? ' dev-only-tool' : ' dev-only-tool hidden';
         if (this.uiControlA) {
             if (ctrl.isHoldingA) {
                 this.uiControlA.textContent = `A: CORRIENDO (${Math.round(this.player.speed)} u/s)`;
-                this.uiControlA.className = 'pill active-run';
+                this.uiControlA.className = 'pill active-run' + devSuffix;
             } else if (ctrl.laneSwitchReady) {
                 this.uiControlA.textContent = 'A: CAMBIO LISTO (1 o 2 TOQUES)';
-                this.uiControlA.className = 'pill switch-ready';
+                this.uiControlA.className = 'pill switch-ready' + devSuffix;
             } else {
                 this.uiControlA.textContent = 'A: DETENIDO (MANTÉN A)';
-                this.uiControlA.className = 'pill idle';
+                this.uiControlA.className = 'pill idle' + devSuffix;
             }
         }
 
         if (this.uiControlB) {
             if (this.player.bActionTimer > 0 || ctrl.bMashRate > 0) {
                 this.uiControlB.textContent = `B: ${this.player.bLastOutcome} (${ctrl.bMashRate} puls/s)`;
-                this.uiControlB.className = 'pill active-b';
+                this.uiControlB.className = 'pill active-b' + devSuffix;
             } else {
                 this.uiControlB.textContent = 'B: MASHEO CONTEXTUAL';
-                this.uiControlB.className = 'pill idle';
+                this.uiControlB.className = 'pill idle' + devSuffix;
             }
         }
 

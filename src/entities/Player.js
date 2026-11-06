@@ -205,7 +205,13 @@ class Player {
             ? effectiveMaxSpeed * (mov.SHOVE_SPEED_FACTOR || 0.62)
             : effectiveMaxSpeed;
 
-        // 1. Actualizar velocidad según el Control A
+        // Si la pestaña está en segundo plano / oculta, el personaje no se mueve
+        if (typeof document !== 'undefined' && document.hidden) {
+            isHoldingA = false;
+            this.speed = 0;
+        }
+
+        // 1. Actualizar velocidad según el Control A (solo se mueve si el usuario presiona A)
         if (isHoldingA) {
             this.hasStartedRunning = true;
             this.lastSustainedRunTime = now;
@@ -222,14 +228,22 @@ class Player {
             } else {
                 this.speed = Math.max(0, this.speed - mov.STOP_DECELERATION * dt);
             }
+        } else {
+            this.speed = 0;
         }
 
-        // 2. Avanzar en el escenario
-        this.z += this.speed * dt;
+        // 2. Avanzar en el escenario únicamente cuando tiene velocidad real
+        if (this.speed > 0) {
+            this.z += this.speed * dt;
+        }
 
-        // 3. Fase de zancada
+        // 3. Fase de zancada (quieto si no se mueve)
         const speedRatio = effectiveMaxSpeed > 0 ? (this.speed / effectiveMaxSpeed) : 0;
-        this.stridePhase += dt * (4.0 + speedRatio * 15.0);
+        if (this.speed > 0) {
+            this.stridePhase += dt * (4.0 + speedRatio * 15.0);
+        } else {
+            this.stridePhase = 0;
+        }
 
         // 4. Actualizar monitor cardíaco (incluyendo recuperación lenta si sufrió un choque de barricada)
         this._updateHeartRateBpm(dt, speedRatio, isHoldingA);
