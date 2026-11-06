@@ -441,18 +441,19 @@ html, body {
     font-size: 11px;
 }
 
-/* Pantalla de Muerte y Reinicio Inmediato */
+/* Pantalla de Muerte y Reinicio Inmediato sobre Monitor CRT (img/gameover_monitor.png) */
 #death-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(5, 2, 4, 0.86);
+    background: rgba(4, 2, 4, 0.84);
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-end;
     align-items: center;
     z-index: 20;
     text-align: center;
-    padding: 24px;
+    padding: 0;
+    overflow: hidden;
 }
 
 #death-overlay.hidden {
@@ -466,6 +467,88 @@ html, body {
     border: 2px solid #d90429;
     padding: 24px 28px;
     box-shadow: 0 0 50px rgba(217, 4, 41, 0.35);
+}
+
+/* Contenedor del monitor CRT de Game Over */
+.death-box.death-monitor-shell {
+    position: relative;
+    max-width: none;
+    width: min(1060px, 99vw, calc(96vh * 578 / 432));
+    aspect-ratio: 578 / 432;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    transform: translateX(-1.6%);
+    user-select: none;
+}
+
+/* Capa 1 (Z-Index: 1): Carcasa del monitor CRT con pedestal y cables */
+.death-monitor-bg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+    z-index: 1;
+    pointer-events: none;
+    filter: drop-shadow(0 12px 48px rgba(0, 0, 0, 0.95));
+}
+
+/* Capa 2 (Z-Index: 2): Área exacta de la pantalla de cristal oscuro del monitor */
+.death-crt-screen {
+    position: absolute;
+    top: 15.0%;
+    bottom: 33.0%;
+    left: 25.0%;
+    right: 21.8%;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 12px 16px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    font-family: 'Courier New', 'MS Gothic', 'Consolas', monospace;
+    background: rgba(4, 10, 7, 0.28);
+    border-radius: 6px;
+    pointer-events: auto;
+}
+
+.death-crt-screen::-webkit-scrollbar {
+    width: 5px;
+}
+
+.death-crt-screen::-webkit-scrollbar-thumb {
+    background: rgba(51, 255, 153, 0.35);
+    border-radius: 3px;
+}
+
+/* Capa 3 (Z-Index: 3): Filtro CRT de líneas de escaneo y viñeta sobre el cristal */
+.death-crt-overlay {
+    position: absolute;
+    top: 14.4%;
+    bottom: 32.4%;
+    left: 24.6%;
+    right: 21.3%;
+    z-index: 3;
+    pointer-events: none;
+    border-radius: 6px;
+    background:
+        repeating-linear-gradient(
+            to bottom,
+            rgba(0, 0, 0, 0) 0px,
+            rgba(0, 0, 0, 0) 2px,
+            rgba(0, 14, 8, 0.26) 3px,
+            rgba(0, 0, 0, 0.34) 4px
+        ),
+        radial-gradient(
+            ellipse at center,
+            rgba(51, 255, 153, 0.03) 0%,
+            rgba(0, 0, 0, 0.42) 100%
+        );
+    box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.78);
 }
 
 /* Panel de Diagnóstico de Muerte para el Desarrollador */
@@ -577,19 +660,22 @@ html, body {
 
 /* Caja de consejo para el jugador en la pantalla de muerte */
 .death-advice-box {
-    background: rgba(255, 159, 28, 0.08);
-    border: 1px solid rgba(255, 159, 28, 0.35);
+    background: rgba(8, 20, 14, 0.68);
+    border: 1px solid rgba(255, 159, 28, 0.48);
     color: #fde68a;
-    font-size: 12px;
-    line-height: 1.45;
-    padding: 8px 12px;
-    border-radius: 4px;
-    margin-bottom: 14px;
+    text-shadow: 0 0 4px rgba(255, 159, 28, 0.35);
+    font-size: clamp(10.5px, 1.15vw, 12px);
+    line-height: 1.38;
+    padding: 6px 10px;
+    border-radius: 3px;
+    margin-bottom: 10px;
+    width: 100%;
 }
 
 /* Formulario de Reportar Problema para jugadores */
 .player-report-section {
-    margin-bottom: 14px;
+    margin-bottom: 8px;
+    width: 100%;
     pointer-events: auto;
 }
 
@@ -759,33 +845,44 @@ html, body {
 }
 
 #death-reason {
-    color: #ff1e38;
-    font-size: 22px;
-    letter-spacing: 1.5px;
-    margin-bottom: 12px;
+    color: #ff2a3a;
+    font-size: clamp(15px, 1.85vw, 20px);
+    letter-spacing: 1.2px;
+    margin-bottom: 8px;
+    text-shadow: 0 0 8px rgba(255, 30, 56, 0.72);
 }
 
 #death-detail {
-    color: #cbd5e1;
-    font-size: 14px;
-    line-height: 1.5;
-    margin-bottom: 18px;
+    color: #d8f3e5;
+    font-size: clamp(11px, 1.25vw, 13px);
+    line-height: 1.38;
+    margin-bottom: 10px;
+    text-shadow: 0 0 4px rgba(51, 255, 153, 0.35);
 }
 
 #death-score {
     color: #ff9f1c;
-    font-size: 13px;
+    font-size: clamp(11px, 1.25vw, 13px);
     font-weight: bold;
-    margin-bottom: 22px;
+    margin-bottom: 10px;
+    text-shadow: 0 0 5px rgba(255, 159, 28, 0.55);
 }
 
 .restart-prompt {
-    color: #ffffff;
-    font-size: 13px;
-    letter-spacing: 1px;
-    padding: 8px 14px;
-    border: 1px dashed rgba(255, 255, 255, 0.35);
+    color: #e2f8ee;
+    font-size: clamp(10px, 1.1vw, 12px);
+    letter-spacing: 0.9px;
+    padding: 5px 12px;
+    border: 1px dashed rgba(51, 255, 153, 0.45);
+    text-shadow: 0 0 4px rgba(51, 255, 153, 0.45);
     display: inline-block;
+}
+
+@media (max-width: 680px) {
+    .death-box.death-monitor-shell {
+        width: min(142vw, calc(96vh * 578 / 432));
+        transform: translateX(-2%);
+    }
 }
 
 /* =====================================================================

@@ -121,68 +121,77 @@
         </div>
     </footer>
 
-    <!-- Pantalla de Muerte (Jugadores ven Motivo + Consejo + Reportar Problema; DevUser ve además el Dev Inspector) -->
+    <!-- Pantalla de Muerte sobre el Monitor CRT de Game Over (img/gameover_monitor.png) -->
     <section id="death-overlay" class="hidden">
-        <div class="death-box">
-            <h1 id="death-reason">IMPACTO MORTAL</h1>
-            <p id="death-detail"></p>
+        <div class="death-box death-monitor-shell">
+            <!-- Capa Fondo (Z-Index: 1): Carcasa del monitor CRT con pedestal y cables -->
+            <img src="img/gameover_monitor.png" alt="Monitor Game Over" class="death-monitor-bg" />
 
-            <!-- Consejo claro para el jugador de cómo evitar que vuelva a pasar -->
-            <div id="death-advice" class="death-advice-box">
-                💡 CONSEJO: Mantén la vista adelantada y usa [A] para esquivar o [B] para abrirte paso.
-            </div>
+            <!-- Capa Contenido (Z-Index: 2): Datos proyectados dentro del cristal oscuro del monitor -->
+            <div class="death-crt-screen">
+                <h1 id="death-reason">IMPACTO MORTAL</h1>
+                <p id="death-detail"></p>
 
-            <div id="death-score">DISTANCIA: 0 m</div>
-
-            <!-- Registro temporal para quienes superan los 5000m mientras nadie haya ganado la carrera completa -->
-            <div id="death-5000m-milestone-box" class="bug-report-form hidden" style="border-color:#2ec4b6; margin-bottom:10px;">
-                <div style="color:#2ec4b6; font-weight:bold; font-size:12px; margin-bottom:6px;">
-                    🏅 ¡SUPERASTE LOS 5.00 KM! Registra tu nombre en la lista de sobrevivientes (+5000m):
-                </div>
-                <div class="victory-form-row" style="margin-bottom:4px;">
-                    <input id="milestone-name-input" type="text" maxlength="24" placeholder="Escribe tu nombre..." />
-                    <button id="btn-save-milestone-winner" type="button" class="mode-switch-link">💾 Guardar Nombre</button>
-                </div>
-                <div id="milestone-saved-msg" class="report-status-msg"></div>
-            </div>
-
-            <!-- Botón y formulario para que el jugador reporte un problema (lo lee solo DevUser) -->
-            <div class="player-report-section">
-                <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-bottom:10px;">
-                    <button id="btn-restart-run" type="button" class="mode-switch-link">▶ Volver a Correr [R]</button>
-                    <button id="btn-toggle-bug-report" type="button" class="sandbox-btn" style="flex:0 1 auto; padding:6px 14px;">🐞 Reportar Problema</button>
+                <!-- Consejo claro para el jugador de cómo evitar que vuelva a pasar -->
+                <div id="death-advice" class="death-advice-box">
+                    💡 CONSEJO: Mantén la vista adelantada y usa [A] para esquivar o [B] para abrirte paso.
                 </div>
 
-                <div id="player-bug-report-form" class="bug-report-form hidden">
-                    <div class="bug-report-title">Cuéntanos qué pasó o qué sentiste que falló:</div>
-                    <textarea id="report-bug-textarea" rows="2" maxlength="320" placeholder="Ej: Golpeé el muro amarillo con B y sentí que no cayó..."></textarea>
-                    <div class="bug-report-actions">
-                        <span id="report-bug-status" class="report-status-msg"></span>
-                        <button id="btn-submit-bug-report" type="button" class="mode-switch-link">Enviar Reporte</button>
+                <div id="death-score">DISTANCIA: 0 m</div>
+
+                <!-- Registro temporal para quienes superan los 5000m mientras nadie haya ganado la carrera completa -->
+                <div id="death-5000m-milestone-box" class="bug-report-form hidden" style="border-color:#2ec4b6; margin-bottom:8px;">
+                    <div style="color:#2ec4b6; font-weight:bold; font-size:11px; margin-bottom:5px;">
+                        🏅 ¡SUPERASTE LOS 5.00 KM! Registra tu nombre en la lista de sobrevivientes (+5000m):
+                    </div>
+                    <div class="victory-form-row" style="margin-bottom:3px;">
+                        <input id="milestone-name-input" type="text" maxlength="24" placeholder="Escribe tu nombre..." />
+                        <button id="btn-save-milestone-winner" type="button" class="mode-switch-link">💾 Guardar Nombre</button>
+                    </div>
+                    <div id="milestone-saved-msg" class="report-status-msg"></div>
+                </div>
+
+                <!-- Botón y formulario para que el jugador reporte un problema (lo lee solo DevUser) -->
+                <div class="player-report-section">
+                    <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-bottom:8px;">
+                        <button id="btn-restart-run" type="button" class="mode-switch-link">▶ Volver a Correr [R]</button>
+                        <button id="btn-toggle-bug-report" type="button" class="sandbox-btn" style="flex:0 1 auto; padding:5px 12px;">🐞 Reportar Problema</button>
+                    </div>
+
+                    <div id="player-bug-report-form" class="bug-report-form hidden">
+                        <div class="bug-report-title">Cuéntanos qué pasó o qué sentiste que falló:</div>
+                        <textarea id="report-bug-textarea" rows="2" maxlength="320" placeholder="Ej: Golpeé el muro amarillo con B y sentí que no cayó..."></textarea>
+                        <div class="bug-report-actions">
+                            <span id="report-bug-status" class="report-status-msg"></span>
+                            <button id="btn-submit-bug-report" type="button" class="mode-switch-link">Enviar Reporte</button>
+                        </div>
                     </div>
                 </div>
+
+                <!-- Panel de Diagnóstico de Muerte (EXCLUSIVO PARA DevUser — Oculto para jugadores normales) -->
+                <div id="death-dev-inspector" class="dev-inspector-box hidden">
+                    <div class="dev-inspector-header">
+                        <span>🔍 DIAGNÓSTICO DE MUERTE (SOLO DevUser)</span>
+                        <span id="dev-diag-verdict" class="dev-verdict-badge">ANALIZANDO...</span>
+                    </div>
+                    <div id="dev-diag-explanation" class="dev-diag-explanation"></div>
+                    <div class="dev-diag-grid">
+                        <div><span class="dev-lbl">TIEMPO CANCIÓN:</span> <span id="dev-diag-song-time" style="color:#2ec4b6; font-weight:bold;">00:00.0 (0.0s)</span></div>
+                        <div><span class="dev-lbl">OBSTÁCULO:</span> <span id="dev-diag-obstacle">-</span></div>
+                        <div><span class="dev-lbl">JUGADOR:</span> <span id="dev-diag-player">-</span></div>
+                        <div><span class="dev-lbl">HISTORIAL [B]:</span> <span id="dev-diag-b-log">-</span></div>
+                    </div>
+                    <div class="dev-inspector-actions">
+                        <button id="btn-copy-death-diag" type="button" class="sandbox-btn">📋 Copiar Reporte Dev</button>
+                        <button id="btn-open-dev-from-death" type="button" class="sandbox-btn">🗄️ Ver Reportes / SQL</button>
+                    </div>
+                </div>
+
+                <div class="restart-prompt">PULSA [R] (O [A] / [B]) PARA REINICIAR</div>
             </div>
 
-            <!-- Panel de Diagnóstico de Muerte (EXCLUSIVO PARA DevUser — Oculto para jugadores normales) -->
-            <div id="death-dev-inspector" class="dev-inspector-box hidden">
-                <div class="dev-inspector-header">
-                    <span>🔍 DIAGNÓSTICO DE MUERTE (SOLO DevUser)</span>
-                    <span id="dev-diag-verdict" class="dev-verdict-badge">ANALIZANDO...</span>
-                </div>
-                <div id="dev-diag-explanation" class="dev-diag-explanation"></div>
-                <div class="dev-diag-grid">
-                    <div><span class="dev-lbl">TIEMPO CANCIÓN:</span> <span id="dev-diag-song-time" style="color:#2ec4b6; font-weight:bold;">00:00.0 (0.0s)</span></div>
-                    <div><span class="dev-lbl">OBSTÁCULO:</span> <span id="dev-diag-obstacle">-</span></div>
-                    <div><span class="dev-lbl">JUGADOR:</span> <span id="dev-diag-player">-</span></div>
-                    <div><span class="dev-lbl">HISTORIAL [B]:</span> <span id="dev-diag-b-log">-</span></div>
-                </div>
-                <div class="dev-inspector-actions">
-                    <button id="btn-copy-death-diag" type="button" class="sandbox-btn">📋 Copiar Reporte Dev</button>
-                    <button id="btn-open-dev-from-death" type="button" class="sandbox-btn">🗄️ Ver Reportes / SQL</button>
-                </div>
-            </div>
-
-            <div class="restart-prompt">PULSA [R] (O [A] / [B]) PARA REINICIAR</div>
+            <!-- Capa Filtro CRT (Z-Index: 3): Líneas de escaneo sobre el cristal -->
+            <div class="death-crt-overlay"></div>
         </div>
     </section>
 
