@@ -55,7 +55,7 @@
             </div>
         </div>
 
-        <!-- 4. Velocidad actual -->
+        <!-- 4. Velocidad actual y Pulso Cardíaco (BPM 9/0) -->
         <div class="meter-group">
             <div class="meter-header">
                 <span>VELOCIDAD DEL CORREDOR:</span>
@@ -63,6 +63,13 @@
             </div>
             <div class="meter-track">
                 <div id="bar-speed" class="meter-fill" style="background:#e2e8f0;"></div>
+            </div>
+            <div class="meter-header" style="margin-top:5px; align-items:center;">
+                <span style="display:inline-flex; align-items:center; gap:5px;">
+                    <img src="img/corazon.png" onerror="if(this.src.indexOf('img/')!==-1){this.src='corazon.png';}" class="bpm-heart-img" style="width:14px; height:14px;" alt="♥" />
+                    PULSO CARDÍACO (Progresivo):
+                </span>
+                <span id="val-bpm" style="color:#ff2a4b; font-weight:bold;">110 BPM (ALERTA)</span>
             </div>
         </div>
 
@@ -179,10 +186,10 @@
         <div class="slider-row">
             <div class="slider-label">
                 <span>Alcance frontal de [B]</span>
-                <span id="lbl-b-range" class="slider-val">260 u</span>
+                <span id="lbl-b-range" class="slider-val">210 u</span>
             </div>
-            <div class="slider-help">Distancia a la que B puede empujar o romper estructuras.</div>
-            <input id="slider-b-range" type="range" min="80" max="380" step="10" value="260" />
+            <div class="slider-help">Distancia realista cuerpo a cuerpo para empujar o romper con B.</div>
+            <input id="slider-b-range" type="range" min="100" max="350" step="10" value="210" />
         </div>
 
         <div class="sandbox-actions-row">

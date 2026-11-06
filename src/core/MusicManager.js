@@ -1,11 +1,12 @@
 /**
- * PSYCHOLOGICAL SURVIVAL RUNNER - MusicManager (Carpeta /music/ + Efecto Reverb y Corte al Morir)
- * -----------------------------------------------------------------------------------------------
- *  - Carga automáticamente la pista del nivel desde la carpeta "/music/" del proyecto
- *    (intenta primero "music/track.mp3", y si no existe usa "music/level1_track.wav").
- *  - Suena automáticamente en cuanto el corredor empieza a correr manteniendo [A].
- *  - Al morir ("player:died"), aumenta un ligero REVERB cavernoso y se CORTA en seco.
- *  - Incluye también un apartado discreto desplegable (botón 🎵) para ajustar volumen o probar otro archivo.
+ * PSYCHOLOGICAL SURVIVAL RUNNER - MusicManager
+ * --------------------------------------------
+ * Ciclo exacto de la música:
+ *  1. Carga la pista principal desde "/music/" ("music/Deejay SaeRo - Thud Weight.mp3").
+ *  2. Apenas el jugador empieza a correr (presiona [A]), la canción inicia desde 0:00.
+ *  3. Cuando el jugador muere ("player:died"), entra en un aumento de REVERB cavernoso
+ *     y se corta en seco.
+ *  4. Cuando el jugador reinicia y vuelve a correr, la canción vuelve a iniciar desde 0:00.
  */
 window.PSR = window.PSR || {};
 
@@ -21,10 +22,13 @@ class MusicManager {
             this.audio.volume = this.baseVolume;
         }
 
-        this.trackName = 'level1_track.wav';
+        this.trackName = 'Deejay SaeRo - Thud Weight.mp3';
         this.hasTrackLoaded = false;
         this.playOnlyWhileRunning = true;
         this.isCurrentlyPlaying = false;
+
+        // Bandera para asegurar que al empezar una carrera nueva (o tras morir) inicie desde 0:00
+        this.needsRestartFromZero = true;
 
         // Estado del efecto de muerte (aumento de reverb + corte en seco)
         this.isDyingReverbActive = false;
@@ -37,22 +41,17 @@ class MusicManager {
         this._loadDefaultProjectTrack();
     }
 
-    /**
-     * Carga automáticamente la canción desde la carpeta /music/ del proyecto.
-     * Si el usuario puso "music/track.mp3", la usa; si no, carga "music/level1_track.wav".
-     */
     _loadDefaultProjectTrack() {
         if (!this.audio) return;
 
-        const primaryPath = (this.config.MUSIC && this.config.MUSIC.PRIMARY_TRACK) || 'music/track.mp3';
+        const primaryPath = (this.config.MUSIC && this.config.MUSIC.PRIMARY_TRACK) || 'music/Deejay SaeRo - Thud Weight.mp3';
         const fallbackPath = (this.config.MUSIC && this.config.MUSIC.FALLBACK_TRACK) || 'music/level1_track.wav';
 
-        // Intentar primero music/track.mp3
         let triedFallback = false;
         const onError = () => {
             if (!triedFallback) {
                 triedFallback = true;
-                this.audio.src = fallbackPath;
+                this.audio.src = encodeURI(fallbackPath);
                 this.trackName = fallbackPath.split('/').pop();
                 this.hasTrackLoaded = true;
                 this.audio.load();
@@ -61,7 +60,7 @@ class MusicManager {
         };
 
         this.audio.onerror = onError;
-        this.audio.src = primaryPath;
+        this.audio.src = encodeURI(primaryPath);
         this.trackName = primaryPath.split('/').pop();
         this.hasTrackLoaded = true;
         this.audio.load();
@@ -71,10 +70,48 @@ class MusicManager {
     _bindEvents() {
         if (!this.eventBus) return;
 
-        // Al morir: dispara el aumento de reverb ligero y corta la música en seco
+        // Al morir: dispara el aumento de reverb ligero, corta la música y marca reinicio desde 0:00
         this.eventBus.on('player:died', () => {
+            this.needsRestartFromZero = true;
             this.triggerDeathReverbAndCut();
         });
+
+        // Al reiniciar manualmente con R: preparar para arrancar desde 0:00 apenas corra
+        this.eventBus.on('input:restart', () => {
+            this._hardCutMusic();
+            this.needsRestartFromZero = true;
+        });
+    }
+
+    /**
+     * Inicia la canción desde el segundo 0:00 limpiando cualquier cola de reverb previa.
+     */
+    startFromBeginning() {
+        if (!this.audio || !this.hasTrackLoaded) return;
+
+        this._clearReverbClones();
+        this.isDyingReverbActive = false;
+
+        try {
+            this.audio.pause();
+            this.audio.currentTime = 0;
+            this.audio.playbackRate = 1.0;
+            this.audio.volume = this.baseVolume;
+        } catch (e) {}
+
+        const playPromise = this.audio.play();
+        this.isCurrentlyPlaying = true;
+        this.needsRestartFromZero = false;
+
+        if (playPromise && playPromise.catch) {
+            playPromise.catch(() => {
+                // Si el navegador aún requiere interacción directa, se reintentará en el siguiente frame con A presionada
+                this.isCurrentlyPlaying = false;
+                this.needsRestartFromZero = true;
+            });
+        }
+
+        this._updateMusicUI(true);
     }
 
     /**
@@ -89,13 +126,12 @@ class MusicManager {
         const durationMs = (this.config.MUSIC && this.config.MUSIC.DEATH_REVERB_DURATION_MS) || 680;
         const currentPos = this.audio.currentTime || 0;
 
-        // 1. En el track principal, bajar levemente el pitch para dar tensión psicológica antes del corte
         try {
             this.audio.playbackRate = 0.90;
             this.audio.volume = Math.min(1.0, this.baseVolume * 0.95);
         } catch (e) {}
 
-        // 2. Generar reflexiones acústicas escalonadas (Reverb multi-tap) + cola Convolver WebAudio
+        // Reflexiones acústicas escalonadas (Reverb multi-tap)
         const delaysMs = [45, 95, 155, 225];
         const gains = [0.58, 0.42, 0.28, 0.18];
 
@@ -116,10 +152,8 @@ class MusicManager {
             this.reverbClones.push({ timerId });
         });
 
-        // 3. Cola de reverb cavernoso mediante Web Audio API ConvolverNode
         this._playWebAudioReverbTail(durationMs / 1000);
 
-        // 4. Corte en seco (Hard Cut) al terminar el hinchamiento del reverb
         this.reverbCutTimeout = setTimeout(() => {
             this._hardCutMusic();
         }, durationMs);
@@ -139,7 +173,6 @@ class MusicManager {
             const ctx = this.audioCtx;
             const now = ctx.currentTime;
 
-            // Crear respuesta al impulso (Impulse Response) de cámara oscura con corte abrupto
             const sampleRate = ctx.sampleRate;
             const length = Math.floor(sampleRate * durationSec);
             const impulse = ctx.createBuffer(2, length, sampleRate);
@@ -147,7 +180,6 @@ class MusicManager {
                 const data = impulse.getChannelData(ch);
                 for (let i = 0; i < length; i++) {
                     const progress = i / length;
-                    // Crece ligeramente al inicio (swell de reverb) y se mantiene denso hasta el corte
                     const env = Math.sin(progress * Math.PI) * (1.1 - progress * 0.4);
                     data[i] = (Math.random() * 2 - 1) * env * 0.35;
                 }
@@ -156,13 +188,12 @@ class MusicManager {
             const convolver = ctx.createConvolver();
             convolver.buffer = impulse;
 
-            // Pulso resonante grave que alimenta el convolver de reverb al chocar/morir
             const osc = ctx.createOscillator();
             const filter = ctx.createBiquadFilter();
             const gain = ctx.createGain();
 
             osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(146.83, now); // D3
+            osc.frequency.setValueAtTime(146.83, now);
             osc.frequency.exponentialRampToValueAtTime(65.41, now + durationSec);
 
             filter.type = 'lowpass';
@@ -170,7 +201,6 @@ class MusicManager {
             filter.frequency.exponentialRampToValueAtTime(220, now + durationSec);
 
             gain.gain.setValueAtTime(this.baseVolume * 0.42, now);
-            // Corte seco exacto al final del reverb
             gain.gain.setValueAtTime(0.0001, now + durationSec - 0.015);
 
             osc.connect(filter);
@@ -190,6 +220,7 @@ class MusicManager {
         if (this.audio) {
             this.audio.pause();
             try {
+                this.audio.currentTime = 0;
                 this.audio.playbackRate = 1.0;
                 this.audio.volume = this.baseVolume;
             } catch (e) {}
@@ -276,33 +307,48 @@ class MusicManager {
         this.hasTrackLoaded = true;
         this.trackName = customName || fileOrBlob.name || 'Canción cargada';
         this.isCurrentlyPlaying = false;
+        this.needsRestartFromZero = true;
 
         this._updateMusicUI(false);
     }
 
     /**
-     * Se llama en cada frame para que la canción arranque en cuanto el jugador corre.
+     * Se llama en cada frame:
+     * - Si el jugador aún no ha empezado a correr (z === 0 y speed === 0), espera en 0:00.
+     * - En cuanto empieza a correr (hasStartedRunning o speed > 0), arranca desde 0:00.
+     * - Si muere, hace reverb + corte; y al volver a correr tras reiniciar, arranca desde 0:00 nuevamente.
      */
     update(player, difficultyLevel = 1) {
         if (!this.audio || !this.hasTrackLoaded) return;
 
-        // Si está sonando el efecto de reverb de muerte, dejamos que termine hasta su corte en seco
-        if (this.isDyingReverbActive) {
-            if (player.isAlive && player.speed > 35) {
-                // Si el jugador reinició rapidísimo y ya volvió a correr, cancelamos el corte y reanudamos normal
-                this._clearReverbClones();
-                this.isDyingReverbActive = false;
-                this.audio.playbackRate = 1.0;
-                this.audio.volume = this.baseVolume;
-            } else {
-                return;
+        // Si el jugador acaba de reiniciar (z === 0 y aún no corre), garantizar que está listo para arrancar desde 0:00
+        if (player.isAlive && !player.hasStartedRunning && player.z === 0 && !this.isDyingReverbActive) {
+            if (this.isCurrentlyPlaying) {
+                this.audio.pause();
+                this.audio.currentTime = 0;
+                this.isCurrentlyPlaying = false;
+                this._updateMusicUI(false);
             }
+            this.needsRestartFromZero = true;
+            return;
+        }
+
+        // Si el jugador ya empezó a correr en una nueva partida (incluso si el reverb de la muerte anterior seguía sonando)
+        const hasBegunRunning = player.isAlive && (player.hasStartedRunning || player.speed > 5);
+
+        if (hasBegunRunning && this.needsRestartFromZero) {
+            this.startFromBeginning();
+            return;
+        }
+
+        if (this.isDyingReverbActive) {
+            return;
         }
 
         if (!player.isAlive) return;
 
-        const isRunningNow = player.speed > 35;
-        const shouldPlay = this.playOnlyWhileRunning ? isRunningNow : true;
+        const isMoving = player.speed > 10;
+        const shouldPlay = this.playOnlyWhileRunning ? isMoving : true;
 
         if (shouldPlay && !this.isCurrentlyPlaying) {
             this.audio.playbackRate = 1.0;
@@ -331,7 +377,7 @@ class MusicManager {
                 this.elStatus.textContent = '🌊 REVERB + CORTE';
                 this.elStatus.className = 'pill active-b';
             } else if (playing) {
-                this.elStatus.textContent = '🔊 SONANDO';
+                this.elStatus.textContent = '🔊 SONANDO (DESDE 0:00)';
                 this.elStatus.className = 'pill active-run';
             } else {
                 this.elStatus.textContent = '⏸️ CORRE CON [A]';

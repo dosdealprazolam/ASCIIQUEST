@@ -62,8 +62,25 @@ class InputManager {
         this.currentLogicalLane = laneIndex;
     }
 
+    _isTypingText() {
+        const el = document.activeElement;
+        if (!el) return false;
+        if (el.tagName === 'TEXTAREA') return true;
+        if (el.tagName === 'INPUT') {
+            const type = (el.type || 'text').toLowerCase();
+            return type === 'text' || type === 'search';
+        }
+        return false;
+    }
+
     _bindEvents() {
         window.addEventListener('keydown', (e) => {
+            if (this._isTypingText()) {
+                if (e.code === 'Escape') {
+                    document.activeElement.blur();
+                }
+                return;
+            }
             if (e.repeat) return;
 
             if (this._isControlAKey(e.code)) {
@@ -94,6 +111,7 @@ class InputManager {
         });
 
         window.addEventListener('keyup', (e) => {
+            if (this._isTypingText()) return;
             if (this._isControlAKey(e.code)) {
                 e.preventDefault();
                 this._onAReleased(performance.now());

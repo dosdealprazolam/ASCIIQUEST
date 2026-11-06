@@ -1,0 +1,14 @@
+====================================================================
+CARPETA DE ICONO DEL CORAZÓN (/img/corazon.png)
+====================================================================
+
+1. En esta carpeta (`/img/`) ya está configurado el archivo:
+   - `img/corazon.png`
+
+2. Para usar tu propio diseño de corazón:
+   - Simplemente guarda o reemplaza tu imagen con el nombre exacto:
+     `corazon.png` dentro de esta carpeta `img/` (o en la raíz del proyecto).
+
+3. El juego carga automáticamente `img/corazon.png` tanto en el monitor
+   de BPM superior como al lado del personaje en el Canvas, haciéndolo
+   latir al ritmo de los BPM actuales.

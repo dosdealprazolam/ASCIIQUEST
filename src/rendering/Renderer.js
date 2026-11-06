@@ -26,10 +26,30 @@ class Renderer {
         this.particles = [];
         this.asciiBackgroundNodes = [];
 
+        this.heartImg = null;
+        this.heartImgReady = false;
+        this._initHeartImage();
+
         this._resize();
         window.addEventListener('resize', () => this._resize());
         this._initAsciiNightmareField();
         this._subscribeEvents();
+    }
+
+    _initHeartImage() {
+        if (typeof Image === 'undefined') return;
+        const img = new Image();
+        const configuredPath = (this.config.BPM && this.config.BPM.HEART_ICON_PATH) || 'img/corazon.png';
+        img.onload = () => {
+            this.heartImgReady = true;
+        };
+        img.onerror = () => {
+            if (img.src.indexOf('img/corazon.png') !== -1) {
+                img.src = 'corazon.png';
+            }
+        };
+        img.src = configuredPath;
+        this.heartImg = img;
     }
 
     _resize() {
@@ -346,7 +366,7 @@ class Renderer {
         ctx.save();
         ctx.translate(p.x, p.y);
 
-        if (obs.type === TYPES.COLLAPSING_STRUCTURE) {
+        if (obs.type === TYPES.COLLAPSING_STRUCTURE || obs.type === TYPES.TENTATIVE_HEAVY_TOWER) {
             // --- ESTRUCTURA ENORME MANIPULABLE CON B ---
             const h = 225 * p.scale;
             const tiltDir = obs.fallTargetLane > obs.initialLane ? 1 : -1;
@@ -502,6 +522,32 @@ class Renderer {
         ctx.font = 'bold 14px monospace';
         ctx.textAlign = 'center';
         ctx.fillText(player.bActionTimer > 0 ? '⚡' : '◊', 0, -bodyH * 0.38);
+
+        // Guía visual diegética de BPM junto al corredor con icono corazon.png
+        const bpm = player.bpm || 110;
+        const anchor = player.baseBpmAnchor || 110;
+        const strikeBoost = Math.round(player.bpmStrikeBoost || 0);
+        const isDeceleratingBpm = player.hasStartedRunning && anchor < 180 && player.cardiacExertion > 0.35;
+        const endsInNine = (bpm % 10 === 9);
+        const pulseScale = 1 + Math.max(0, Math.sin(player.heartPulsePhase || 0)) * 0.14;
+
+        ctx.save();
+        ctx.translate(bodyW * 1.15, -bodyH * 0.58);
+        ctx.scale(pulseScale, pulseScale);
+        ctx.textAlign = 'left';
+        ctx.font = 'bold 12px monospace';
+        ctx.fillStyle = !player.hasStartedRunning
+            ? '#94a3b8'
+            : (strikeBoost > 0
+                ? '#ffbf69'
+                : (isDeceleratingBpm ? (endsInNine ? '#ff9f1c' : '#38bdf8') : '#ff2a4b'));
+        if (this.heartImgReady && this.heartImg && ctx.drawImage) {
+            ctx.drawImage(this.heartImg, 0, -11, 13, 13);
+            ctx.fillText(`${bpm}`, 16, 0);
+        } else {
+            ctx.fillText(`♥ ${bpm}`, 0, 0);
+        }
+        ctx.restore();
 
         ctx.restore();
     }

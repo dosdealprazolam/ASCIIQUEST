@@ -80,6 +80,75 @@ html, body {
     font-weight: bold;
 }
 
+/* Apartado de BPM (Latidos del Corazón con escalones terminados en 9 y 0) */
+.bpm-readout-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 10px;
+    margin-bottom: 8px;
+    border-radius: 3px;
+    background: rgba(18, 12, 18, 0.92);
+    border: 1px solid rgba(255, 42, 75, 0.45);
+    transition: border-color 0.12s, background 0.12s;
+}
+
+.bpm-readout-box.bpm-max {
+    border-color: #ff2a4b;
+    background: rgba(40, 8, 16, 0.9);
+}
+
+.bpm-readout-box.bpm-drop-nine {
+    border-color: #ff9f1c;
+    background: rgba(45, 26, 6, 0.92);
+}
+
+.bpm-readout-box.bpm-drop-zero {
+    border-color: #38bdf8;
+    background: rgba(10, 26, 38, 0.92);
+}
+
+.bpm-heart,
+.bpm-heart-img {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+    image-rendering: pixelated;
+    display: inline-block;
+    transition: transform 0.06s linear;
+}
+
+.bpm-number {
+    font-size: 18px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    color: #ffffff;
+}
+
+.bpm-readout-box.bpm-drop-nine .bpm-number {
+    color: #ff9f1c;
+}
+
+.bpm-readout-box.bpm-drop-zero .bpm-number {
+    color: #38bdf8;
+}
+
+.bpm-unit {
+    font-size: 11px;
+    color: #94a3b8;
+    font-weight: bold;
+}
+
+.bpm-status-tag {
+    margin-left: auto;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #cbd5e1;
+}
+
 .pursuit-container {
     margin-top: 6px;
 }
@@ -184,11 +253,302 @@ html, body {
 }
 
 .death-box {
-    max-width: 580px;
+    max-width: 680px;
+    width: 95%;
     background: #09080c;
     border: 2px solid #d90429;
-    padding: 28px 34px;
+    padding: 24px 28px;
     box-shadow: 0 0 50px rgba(217, 4, 41, 0.35);
+}
+
+/* Panel de Diagnóstico de Muerte para el Desarrollador */
+.dev-inspector-box {
+    text-align: left;
+    background: #050508;
+    border: 1px solid #2d3343;
+    border-radius: 4px;
+    padding: 12px 14px;
+    margin-bottom: 16px;
+    font-size: 11px;
+    user-select: text;
+    pointer-events: auto;
+}
+
+.dev-inspector-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #1e2330;
+    padding-bottom: 6px;
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: #94a3b8;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.dev-verdict-badge {
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: bold;
+    background: rgba(46, 196, 182, 0.16);
+    color: #2ec4b6;
+    border: 1px solid #2ec4b6;
+}
+
+.dev-verdict-badge.bug-suspect {
+    background: rgba(255, 30, 56, 0.22);
+    color: #ff4d6d;
+    border-color: #ff1e38;
+}
+
+.dev-diag-explanation {
+    color: #f8fafc;
+    font-size: 12px;
+    line-height: 1.45;
+    margin-bottom: 10px;
+    padding: 6px 8px;
+    background: rgba(255, 255, 255, 0.03);
+    border-left: 3px solid #ff9f1c;
+}
+
+.dev-diag-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    color: #cbd5e1;
+    font-family: 'Consolas', monospace;
+    font-size: 11px;
+    margin-bottom: 10px;
+}
+
+.dev-lbl {
+    color: #ff9f1c;
+    font-weight: bold;
+}
+
+.dev-inspector-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 6px;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Apartado chiquito de Nombre en el HUD */
+.player-name-mini-box {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    padding: 3px 8px;
+    border-radius: 3px;
+}
+
+.player-name-mini-box input {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #475569;
+    color: #ff9f1c;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: bold;
+    width: 82px;
+    outline: none;
+    padding: 1px 3px;
+    user-select: text;
+}
+
+.player-name-mini-box input:focus {
+    border-bottom-color: #ff9f1c;
+}
+
+/* Caja de consejo para el jugador en la pantalla de muerte */
+.death-advice-box {
+    background: rgba(255, 159, 28, 0.08);
+    border: 1px solid rgba(255, 159, 28, 0.35);
+    color: #fde68a;
+    font-size: 12px;
+    line-height: 1.45;
+    padding: 8px 12px;
+    border-radius: 4px;
+    margin-bottom: 14px;
+}
+
+/* Formulario de Reportar Problema para jugadores */
+.player-report-section {
+    margin-bottom: 14px;
+    pointer-events: auto;
+}
+
+.bug-report-form {
+    background: #06070b;
+    border: 1px solid #334155;
+    border-radius: 4px;
+    padding: 10px 12px;
+    text-align: left;
+    margin-top: 8px;
+}
+
+.bug-report-title {
+    font-size: 11px;
+    color: #cbd5e1;
+    margin-bottom: 6px;
+}
+
+.bug-report-form textarea {
+    width: 100%;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 3px;
+    color: #f8fafc;
+    font-family: inherit;
+    font-size: 12px;
+    padding: 6px 8px;
+    resize: vertical;
+    outline: none;
+    user-select: text;
+}
+
+.bug-report-form textarea:focus {
+    border-color: #ff9f1c;
+}
+
+.bug-report-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    gap: 8px;
+}
+
+.report-status-msg {
+    font-size: 11px;
+    color: #2ec4b6;
+    font-weight: bold;
+}
+
+/* Pantalla de Victoria / Meta Final */
+#victory-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(4, 10, 12, 0.88);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 22;
+    text-align: center;
+    padding: 24px;
+}
+
+.victory-box {
+    border-color: #2ec4b6;
+    box-shadow: 0 0 50px rgba(46, 196, 182, 0.3);
+}
+
+.victory-form-row {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.victory-form-row input {
+    background: #0d1117;
+    border: 1px solid #2ec4b6;
+    color: #ffffff;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: bold;
+    padding: 6px 10px;
+    border-radius: 3px;
+    outline: none;
+    user-select: text;
+}
+
+/* Modal Exclusivo de Administración DevUser */
+#dev-admin-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(3, 3, 6, 0.88);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 30;
+    padding: 20px;
+}
+
+.dev-modal-box {
+    background: #090a10;
+    border: 1px solid #ff9f1c;
+    border-radius: 5px;
+    width: 100%;
+    max-width: 740px;
+    max-height: 86vh;
+    display: flex;
+    flex-direction: column;
+    padding: 16px 18px;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.85);
+    user-select: text;
+}
+
+.dev-tabs-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.active-dev-tab {
+    border-color: #ff9f1c !important;
+    color: #ff9f1c !important;
+    background: rgba(255, 159, 28, 0.14) !important;
+}
+
+.dev-tab-content {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.dev-records-list {
+    max-height: 340px;
+    overflow-y: auto;
+    background: #050609;
+    border: 1px solid #1e2430;
+    border-radius: 4px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.dev-record-card {
+    background: #0c0e16;
+    border: 1px solid #252b3b;
+    border-left: 3px solid #ff9f1c;
+    padding: 8px 10px;
+    border-radius: 3px;
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+.dev-sql-textarea {
+    width: 100%;
+    background: #050609;
+    border: 1px solid #252b3b;
+    color: #38bdf8;
+    font-family: 'Consolas', monospace;
+    font-size: 11px;
+    padding: 8px;
+    border-radius: 3px;
+    resize: vertical;
 }
 
 #death-reason {

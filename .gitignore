@@ -1,0 +1,3 @@
+# Archivos de notas y sugerencias locales que NO se suben a Git
+notas_desarrollo.local.json
+*.local.json

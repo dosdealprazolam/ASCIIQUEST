@@ -54,6 +54,7 @@ class SandboxApp {
 
         this.elSpeedBar = document.getElementById('bar-speed');
         this.elSpeedText = document.getElementById('val-speed');
+        this.elBpmText = document.getElementById('val-bpm');
 
         this.laneBoxes = [
             document.getElementById('lane-box-0'),
@@ -242,14 +243,16 @@ class SandboxApp {
             this._pushLog(`🔥 ¡SUBIÓ A ${config.name}!`);
         });
 
-        this.eventBus.on('sandbox:collision_impact', ({ reason }) => {
+        this.eventBus.on('sandbox:collision_impact', ({ reason, diagnostics }) => {
             this.impactCount++;
-            this._pushLog(`❌ ${reason} (Modo Inmortal activo)`);
+            const diagStr = diagnostics ? ` [${diagnostics.verdict}] ${diagnostics.explanation}` : '';
+            this._pushLog(`❌ ${reason}:${diagStr}`);
         });
 
-        this.eventBus.on('player:died', ({ reason }) => {
+        this.eventBus.on('player:died', ({ reason, diagnostics }) => {
             this.impactCount++;
-            this._pushLog(`💀 MUERTE: ${reason} — Pulsa [R] para reiniciar`);
+            const diagStr = diagnostics ? ` [${diagnostics.verdict}] ${diagnostics.explanation}` : '';
+            this._pushLog(`💀 MUERTE: ${reason}:${diagStr}`);
         });
 
         this.eventBus.on('input:restart', () => {
@@ -379,7 +382,8 @@ class SandboxApp {
         if (this.player.isAlive) {
             this.player.update(dt, now, this.input.isHoldingA);
             this.obstacleManager.update(dt, this.player);
-            this.collisionSystem.update(this.player, this.obstacleManager.obstacles);
+            this.interactionSystem.update(dt, this.player, this.obstacleManager.obstacles);
+            this.collisionSystem.update(this.player, this.obstacleManager.obstacles, this.interactionSystem);
         }
 
         if (this.musicManager) {
@@ -442,6 +446,21 @@ class SandboxApp {
         const spdPct = maxSpd > 0 ? Math.min(100, (this.player.speed / maxSpd) * 100) : 0;
         this.elSpeedBar.style.width = `${spdPct}%`;
         this.elSpeedText.textContent = `${Math.round(this.player.speed)} / ${maxSpd} u/s (Nv.${this.obstacleManager.currentLevel})`;
+
+        if (this.elBpmText) {
+            const bpm = this.player.bpm || 150;
+            const anchor = this.player.baseBpmAnchor || 150;
+            const strikeBoost = Math.round(this.player.bpmStrikeBoost || 0);
+            const stateTag = !this.player.hasStartedRunning
+                ? '149↔150 REPOSO'
+                : (strikeBoost > 0
+                    ? `GOLPE +${strikeBoost} BPM`
+                    : `${anchor - 1}↔${anchor}`);
+            this.elBpmText.textContent = `♥ ${bpm} BPM (${stateTag})`;
+            this.elBpmText.style.color = anchor >= 180 || strikeBoost > 0
+                ? '#ff2a4b'
+                : (bpm % 10 === 9 ? '#ff9f1c' : '#38bdf8');
+        }
 
         const laneNames = this.config.LANES.NAMES;
         for (let i = 0; i < 3; i++) {

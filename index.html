@@ -19,11 +19,20 @@
                 <div><span class="hud-label">CARRIL:</span> <span id="hud-lane" class="hud-value">CARRIL 2 (CENTRO)</span></div>
             </div>
 
+            <!-- Apartado de BPM (Latidos del Corazón con imagen corazon.png) -->
+            <div id="hud-bpm-box" class="bpm-readout-box bpm-steady">
+                <img id="hud-heart-icon" class="bpm-heart-img" src="img/corazon.png" onerror="if(this.src.indexOf('img/')!==-1){this.src='corazon.png';}" alt="♥" />
+                <span class="hud-label">PULSO:</span>
+                <span id="hud-bpm-value" class="bpm-number">110</span>
+                <span class="bpm-unit">BPM</span>
+                <span id="hud-bpm-state" class="bpm-status-tag">ALERTA INICIAL</span>
+            </div>
+
             <!-- Barra de Progresión de los 5 Niveles (cada 1000m) -->
             <div class="pursuit-container" style="margin-bottom:8px;">
                 <div class="hud-row" style="margin-bottom:3px; justify-content:space-between;">
                     <span id="hud-level-name" style="color:#ff9f1c; font-weight:bold; font-size:12px;">NIVEL 1 — FALSO CONTROL (1/5)</span>
-                    <span class="hud-label" style="font-size:11px;">+Nivel cada 1000m</span>
+                    <span class="hud-label" style="font-size:11px;">Meta: 5000m</span>
                 </div>
                 <div class="pursuit-bar-bg" style="width:100%; border-color:#ff9f1c;">
                     <div id="hud-level-progress-fill" style="height:100%; width:0%; background:#ff9f1c; transition:width 0.1s linear;"></div>
@@ -41,9 +50,16 @@
         </div>
 
         <div class="hud-panel controls-status">
-            <div style="display:flex; gap:6px; align-items:center; pointer-events:auto;">
+            <!-- Apartado chiquito de Nombre + Herramientas exclusivas si escribe DevUser -->
+            <div style="display:flex; gap:6px; align-items:center; pointer-events:auto; flex-wrap:wrap; justify-content:flex-end;">
+                <div class="player-name-mini-box">
+                    <label for="player-name-input" class="hud-label" style="font-size:11px;">Nombre:</label>
+                    <input id="player-name-input" type="text" maxlength="24" placeholder="Jugador" autocomplete="off" spellcheck="false" />
+                </div>
                 <button id="btn-toggle-music-drawer" type="button" class="mode-switch-link" title="Opciones discretas de audio (/music/)">🎵 Audio</button>
-                <a href="sandbox.html" class="mode-switch-link">⚙️ Sandbox</a>
+                <!-- Ocultos para jugadores normales; solo visibles cuando Nombre === DevUser -->
+                <button id="btn-open-dev-admin" type="button" class="mode-switch-link dev-only-tool hidden">🛠️ Dev SQL / Reportes</button>
+                <a id="link-sandbox-dev" href="sandbox.html" class="mode-switch-link dev-only-tool hidden">⚙️ Sandbox</a>
             </div>
             <div id="hud-control-a" class="pill idle">A: DETENIDO (MANTÉN A)</div>
             <div id="hud-control-b" class="pill idle">B: MASHEO CONTEXTUAL</div>
@@ -54,7 +70,7 @@
                     <span style="color:#ff9f1c; font-weight:bold; font-size:11px;">PISTA DEL NIVEL (/music/)</span>
                     <span id="music-status" class="pill idle">⏸️ CORRE CON [A]</span>
                 </div>
-                <div id="music-track-name" class="music-track-title">Carpeta /music/: level1_track.wav</div>
+                <div id="music-track-name" class="music-track-title">Carpeta /music/: Deejay SaeRo - Thud Weight.mp3</div>
                 <div class="music-controls-row">
                     <input id="music-file-input" type="file" accept="audio/*" style="display:none;" />
                     <button id="btn-load-music" type="button" class="sandbox-btn">📂 Probar otro MP3</button>
@@ -77,19 +93,126 @@
         </div>
     </footer>
 
-    <!-- Pantalla de Muerte y Reinicio Inmediato -->
+    <!-- Pantalla de Muerte (Jugadores ven Motivo + Consejo + Reportar Problema; DevUser ve además el Dev Inspector) -->
     <section id="death-overlay" class="hidden">
         <div class="death-box">
             <h1 id="death-reason">IMPACTO MORTAL</h1>
             <p id="death-detail"></p>
+
+            <!-- Consejo claro para el jugador de cómo evitar que vuelva a pasar -->
+            <div id="death-advice" class="death-advice-box">
+                💡 CONSEJO: Mantén la vista adelantada y usa [A] para esquivar o [B] para abrirte paso.
+            </div>
+
             <div id="death-score">DISTANCIA: 0 m</div>
-            <div class="restart-prompt">PULSA [A], [B] O [R] PARA REINICIAR AL INSTANTE</div>
+
+            <!-- Botón y formulario para que el jugador reporte un problema (lo lee solo DevUser) -->
+            <div class="player-report-section">
+                <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-bottom:10px;">
+                    <button id="btn-restart-run" type="button" class="mode-switch-link">▶ Volver a Correr [R]</button>
+                    <button id="btn-toggle-bug-report" type="button" class="sandbox-btn" style="flex:0 1 auto; padding:6px 14px;">🐞 Reportar Problema</button>
+                </div>
+
+                <div id="player-bug-report-form" class="bug-report-form hidden">
+                    <div class="bug-report-title">Cuéntanos qué pasó o qué sentiste que falló:</div>
+                    <textarea id="report-bug-textarea" rows="2" maxlength="320" placeholder="Ej: Golpeé el muro amarillo con B y sentí que no cayó..."></textarea>
+                    <div class="bug-report-actions">
+                        <span id="report-bug-status" class="report-status-msg"></span>
+                        <button id="btn-submit-bug-report" type="button" class="mode-switch-link">Enviar Reporte</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel de Diagnóstico de Muerte (EXCLUSIVO PARA DevUser — Oculto para jugadores normales) -->
+            <div id="death-dev-inspector" class="dev-inspector-box hidden">
+                <div class="dev-inspector-header">
+                    <span>🔍 DIAGNÓSTICO DE MUERTE (SOLO DevUser)</span>
+                    <span id="dev-diag-verdict" class="dev-verdict-badge">ANALIZANDO...</span>
+                </div>
+                <div id="dev-diag-explanation" class="dev-diag-explanation"></div>
+                <div class="dev-diag-grid">
+                    <div><span class="dev-lbl">OBSTÁCULO:</span> <span id="dev-diag-obstacle">-</span></div>
+                    <div><span class="dev-lbl">JUGADOR:</span> <span id="dev-diag-player">-</span></div>
+                    <div><span class="dev-lbl">HISTORIAL [B]:</span> <span id="dev-diag-b-log">-</span></div>
+                </div>
+                <div class="dev-inspector-actions">
+                    <button id="btn-copy-death-diag" type="button" class="sandbox-btn">📋 Copiar Reporte Dev</button>
+                    <button id="btn-open-dev-from-death" type="button" class="sandbox-btn">🗄️ Ver Reportes / SQL</button>
+                </div>
+            </div>
+
+            <div class="restart-prompt">PULSA [R] (O [A] / [B]) PARA REINICIAR</div>
+        </div>
+    </section>
+
+    <!-- Pantalla de Victoria (Solo aparece a quienes llegan al final de la carrera para guardar su Nombre en SQL) -->
+    <section id="victory-overlay" class="hidden">
+        <div class="death-box victory-box">
+            <h1 style="color:#2ec4b6; font-size:22px; margin-bottom:10px;">🏆 ¡ SOBREVIVISTE AL FINAL DE LA CARRERA !</h1>
+            <p style="color:#cbd5e1; font-size:13px; margin-bottom:14px;">
+                Llegaste a la meta de los 5 niveles. Registra tu nombre en la base de datos de ganadores:
+            </p>
+            <div id="victory-score" style="color:#ff9f1c; font-weight:bold; margin-bottom:14px;">DISTANCIA: 5000 m</div>
+            <div class="victory-form-row">
+                <input id="victory-name-input" type="text" maxlength="24" placeholder="Escribe tu nombre de ganador..." />
+                <button id="btn-save-winner" type="button" class="mode-switch-link">💾 Guardar Ganador (SQL)</button>
+            </div>
+            <div id="victory-saved-msg" class="report-status-msg" style="margin-top:8px;"></div>
+            <div style="margin-top:16px;">
+                <button id="btn-victory-play-again" type="button" class="sandbox-btn" style="padding:7px 16px;">▶ Jugar de Nuevo</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Modal Exclusivo de Administración DevUser (Reportes de Problemas + Ganadores + SQL Dump) -->
+    <section id="dev-admin-modal" class="hidden">
+        <div class="dev-modal-box">
+            <div class="panel-title">
+                <span>🛠️ CONSOLA EXCLUSIVA DE DESARROLLADOR (DevUser)</span>
+                <button id="btn-close-dev-admin" type="button" class="sandbox-btn" style="flex:0 1 auto; padding:4px 10px;">✕ Cerrar</button>
+            </div>
+
+            <div class="dev-tabs-row">
+                <button id="tab-btn-reports" type="button" class="sandbox-btn active-dev-tab">🐞 Reportes de Jugadores (<span id="count-bug-reports">0</span>)</button>
+                <button id="tab-btn-winners" type="button" class="sandbox-btn">🏆 Ganadores SQL (<span id="count-race-winners">0</span>)</button>
+                <button id="tab-btn-sql" type="button" class="sandbox-btn">🗄️ Base de Datos SQL (Exportar)</button>
+            </div>
+
+            <!-- Pestaña 1: Reportes de problemas dejados por jugadores al morir -->
+            <div id="dev-tab-reports" class="dev-tab-content">
+                <div id="dev-reports-list" class="dev-records-list"></div>
+                <div class="sandbox-actions-row">
+                    <button id="btn-clear-reports" type="button" class="sandbox-btn">🗑️ Limpiar Reportes</button>
+                </div>
+            </div>
+
+            <!-- Pestaña 2: Ganadores que llegaron al final de la carrera -->
+            <div id="dev-tab-winners" class="dev-tab-content hidden">
+                <div id="dev-winners-list" class="dev-records-list"></div>
+                <div class="sandbox-actions-row">
+                    <button id="btn-simulate-win-dev" type="button" class="sandbox-btn">🏆 Probar Pantalla de Meta (Dev)</button>
+                    <button id="btn-clear-winners" type="button" class="sandbox-btn">🗑️ Limpiar Ganadores</button>
+                </div>
+            </div>
+
+            <!-- Pestaña 3: Script SQL en vivo -->
+            <div id="dev-tab-sql" class="dev-tab-content hidden">
+                <div class="slider-help" style="margin-bottom:6px;">
+                    Esquema SQL (`database/schema.sql`) y sentencias `INSERT INTO` generadas con los ganadores y reportes:
+                </div>
+                <textarea id="dev-sql-preview" rows="10" readonly class="dev-sql-textarea"></textarea>
+                <div class="sandbox-actions-row">
+                    <button id="btn-copy-sql-dump" type="button" class="mode-switch-link">📋 Copiar SQL Completo</button>
+                    <button id="btn-download-sql-dump" type="button" class="sandbox-btn">💾 Descargar .SQL</button>
+                </div>
+            </div>
         </div>
     </section>
 
     <!-- Carga modular ordenada -->
     <script src="src/config/GameConfig.js"></script>
     <script src="src/core/EventBus.js"></script>
+    <script src="src/core/DatabaseManager.js"></script>
     <script src="src/core/InputManager.js"></script>
     <script src="src/core/MusicManager.js"></script>
     <script src="src/core/GameLoop.js"></script>

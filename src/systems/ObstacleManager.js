@@ -1,13 +1,10 @@
 /**
- * PSYCHOLOGICAL SURVIVAL RUNNER - ObstacleManager (Progresión de 5 Niveles)
- * -------------------------------------------------------------------------
- * Gestiona la aparición de obstáculos según los 5 niveles de dificultad
- * (aumentando cada 1000 metros recorridos):
- *  - Nivel 1 (0-1000m): Solo obstáculos de romper/manipular de a pocos.
- *    La mayoría pensará que solo se esquivan porque aparecen aislados, pero
- *    todos ceden ante [B].
- *  - Niveles 2 a 5 (1000m-4000m+): Incremento progresivo de resistencia (masheo
- *    de B), velocidad, formaciones dobles y aparición de monolitos indestructibles.
+ * PSYCHOLOGICAL SURVIVAL RUNNER - ObstacleManager (Primeros 500m Básicos + 5 Niveles)
+ * -----------------------------------------------------------------------------------
+ *  - Primeros 500 metros (z <= 5000): EXCLUSIVAMENTE el obstáculo más básico
+ *    (`FRAGILE_BARRICADE` de 1 solo golpe en un carril) para adaptación limpia del cerebro.
+ *  - De 500m a 1000m: Se incorporan las estructuras derrumbables del Nivel 1.
+ *  - Cada 1000m: Sube el nivel de intensidad (Niveles 1 a 5).
  */
 window.PSR = window.PSR || {};
 
@@ -21,7 +18,7 @@ class ObstacleManager {
         this.autoSpawnEnabled = true;
 
         this.currentLevel = 1;
-        this.forcedLevel = null; // Si en el Sandbox el usuario fija un nivel específico (1..5)
+        this.forcedLevel = null;
     }
 
     reset() {
@@ -40,9 +37,6 @@ class ObstacleManager {
         this.nextSpawnZ = playerZ + 520;
     }
 
-    /**
-     * Calcula el nivel actual (1 a 5) cada 1000 metros recorridos (distMeters = z / 10).
-     */
     getLevelForDistance(z) {
         if (this.forcedLevel !== null) return this.forcedLevel;
         const meters = Math.floor(z / 10);
@@ -59,10 +53,13 @@ class ObstacleManager {
     }
 
     spawnManual(type, lane, playerZ, distanceAhead = 680, requiredHits = 1) {
+        const TYPES = window.PSR.OBSTACLE_TYPES;
         const z = playerZ + distanceAhead;
-        const fallTarget = type === window.PSR.OBSTACLE_TYPES.COLLAPSING_STRUCTURE
-            ? this._pickAdjacentLane(lane)
-            : null;
+        const needsFallTarget = (
+            type === TYPES.COLLAPSING_STRUCTURE ||
+            type === TYPES.TENTATIVE_HEAVY_TOWER
+        );
+        const fallTarget = needsFallTarget ? this._pickAdjacentLane(lane) : null;
 
         const obs = new window.PSR.Obstacle({
             id: this.nextObstacleId++,
@@ -103,14 +100,12 @@ class ObstacleManager {
     }
 
     /**
-     * Secuencia inicial (Nivel 1):
-     * Obstáculos de romper/manipular de a pocos (1 por vez), que parecen esquivables
-     * pero todos se pueden romper o empujar con [B].
+     * Secuencia inicial dentro de los primeros 500 metros:
+     * Solo el obstáculo más básico (FRAGILE_BARRICADE de 1 golpe).
      */
     _spawnInitialSequence() {
         const TYPES = window.PSR.OBSTACLE_TYPES;
 
-        // Primero: Barricada rompible en el centro (z = 520)
         this.obstacles.push(new window.PSR.Obstacle({
             id: this.nextObstacleId++,
             type: TYPES.FRAGILE_BARRICADE,
@@ -119,24 +114,21 @@ class ObstacleManager {
             requiredHits: 1
         }));
 
-        // Segundo: Estructura inestable empujable con B (z = 1040)
         this.obstacles.push(new window.PSR.Obstacle({
             id: this.nextObstacleId++,
-            type: TYPES.COLLAPSING_STRUCTURE,
-            lane: 1,
-            z: 1040,
-            fallTargetLane: 2,
+            type: TYPES.FRAGILE_BARRICADE,
+            lane: 2,
+            z: 1080,
             requiredHits: 1
         }));
 
-        this.nextSpawnZ = 1560;
+        this.nextSpawnZ = 1640;
     }
 
     update(dt, player) {
         const spawnDist = this.config.OBSTACLES.SPAWN_DISTANCE;
         const despawnDist = this.config.OBSTACLES.DESPAWN_DISTANCE;
 
-        // 1. Verificar progresión de Nivel de Intensidad cada 1000 metros
         const targetLevel = this.getLevelForDistance(player.z);
         if (targetLevel !== this.currentLevel) {
             this.currentLevel = targetLevel;
@@ -153,19 +145,21 @@ class ObstacleManager {
             player.speedMultiplier = lvlCfg.speedMultiplier;
         }
 
-        // 2. Generar nuevos obstáculos según el nivel actual
         if (this.autoSpawnEnabled) {
             while (player.z + spawnDist >= this.nextSpawnZ) {
                 const lvlAtSpawn = this.getLevelForDistance(this.nextSpawnZ);
                 const lvlCfg = this.getLevelConfig(lvlAtSpawn);
                 this._spawnPatternAt(this.nextSpawnZ, player.lane, lvlCfg);
-                this.nextSpawnZ += lvlCfg.spawnSpacing;
+                // En los primeros 500m (z <= 5000), espaciado limpio y constante
+                const spacing = (this.nextSpawnZ <= 5000 && this.forcedLevel === null)
+                    ? 540
+                    : lvlCfg.spawnSpacing;
+                this.nextSpawnZ += spacing;
             }
         } else {
             this.nextSpawnZ = Math.max(this.nextSpawnZ, player.z + 520);
         }
 
-        // 3. Actualizar estado de cada obstáculo y limpiar los que quedaron atrás
         for (let i = this.obstacles.length - 1; i >= 0; i--) {
             const obs = this.obstacles[i];
             obs.update(dt, this.config);
@@ -189,10 +183,24 @@ class ObstacleManager {
 
     _spawnPatternAt(z, playerLane, lvlCfg) {
         const TYPES = window.PSR.OBSTACLE_TYPES;
+
+        // REGLA ESTRICTA: Los primeros 500 metros (z <= 5000) SOLO tienen el obstáculo más básico
+        // (FRAGILE_BARRICADE de 1 golpe en un solo carril).
+        if (z <= 5000 && this.forcedLevel === null) {
+            const lane = Math.random() < 0.68 ? playerLane : Math.floor(Math.random() * 3);
+            this.obstacles.push(new window.PSR.Obstacle({
+                id: this.nextObstacleId++,
+                type: TYPES.FRAGILE_BARRICADE,
+                lane,
+                z,
+                requiredHits: 1
+            }));
+            return;
+        }
+
         const roll = Math.random();
 
         if (roll < lvlCfg.doubleLaneChance) {
-            // Formación en 2 carriles
             const openLane = Math.floor(Math.random() * 3);
             const blockedLanes = [0, 1, 2].filter(l => l !== openLane);
 
@@ -201,7 +209,6 @@ class ObstacleManager {
             const fallTarget = this._pickAdjacentLane(firstLane);
             const hits = this._rollHits(lvlCfg);
 
-            // Primer carril bloqueado: Estructura empujable o Barricada rompible
             const isTower = Math.random() < 0.55;
             this.obstacles.push(new window.PSR.Obstacle({
                 id: this.nextObstacleId++,
@@ -212,7 +219,6 @@ class ObstacleManager {
                 requiredHits: hits
             }));
 
-            // Segundo carril bloqueado: Monolito (si el nivel ya permite monolitos) o Barricada
             const secondIsMonolith = lvlCfg.monolithChance > 0 && Math.random() < 0.65;
             this.obstacles.push(new window.PSR.Obstacle({
                 id: this.nextObstacleId++,
@@ -222,7 +228,6 @@ class ObstacleManager {
                 requiredHits: secondIsMonolith ? 1 : this._rollHits(lvlCfg)
             }));
         } else {
-            // Obstáculo individual ("de a pocos", priorizando el carril del jugador para tentarlo a esquivar o romper)
             const lane = Math.random() < 0.76 ? playerLane : Math.floor(Math.random() * 3);
             const typeRoll = Math.random();
             const hits = this._rollHits(lvlCfg);

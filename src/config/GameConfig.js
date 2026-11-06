@@ -1,9 +1,10 @@
 /**
- * PSYCHOLOGICAL SURVIVAL RUNNER - Configuración Global (Calibrada + 5 Niveles + Música)
- * -------------------------------------------------------------------------------------
- * Incorpora como valores base los ajustes calibrados por el usuario en el Sandbox,
- * define la progresión de 5 niveles de intensidad cada 1000 metros y las rutas
- * de la carpeta /music/ del proyecto.
+ * PSYCHOLOGICAL SURVIVAL RUNNER - Configuración Global
+ * ----------------------------------------------------
+ * Incluye:
+ *  - Alcance de golpe [B] realista y cercano (210 u).
+ *  - Desaceleración física justa al empujar estructuras que caen hacia un lado.
+ *  - Sistema de Latidos (BPM) con escalones terminados en 0 y 9 (180 -> 179 -> 170 -> 169).
  */
 window.PSR = window.PSR || {};
 
@@ -12,43 +13,66 @@ const DEFAULT_CONFIG = {
     LANES: {
         COUNT: 3,
         NAMES: ['CARRIL 1 (IZQ)', 'CARRIL 2 (CENTRO)', 'CARRIL 3 (DER)'],
-        DEFAULT_LANE: 1,              // Empieza en el carril central (0, 1, 2)
-        SWITCH_LERP_SPEED: 21.0       // Calibrado por el usuario (21)
+        DEFAULT_LANE: 1,
+        SWITCH_LERP_SPEED: 21.0
     },
 
     // --- FÍSICA DE CARRERA (CONTROL A) ---
     MOVEMENT: {
-        MAX_RUN_SPEED: 860,           // Calibrado por el usuario (860 u/s)
-        ACCELERATION: 3100,           // Calibrado por el usuario (3100 u/s²)
-        MOMENTUM_GRACE_MS: 420,       // Calibrado por el usuario (420 ms)
-        GRACE_DECELERATION: 320,      // Desaceleración suave durante la ventana de cambio de carril
-        STOP_DECELERATION: 1500,      // Calibrado por el usuario (1500 u/s²)
-        MIN_SPEED_THRESHOLD: 5
+        MAX_RUN_SPEED: 860,
+        ACCELERATION: 3100,
+        MOMENTUM_GRACE_MS: 420,
+        GRACE_DECELERATION: 320,
+        STOP_DECELERATION: 1500,
+        MIN_SPEED_THRESHOLD: 5,
+        // Guardado exclusivamente para el futuro obstáculo tentativo (TENTATIVE_HEAVY_TOWER)
+        SHOVE_SPEED_FACTOR: 0.62,
+        SHOVE_SLOWDOWN_MS: 360
     },
 
-    // --- TIEMPOS DE RESPUESTA Y SENSIBILIDAD DE GATILLOS (CONTROL A Y B) ---
+    // --- SISTEMA DE LATIDOS DEL CORAZÓN (PROGRESIVO + OSCILANTE + IMPULSO AL GOLPEAR) ---
+    BPM: {
+        INITIAL_ALERT_BPM: 110,       // Inicia en estado alerta moderado (109 ↔ 110 BPM)
+        MAX_SPEED_BASE: 180,          // Llega progresivamente hasta el máximo (179 ↔ 180 BPM)
+        BASE_BANDS: [110, 120, 130, 140, 150, 160, 170, 180], // Escalones que fluctúan con su par terminado en 9
+        RAMP_UP_RATE: 0.16,           // Velocidad con la que sube progresivamente mientras corres (~6s hasta 180 BPM)
+        AFK_DELAY_SEC: 1.6,           // Tiempo detenido/AFK antes de que el corazón empiece a bajar hacia descanso
+        AFK_COOLDOWN_RATE: 0.11,      // Solo cae hacia descanso (110) si el jugador se queda AFK sin correr
+        STRIKE_BPM_BOOST: 3,          // Aumenta un par de BPMs (+3 BPM) cada vez que golpeas con [B]
+        STRIKE_MAX_BOOST: 9,          // Tope de subida adicional si masheas [B] seguido
+        STRIKE_DECAY_PER_SEC: 4.5,    // Velocidad a la que se estabiliza el pico tras golpear
+        SMOOTH_SPEED: 7.5,
+        HEART_ICON_PATH: 'img/corazon.png'
+    },
+
+    // --- TIEMPOS DE RESPUESTA Y RANGO CORREGIDO (CONTROL A Y B) ---
     CONTROLS: {
-        TAP_MAX_DURATION_MS: 260,     // Calibrado por el usuario (260 ms)
-        DOUBLE_TAP_WINDOW_MS: 500,    // Calibrado por el usuario (500 ms)
-        B_ACTION_DURATION_MS: 150,    // Pulso visual corto para permitir mashing frenético de B
-        B_INTERACTION_RANGE: 260,     // Alcance amplio para poder mashear B múltiples veces a alta velocidad
-        B_MIN_RANGE: -25,             // Margen trasero justo
-        TRIGGER_THRESHOLD: 0.12,      // Gatillos ultra sensibles (se activan con solo 12% de recorrido)
-        TRIGGER_RAPID_DELTA: 0.06     // Rapid-Trigger: basta soltar 6% el gatillo para poder volver a pulsar
+        TAP_MAX_DURATION_MS: 260,
+        DOUBLE_TAP_WINDOW_MS: 500,
+        B_ACTION_DURATION_MS: 160,
+        B_BUFFER_WINDOW_MS: 140,      // Buffer fluido para golpe cercano sin fallar a alta velocidad
+        B_INTERACTION_RANGE: 210,     // Distancia de ataque corregida y realista
+        B_MIN_RANGE: -42,
+        // Guardado únicamente para el obstáculo tentativo (TENTATIVE_HEAVY_TOWER)
+        TENTATIVE_KNOCKBACK_Z: 95,
+        TRIGGER_THRESHOLD: 0.12,
+        TRIGGER_RAPID_DELTA: 0.06
     },
 
     // --- MÚSICA DEL NIVEL (CARPETA /music/ DEL PROYECTO) ---
     MUSIC: {
-        PRIMARY_TRACK: 'music/track.mp3',          // Si colocas track.mp3 en /music/, se reproduce con prioridad
-        FALLBACK_TRACK: 'music/level1_track.wav',  // Track incluido por defecto en la carpeta /music/
+        PRIMARY_TRACK: 'music/Deejay SaeRo - Thud Weight.mp3',
+        LEVEL_0_TRACK: 'music/level1_track.wav',
+        FALLBACK_TRACK: 'music/level1_track.wav',
         DEFAULT_VOLUME: 0.78,
-        DEATH_REVERB_DURATION_MS: 680              // Duración del aumento de reverb antes del corte en seco al morir
+        DEATH_REVERB_DURATION_MS: 680
     },
 
-    // --- PROGRESIÓN DE DIFICULTAD: 5 NIVELES (CADA 1000 METROS) ---
+    // --- PROGRESIÓN DE DIFICULTAD: 5 NIVELES (CADA 1000 METROS) + META DE CARRERA ---
     DIFFICULTY: {
         METERS_PER_LEVEL: 1000,
         MAX_LEVEL: 5,
+        RACE_GOAL_METERS: 5000,       // Meta final de la carrera (solo los que llegan aquí entran al SQL de ganadores)
         LEVELS: [
             {
                 level: 1,
@@ -56,18 +80,18 @@ const DEFAULT_CONFIG = {
                 subtitle: 'Solo obstáculos rompibles/manipulables de a pocos',
                 speedMultiplier: 1.00,
                 spawnSpacing: 520,
-                doubleLaneChance: 0.0,    // De a pocos (1 solo carril a la vez)
-                monolithChance: 0.0,      // 0% indestructibles: TODO se puede romper o empujar con B
-                collapsingChance: 0.35,   // 35% torres empujables, 65% barricadas rompibles
+                doubleLaneChance: 0.0,
+                monolithChance: 0.0,
+                collapsingChance: 0.35,
                 minHits: 1,
                 maxHits: 1
             },
             {
                 level: 2,
                 name: 'NIVEL 2 — TENSIÓN DE IMPACTO',
-                subtitle: 'Estructuras resistentes (Mashea B) + Mayor ritmo',
-                speedMultiplier: 1.08,
-                spawnSpacing: 450,
+                subtitle: 'Estructuras pesadas + Mayor ritmo',
+                speedMultiplier: 1.07,
+                spawnSpacing: 460,
                 doubleLaneChance: 0.18,
                 monolithChance: 0.0,
                 collapsingChance: 0.45,
@@ -77,38 +101,38 @@ const DEFAULT_CONFIG = {
             {
                 level: 3,
                 name: 'NIVEL 3 — RUPTURA',
-                subtitle: 'Aparecen Monolitos indestructibles + Masheo intenso',
-                speedMultiplier: 1.16,
-                spawnSpacing: 390,
+                subtitle: 'Aparecen Monolitos indestructibles + Estructuras pesadas',
+                speedMultiplier: 1.14,
+                spawnSpacing: 410,
                 doubleLaneChance: 0.35,
                 monolithChance: 0.28,
                 collapsingChance: 0.40,
-                minHits: 2,
-                maxHits: 3
+                minHits: 1,
+                maxHits: 2
             },
             {
                 level: 4,
                 name: 'NIVEL 4 — FRENESÍ',
-                subtitle: 'Formaciones dobles frecuentes + Ráfagas de B',
-                speedMultiplier: 1.25,
-                spawnSpacing: 340,
-                doubleLaneChance: 0.55,
-                monolithChance: 0.35,
+                subtitle: 'Formaciones dobles frecuentes + Desaceleración táctica',
+                speedMultiplier: 1.21,
+                spawnSpacing: 365,
+                doubleLaneChance: 0.52,
+                monolithChance: 0.34,
                 collapsingChance: 0.38,
-                minHits: 2,
-                maxHits: 3
+                minHits: 1,
+                maxHits: 2
             },
             {
                 level: 5,
                 name: 'NIVEL 5 — PESADILLA TOTAL',
-                subtitle: 'Velocidad crítica + Muros de masheo extremo',
-                speedMultiplier: 1.36,
-                spawnSpacing: 295,
-                doubleLaneChance: 0.72,
-                monolithChance: 0.38,
-                collapsingChance: 0.36,
-                minHits: 3,
-                maxHits: 4
+                subtitle: 'Velocidad crítica + Decisiones al límite',
+                speedMultiplier: 1.28,
+                spawnSpacing: 330,
+                doubleLaneChance: 0.68,
+                monolithChance: 0.36,
+                collapsingChance: 0.38,
+                minHits: 2,
+                maxHits: 3
             }
         ]
     },
@@ -117,7 +141,7 @@ const DEFAULT_CONFIG = {
     PURSUIT: {
         INITIAL_DISTANCE: 100,
         RECOVERY_RATE: 15,
-        APPROACH_RATE_WHEN_SLOW: 38,
+        APPROACH_RATE_WHEN_SLOW: 36,
         DANGER_THRESHOLD: 40
     },
 
@@ -127,7 +151,8 @@ const DEFAULT_CONFIG = {
         DESPAWN_DISTANCE: -180,
         PLAYER_HITBOX_DEPTH: 34,
         LANE_TOLERANCE: 0.36,
-        TOPPLING_SPEED: 5.4
+        TOPPLING_SPEED: 5.8,          // Caída rápida y fluida como estaba antes
+        TENTATIVE_HEAVY_TOPPLING_SPEED: 3.8 // Guardado solo para el obstáculo tentativo futuro
     },
 
     // --- ESTÉTICA Y CÁMARA ---
@@ -143,7 +168,7 @@ function cloneDeep(obj) {
     return JSON.parse(JSON.stringify(obj));
 }
 
-const STORAGE_KEY = 'PSR_CALIBRATED_CONFIG_V3';
+const STORAGE_KEY = 'PSR_CALIBRATED_CONFIG_V5';
 
 const GameConfig = cloneDeep(DEFAULT_CONFIG);
 
@@ -192,6 +217,7 @@ GameConfig.resetToDefaults = function () {
     const fresh = cloneDeep(DEFAULT_CONFIG);
     Object.assign(this.LANES, fresh.LANES);
     Object.assign(this.MOVEMENT, fresh.MOVEMENT);
+    Object.assign(this.BPM, fresh.BPM);
     Object.assign(this.CONTROLS, fresh.CONTROLS);
     Object.assign(this.MUSIC, fresh.MUSIC);
     Object.assign(this.DIFFICULTY, fresh.DIFFICULTY);
