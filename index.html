@@ -10,40 +10,69 @@
     <!-- Lienzo principal de renderizado -->
     <canvas id="game-canvas"></canvas>
 
-    <!-- HUD superior limpio -->
+    <!-- HUD superior con Monitor Médico CONTEC en la esquina superior izquierda -->
     <header id="hud">
-        <div class="hud-panel">
-            <div class="hud-row">
-                <div><span class="hud-label">KILÓMETROS:</span> <span id="hud-distance" class="hud-value">0.00 km</span></div>
-                <div><span class="hud-label">RÉCORD:</span> <span id="hud-best" class="hud-value">0.00 km</span></div>
-                <div><span class="hud-label">CARRIL:</span> <span id="hud-lane" class="hud-value">CARRIL 2 (CENTRO)</span></div>
-            </div>
+        <!-- Contenedor Estático del Monitor Médico (Sin interactividad directa) -->
+        <div id="hud-monitor-shell" class="monitor-shell-container">
+            <!-- Capa Fondo (Z-Index: 1): Carcasa del monitor médico estirada/alargada -->
+            <img class="monitor-shell-bg" src="img/image_8.png" alt="Monitor Médico" />
 
-            <!-- Apartado de BPM (Latidos del Corazón con imagen corazon.png, sin texto explicativo) -->
-            <div id="hud-bpm-box" class="bpm-readout-box bpm-steady">
-                <img id="hud-heart-icon" class="bpm-heart-img" src="img/corazon.png" onerror="if(this.src.indexOf('img/')!==-1){this.src='corazon.png';}" alt="♥" />
-                <span class="hud-label">BPM:</span>
-                <span id="hud-bpm-value" class="bpm-number">110</span>
-            </div>
+            <!-- Capa Contenido (Z-Index: 2): Pantalla de cristal oscuro (~70% izq, evitando botonera derecha) -->
+            <div class="monitor-glass-screen">
+                <!-- 1. Fila Superior (Datos de Carrera) -->
+                <div class="monitor-top-row">
+                    <div class="monitor-stat-left">
+                        <span class="monitor-lbl">KILÓMETROS:</span>
+                        <span id="hud-distance" class="monitor-val">0.00 km</span>
+                    </div>
+                    <div class="monitor-stat-center">
+                        <span class="monitor-lbl">RÉCORD:</span>
+                        <span id="hud-best" class="monitor-val">0.00 km</span>
+                    </div>
+                    <div class="monitor-stat-right">
+                        <span class="monitor-lbl">CARRIL:</span>
+                        <span id="hud-lane" class="monitor-val">2 (CENTRO)</span>
+                    </div>
+                </div>
 
-            <!-- Barra de Kilómetros (sube cada 1000m y cae en picada a 10%, 20%, 30%...; títulos ocultos salvo en DevUser) -->
-            <div class="pursuit-container" style="margin-bottom:8px;">
-                <div class="hud-row" style="margin-bottom:3px; justify-content:space-between;">
-                    <span id="hud-km-progress-label" class="hud-label" style="color:#ff9f1c; font-weight:bold; font-size:12px;">RECORRIDO: 0.00 KM (0%)</span>
-                    <span id="hud-level-name" class="dev-only-tool hidden" style="color:#2ec4b6; font-weight:bold; font-size:11px;">[DEV] NIVEL 1 — FALSO CONTROL (1/5)</span>
+                <!-- 2. Sección Central (Ritmo Cardíaco / BPM + Onda ECG animada a la derecha) -->
+                <div class="monitor-middle-row">
+                    <div id="hud-bpm-box" class="bpm-readout-box bpm-steady">
+                        <img id="hud-heart-icon" class="bpm-heart-img" src="img/corazon.png" onerror="if(this.src.indexOf('img/')!==-1){this.src='corazon.png';}" alt="♥" />
+                        <span class="monitor-bpm-lbl">BPM:</span>
+                        <span id="hud-bpm-value" class="bpm-number">110</span>
+                    </div>
+                    <div class="ecg-oscilloscope-wrap">
+                        <canvas id="hud-ecg-canvas" width="260" height="36"></canvas>
+                    </div>
                 </div>
-                <div class="pursuit-bar-bg" style="width:100%; border-color:#ff9f1c;">
-                    <div id="hud-level-progress-fill" style="height:100%; width:0%; background:#ff9f1c; transition:width 0.12s ease-out;"></div>
-                </div>
-            </div>
 
-            <div class="pursuit-container">
-                <div class="hud-row" style="margin-bottom:3px;">
-                    <span class="hud-label">MARGEN ANTE LA PERSECUCIÓN:</span>
+                <!-- 3. Sección Inferior (Barras de Progreso tipo LED segmentado) -->
+                <div class="monitor-bottom-bars">
+                    <!-- Barra 1: RECORRIDO (Segmentada bloque por bloque tipo LED antiguo) -->
+                    <div class="monitor-bar-group">
+                        <div class="monitor-bar-header">
+                            <span id="hud-km-progress-label" class="monitor-bar-title-cyan">RECORRIDO: 0.00 KM (0%)</span>
+                            <span id="hud-level-name" class="dev-only-tool hidden monitor-dev-lvl">[DEV] NV.1</span>
+                        </div>
+                        <div class="monitor-led-bar-bg led-bar-cyan">
+                            <div id="hud-level-progress-fill" class="monitor-led-fill-cyan" style="width:0%;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Barra 2: MARGEN ANTE LA PERSECUCIÓN (En la base de la pantalla, rojo/naranja alerta) -->
+                    <div class="monitor-bar-group">
+                        <div class="monitor-bar-header">
+                            <span class="monitor-bar-title-danger">MARGEN ANTE LA PERSECUCIÓN:</span>
+                        </div>
+                        <div class="monitor-led-bar-bg led-bar-danger">
+                            <div id="hud-pursuit-fill" class="monitor-led-fill-danger" style="width:100%;"></div>
+                        </div>
+                    </div>
                 </div>
-                <div class="pursuit-bar-bg" style="width:100%;">
-                    <div id="hud-pursuit-fill"></div>
-                </div>
+
+                <!-- Filtro sutil de líneas de escaneo CRT y suciedad sobre el cristal -->
+                <div class="monitor-crt-overlay"></div>
             </div>
         </div>
 

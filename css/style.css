@@ -45,14 +45,311 @@ html, body {
 /* HUD Superior de Telemetría del Prototipo */
 #hud {
     position: fixed;
-    top: 16px;
-    left: 16px;
+    top: 10px;
+    left: 12px;
     right: 16px;
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
     pointer-events: none;
     z-index: 10;
+}
+
+/* ==========================================================================
+   MONITOR MÉDICO RETRO (CONTEC / ESTILO PS2 HOSPITALARIO)
+   - Capa Fondo (Z-Index: 1): img/image_8.png estirada/alargada
+   - Capa Contenido (Z-Index: 2): Datos encima del cristal oscuro izquierdo
+   ========================================================================== */
+.monitor-shell-container {
+    position: relative;
+    width: 500px;
+    height: 184px;
+    max-width: calc(100vw - 220px);
+    pointer-events: none;
+    user-select: none;
+    flex-shrink: 0;
+    filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.85));
+}
+
+.monitor-shell-bg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.monitor-glass-screen {
+    position: absolute;
+    /* Encaja exactamente dentro del cristal oscuro verdoso de la izquierda, evitando la botonera derecha */
+    top: 14.5%;
+    left: 5.4%;
+    width: 67.6%;
+    height: 61.5%;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 4px 8px 4px 8px;
+    font-family: 'Courier New', 'MS Gothic', 'Lucida Console', monospace;
+    color: #33ff99;
+    text-shadow: 0 0 4px rgba(51, 255, 153, 0.7);
+    overflow: hidden;
+    pointer-events: none;
+}
+
+/* Filtro sutil de líneas de escaneo CRT y grano sobre el cristal */
+.monitor-crt-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+    background:
+        repeating-linear-gradient(
+            to bottom,
+            rgba(0, 0, 0, 0) 0px,
+            rgba(0, 0, 0, 0) 2px,
+            rgba(0, 18, 12, 0.28) 3px
+        ),
+        radial-gradient(
+            ellipse at center,
+            rgba(51, 255, 153, 0.04) 0%,
+            rgba(0, 0, 0, 0.26) 100%
+        );
+    mix-blend-mode: multiply;
+}
+
+/* 1. Fila Superior (Datos de Carrera: KILÓMETROS izq | RÉCORD centro | CARRIL der) */
+.monitor-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    font-size: 10.5px;
+    line-height: 1.1;
+    letter-spacing: 0.2px;
+    border-bottom: 1px dashed rgba(0, 255, 204, 0.25);
+    padding-bottom: 2px;
+}
+
+.monitor-stat-left {
+    text-align: left;
+    white-space: nowrap;
+}
+
+.monitor-stat-center {
+    text-align: center;
+    white-space: nowrap;
+}
+
+.monitor-stat-right {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.monitor-lbl {
+    color: #00ffcc;
+    font-weight: bold;
+    opacity: 0.88;
+    text-shadow: 0 0 4px rgba(0, 255, 204, 0.65);
+}
+
+.monitor-val {
+    color: #33ff99;
+    font-weight: bold;
+    text-shadow: 0 0 5px rgba(51, 255, 153, 0.85);
+}
+
+/* 2. Sección Central (Ritmo Cardíaco / BPM a la izquierda + Onda ECG a la derecha) */
+.monitor-middle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    margin: 2px 0;
+}
+
+.bpm-readout-box {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 6px;
+    border-radius: 2px;
+    background: rgba(2, 22, 16, 0.65);
+    border: 1px solid rgba(51, 255, 153, 0.45);
+    box-shadow: inset 0 0 8px rgba(0, 255, 204, 0.12);
+    flex-shrink: 0;
+    transition: border-color 0.12s, background 0.12s;
+}
+
+.bpm-readout-box.bpm-max {
+    border-color: #ff4500;
+    background: rgba(42, 10, 4, 0.72);
+}
+
+.bpm-readout-box.bpm-drop-nine {
+    border-color: #ff3300;
+    background: rgba(48, 8, 4, 0.78);
+}
+
+.bpm-readout-box.bpm-drop-zero {
+    border-color: #00ffcc;
+    background: rgba(4, 28, 24, 0.72);
+}
+
+.bpm-heart,
+.bpm-heart-img {
+    width: 16px;
+    height: 16px;
+    object-fit: contain;
+    image-rendering: pixelated;
+    display: inline-block;
+    filter: drop-shadow(0 0 4px rgba(255, 51, 0, 0.75));
+    transition: transform 0.06s linear;
+}
+
+.monitor-bpm-lbl {
+    font-size: 11px;
+    font-weight: bold;
+    color: #00ffcc;
+    text-shadow: 0 0 4px rgba(51, 255, 153, 0.7);
+}
+
+.bpm-number {
+    font-size: 17px;
+    font-weight: bold;
+    letter-spacing: 0.8px;
+    color: #33ff99;
+    text-shadow: 0 0 6px rgba(51, 255, 153, 0.9);
+    min-width: 34px;
+    display: inline-block;
+}
+
+.bpm-readout-box.bpm-max .bpm-number {
+    color: #ff4500;
+    text-shadow: 0 0 6px rgba(255, 69, 0, 0.85);
+}
+
+.bpm-readout-box.bpm-drop-nine .bpm-number {
+    color: #ff3300;
+    text-shadow: 0 0 6px rgba(255, 51, 0, 0.9);
+}
+
+.bpm-readout-box.bpm-drop-zero .bpm-number {
+    color: #00ffcc;
+    text-shadow: 0 0 6px rgba(0, 255, 204, 0.85);
+}
+
+/* Lienzo de Onda ECG (Electrocardiograma en vivo a la derecha del BPM) */
+.ecg-oscilloscope-wrap {
+    flex: 1;
+    height: 28px;
+    background:
+        linear-gradient(to right, rgba(0, 255, 204, 0.07) 1px, transparent 1px) 0 0 / 10px 10px,
+        linear-gradient(to bottom, rgba(0, 255, 204, 0.07) 1px, transparent 1px) 0 0 / 10px 10px,
+        rgba(1, 14, 10, 0.62);
+    border: 1px solid rgba(0, 255, 204, 0.28);
+    border-radius: 2px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+}
+
+#hud-ecg-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* 3. Sección Inferior (Barras de Progreso tipo LED segmentado) */
+.monitor-bottom-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+}
+
+.monitor-bar-group {
+    width: 100%;
+}
+
+.monitor-bar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1px;
+    font-size: 9.5px;
+    line-height: 1;
+}
+
+.monitor-bar-title-cyan {
+    color: #00ffcc;
+    font-weight: bold;
+    letter-spacing: 0.4px;
+    text-shadow: 0 0 4px rgba(51, 255, 153, 0.7);
+}
+
+.monitor-bar-title-danger {
+    color: #ff4500;
+    font-weight: bold;
+    letter-spacing: 0.4px;
+    text-shadow: 0 0 4px rgba(255, 69, 0, 0.7);
+}
+
+.monitor-dev-lvl {
+    color: #33ff99;
+    font-size: 10px;
+    font-weight: bold;
+}
+
+.monitor-led-bar-bg {
+    width: 100%;
+    height: 6px;
+    background: rgba(2, 16, 12, 0.85);
+    border: 1px solid rgba(0, 255, 204, 0.38);
+    padding: 1px;
+    overflow: hidden;
+    position: relative;
+}
+
+.monitor-led-bar-bg.led-bar-danger {
+    border-color: rgba(255, 69, 0, 0.48);
+    background: rgba(22, 5, 4, 0.85);
+}
+
+/* Barra 1: Segmentada bloque por bloque tipo LED antiguo en verde/cian hospital */
+.monitor-led-fill-cyan,
+#hud-level-progress-fill {
+    height: 100%;
+    width: 0%;
+    background-image: repeating-linear-gradient(
+        to right,
+        #33ff99 0px,
+        #00ffcc 6px,
+        rgba(0, 18, 12, 0.92) 6px,
+        rgba(0, 18, 12, 0.92) 8px
+    );
+    box-shadow: 0 0 6px rgba(51, 255, 153, 0.75);
+    transition: width 0.12s ease-out;
+}
+
+/* Barra 2: Margen ante la persecución en rojo/anaranjado apagado tipo LED de alerta */
+.monitor-led-fill-danger,
+#hud-pursuit-fill {
+    height: 100%;
+    width: 100%;
+    background-image: repeating-linear-gradient(
+        to right,
+        #ff4500 0px,
+        #ff3300 6px,
+        rgba(24, 4, 2, 0.9) 6px,
+        rgba(24, 4, 2, 0.9) 8px
+    );
+    box-shadow: 0 0 6px rgba(255, 69, 0, 0.75);
+    transition: width 0.08s linear;
 }
 
 .hud-panel {
@@ -63,14 +360,6 @@ html, body {
     backdrop-filter: blur(4px);
 }
 
-.hud-row {
-    display: flex;
-    gap: 18px;
-    font-size: 13px;
-    letter-spacing: 0.5px;
-    margin-bottom: 6px;
-}
-
 .hud-label {
     color: #8b949e;
 }
@@ -78,94 +367,6 @@ html, body {
 .hud-value {
     color: #f8fafc;
     font-weight: bold;
-}
-
-/* Apartado de BPM (Latidos del Corazón con escalones terminados en 9 y 0) */
-.bpm-readout-box {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 5px 10px;
-    margin-bottom: 8px;
-    border-radius: 3px;
-    background: rgba(18, 12, 18, 0.92);
-    border: 1px solid rgba(255, 42, 75, 0.45);
-    transition: border-color 0.12s, background 0.12s;
-}
-
-.bpm-readout-box.bpm-max {
-    border-color: #ff2a4b;
-    background: rgba(40, 8, 16, 0.9);
-}
-
-.bpm-readout-box.bpm-drop-nine {
-    border-color: #ff9f1c;
-    background: rgba(45, 26, 6, 0.92);
-}
-
-.bpm-readout-box.bpm-drop-zero {
-    border-color: #38bdf8;
-    background: rgba(10, 26, 38, 0.92);
-}
-
-.bpm-heart,
-.bpm-heart-img {
-    width: 18px;
-    height: 18px;
-    object-fit: contain;
-    image-rendering: pixelated;
-    display: inline-block;
-    transition: transform 0.06s linear;
-}
-
-.bpm-number {
-    font-size: 18px;
-    font-weight: bold;
-    letter-spacing: 1px;
-    color: #ffffff;
-}
-
-.bpm-readout-box.bpm-drop-nine .bpm-number {
-    color: #ff9f1c;
-}
-
-.bpm-readout-box.bpm-drop-zero .bpm-number {
-    color: #38bdf8;
-}
-
-.bpm-unit {
-    font-size: 11px;
-    color: #94a3b8;
-    font-weight: bold;
-}
-
-.bpm-status-tag {
-    margin-left: auto;
-    font-size: 10px;
-    font-weight: bold;
-    padding: 2px 6px;
-    border-radius: 2px;
-    background: rgba(255, 255, 255, 0.08);
-    color: #cbd5e1;
-}
-
-.pursuit-container {
-    margin-top: 6px;
-}
-
-.pursuit-bar-bg {
-    width: 220px;
-    height: 6px;
-    background: #1a1820;
-    border: 1px solid #3a1d24;
-    overflow: hidden;
-}
-
-#hud-pursuit-fill {
-    height: 100%;
-    width: 100%;
-    background: #e2e8f0;
-    transition: width 0.08s linear;
 }
 
 .controls-status {

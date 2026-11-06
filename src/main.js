@@ -55,6 +55,8 @@ class GameApp {
         this.uiBpmValue = document.getElementById('hud-bpm-value');
         this.uiBpmState = document.getElementById('hud-bpm-state');
         this.uiHeartIcon = document.getElementById('hud-heart-icon');
+        this.uiEcgCanvas = document.getElementById('hud-ecg-canvas');
+        this.ecgCtx = (this.uiEcgCanvas && this.uiEcgCanvas.getContext) ? this.uiEcgCanvas.getContext('2d') : null;
         this.uiKmProgressLabel = document.getElementById('hud-km-progress-label');
         this.uiLevelName = document.getElementById('hud-level-name');
         this.uiLevelProgressFill = document.getElementById('hud-level-progress-fill');
@@ -735,7 +737,10 @@ class GameApp {
         const bestKmVal = (this.bestDistance / 1000).toFixed(2);
         if (this.uiDistance) this.uiDistance.textContent = `${kmVal} km`;
         if (this.uiBest) this.uiBest.textContent = `${bestKmVal} km`;
-        if (this.uiLane) this.uiLane.textContent = this.config.LANES.NAMES[this.player.lane];
+        if (this.uiLane) {
+            const rawLane = this.config.LANES.NAMES[this.player.lane] || '';
+            this.uiLane.textContent = rawLane.replace(/^CARRIL\s+/i, '');
+        }
 
         // Monitor Cardíaco (BPM progresivo desde ~110 -> 180 + icono corazon.png)
         if (this.uiBpmValue) {
@@ -770,12 +775,15 @@ class GameApp {
         const lvl = this.obstacleManager.currentLevel;
         const lvlCfg = this.obstacleManager.getLevelConfig(lvl);
         if (this.uiLevelName) {
-            this.uiLevelName.textContent = `[DEV] ${lvlCfg.name} (${lvl}/5) — ${lvlCfg.subtitle}`;
+            this.uiLevelName.textContent = `[DEV] NV.${lvl}/5`;
         }
         if (this.uiDevSongTime && this.musicManager && this.musicManager.getSongTimeInfo) {
             const songInfo = this.musicManager.getSongTimeInfo();
             this.uiDevSongTime.textContent = `🎵 CANCIÓN: ${songInfo.formattedLabel}`;
         }
+
+        // Dibujar Onda de Electrocardiograma (ECG) en vivo al ritmo de los BPM dentro del monitor médico
+        this._renderEcgWave();
 
         // Barra que sube cada 1000m y apenas sube cae en picada a 10% (1000m), 20% (2000m), 30% (3000m)...
         const barPct = this.obstacleManager.getKilometerBarProgress
@@ -816,12 +824,86 @@ class GameApp {
         if (this.uiPursuitBar) {
             const pursuitPct = Math.max(0, Math.min(100, (this.player.pursuitDistance / this.config.PURSUIT.INITIAL_DISTANCE) * 100));
             this.uiPursuitBar.style.width = `${pursuitPct}%`;
-            this.uiPursuitBar.style.backgroundColor = pursuitPct < 40 ? '#ff1e38' : '#e2e8f0';
         }
 
         if (this.uiFeedback) {
             this.uiFeedback.textContent = this.lastActionFeedback;
         }
+    }
+
+    /**
+     * Dibuja y anima la línea de electrocardiograma (ECG P-Q-R-S-T) dentro del cristal del monitor médico,
+     * pulsando en sincronía exacta con los BPM actuales del jugador.
+     */
+    _renderEcgWave() {
+        if (!this.ecgCtx || !this.uiEcgCanvas) return;
+        const ctx = this.ecgCtx;
+        const w = this.uiEcgCanvas.width || 260;
+        const h = this.uiEcgCanvas.height || 36;
+        const midY = h * 0.56;
+
+        if (ctx.clearRect) {
+            ctx.clearRect(0, 0, w, h);
+        }
+
+        const isDead = !this.player.isAlive || (this.player.bpm || 0) <= 0;
+        const inTrauma = this.player.traumaRecoveryTimer > 0;
+        const isMax = (this.player.baseBpmAnchor || 110) >= 180 || (this.player.bpmStrikeBoost || 0) > 0;
+
+        const strokeColor = isDead
+            ? '#ff3300'
+            : (inTrauma ? '#ff3300' : (isMax ? '#00ffcc' : '#33ff99'));
+
+        ctx.save();
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+
+        const phaseCycles = (this.player.heartPulsePhase || 0) / (Math.PI * 2);
+        const wavelengthPx = 68;
+        let lastY = midY;
+
+        for (let x = 0; x < w; x += 2) {
+            let y = midY;
+            if (!isDead) {
+                let c = ((x / wavelengthPx) - phaseCycles) % 1;
+                if (c < 0) c += 1;
+
+                // Complejo médico P-Q-R-S-T
+                if (c >= 0.12 && c < 0.22) {
+                    // Onda P
+                    const t = (c - 0.12) / 0.10;
+                    y -= Math.sin(t * Math.PI) * 3.5;
+                } else if (c >= 0.27 && c < 0.31) {
+                    // Depresión Q
+                    const t = (c - 0.27) / 0.04;
+                    y += Math.sin(t * Math.PI) * 3.5;
+                } else if (c >= 0.31 && c < 0.37) {
+                    // Pico R agudo
+                    const t = (c - 0.31) / 0.06;
+                    y -= Math.sin(t * Math.PI) * 15.0;
+                } else if (c >= 0.37 && c < 0.43) {
+                    // Pico S inferior
+                    const t = (c - 0.37) / 0.06;
+                    y += Math.sin(t * Math.PI) * 7.5;
+                } else if (c >= 0.50 && c < 0.66) {
+                    // Onda T
+                    const t = (c - 0.50) / 0.16;
+                    y -= Math.sin(t * Math.PI) * 5.0;
+                }
+            }
+            if (x === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+            lastY = y;
+        }
+        ctx.stroke();
+
+        // Punto de barrido de fósforo brillante al extremo derecho
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(w - 4, lastY, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
     }
 }
 
