@@ -61,8 +61,8 @@ const DEFAULT_CONFIG = {
         B_MIN_RANGE: -42,
         // Guardado únicamente para el obstáculo tentativo (TENTATIVE_HEAVY_TOWER)
         TENTATIVE_KNOCKBACK_Z: 95,
-        TRIGGER_THRESHOLD: 0.35,
-        TRIGGER_RAPID_DELTA: 0.16
+        TRIGGER_THRESHOLD: 0.12,
+        TRIGGER_RAPID_DELTA: 0.06
     },
 
     // --- MÚSICA DEL NIVEL (CARPETA /music/ DEL PROYECTO) ---
