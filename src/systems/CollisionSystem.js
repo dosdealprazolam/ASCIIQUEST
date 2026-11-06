@@ -37,6 +37,40 @@ class CollisionSystem {
                 const laneDist = Math.abs(player.visualLane - effectiveObsLane);
 
                 if (laneDist <= laneTolerance) {
+                    const TYPES = window.PSR.OBSTACLE_TYPES;
+
+                    // --- NUEVA MECÁNICA DE BPM EN OBSTÁCULOS BÁSICOS (FRAGILE_BARRICADE) ---
+                    // El 1er choque NO te mata: rompe la barricada con el cuerpo, te baja el BPM a la mitad
+                    // y entra en recuperación lenta (12.5s). Si te vuelve a golpear otra antes de acabar,
+                    // te baja 70 BPM y mueres si te quedas sin BPMs / acumulas los 2 impactos en ese lapso.
+                    if (obs.type === TYPES.FRAGILE_BARRICADE) {
+                        obs.state = 'SHATTERED';
+                        obs.shatterProgress = 0;
+
+                        const trauma = player.applyBarricadeTrauma();
+                        if (trauma.survived) {
+                            this.eventBus.emit('player:barricade_trauma', {
+                                obstacle: obs,
+                                previousBpm: trauma.previousBpm,
+                                newBpm: trauma.newBpm,
+                                recoverySeconds: trauma.recoverySeconds
+                            });
+                            continue;
+                        }
+
+                        // Segundo impacto dentro del lapso de 10-15s (-70 BPM -> muerte)
+                        const { reason, detail, advice, diagnostics } = this._buildDeathDiagnosis(
+                            obs,
+                            player,
+                            relZ,
+                            interactionSystem,
+                            trauma
+                        );
+                        player.die(reason, detail, diagnostics, advice);
+                        if (!player.sandboxImmortal) return;
+                        continue;
+                    }
+
                     if (player.sandboxImmortal) {
                         if (!obs.sandboxHitTriggered) {
                             obs.sandboxHitTriggered = true;
@@ -60,7 +94,7 @@ class CollisionSystem {
         }
     }
 
-    _buildDeathDiagnosis(obs, player, relZAtDeath, interactionSystem) {
+    _buildDeathDiagnosis(obs, player, relZAtDeath, interactionSystem, traumaInfo = null) {
         const TYPES = window.PSR.OBSTACLE_TYPES;
         const laneNames = this.config.LANES.NAMES;
 
@@ -85,21 +119,21 @@ class CollisionSystem {
         } else if (obs.type === TYPES.FRAGILE_BARRICADE) {
             reason = 'IMPACTO CONTRA BARRICADA DE ESCOMBROS';
             detail = obs.requiredHits > 1
-                ? `Esta barricada requería ${obs.requiredHits} golpes de [B] (diste ${obs.hitsReceived}/${obs.requiredHits}).`
-                : 'No destrozaste ni esquivaste la barricada de escombros a tiempo.';
+                ? `No lograste romper todas las capas de la barricada antes de chocar.`
+                : 'Chocaste contra una barricada de escombros sin destruirla ni esquivarla.';
             advice = obs.requiredHits > 1
                 ? `💡 CONSEJO: Las barricadas con varios símbolos (╬╬) requieren mashear [B] ${obs.requiredHits} veces rápidas seguidas al acercarte.`
-                : '💡 CONSEJO: Pulsa [B] justo antes de chocar contra los escombros para destrozarlos sin perder velocidad.';
+                : '💡 CONSEJO: Pulsa [B] justo antes de chocar contra los escombros para destrozarlos o esquívalos con [A].';
         }
 
-        const diagnostics = this._analyzeTechnicalCause(obs, player, relZAtDeath, interactionSystem);
+        const diagnostics = this._analyzeTechnicalCause(obs, player, relZAtDeath, interactionSystem, traumaInfo);
         return { reason, detail, advice, diagnostics };
     }
 
     /**
      * Analiza la bitácora de inputs y el estado del obstáculo para distinguir Dinámica vs. Bug.
      */
-    _analyzeTechnicalCause(obs, player, relZAtDeath, interactionSystem) {
+    _analyzeTechnicalCause(obs, player, relZAtDeath, interactionSystem, traumaInfo = null) {
         const TYPES = window.PSR.OBSTACLE_TYPES;
         const laneNames = this.config.LANES.NAMES;
         const recentB = (interactionSystem && interactionSystem.recentBAttempts) ? interactionSystem.recentBAttempts : [];
@@ -114,7 +148,10 @@ class CollisionSystem {
         let isBugSuspect = false;
         let explanation = '';
 
-        if (obs.type === TYPES.SOLID_MONOLITH) {
+        if (traumaInfo) {
+            verdict = 'DINÁMICA DE TRAUMA BPM (2do IMPACTO EN <12.5s | -70 BPM)';
+            explanation = `Chocaste contra una 2da Barricada (#${obs.id}) cuando aún quedaban ${traumaInfo.remainingWindowSec}s de recuperación del 1er impacto. Tu pulso cayó -70 BPM (${traumaInfo.previousBpm} → ${traumaInfo.newBpm} BPM), causando colapso cardíaco.`;
+        } else if (obs.type === TYPES.SOLID_MONOLITH) {
             if (recentAttemptForThisObs) {
                 verdict = 'DINÁMICA DE JUEGO (GOLPEASTE MONOLITO SÓLIDO)';
                 explanation = `Pulsaste [B] a relZ=${recentAttemptForThisObs.relZAtStrike}u contra el Monolito #${obs.id}, pero los monolitos rojos son indestructibles y solo se esquivan con [A].`;

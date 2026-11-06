@@ -30,17 +30,22 @@ const DEFAULT_CONFIG = {
         SHOVE_SLOWDOWN_MS: 360
     },
 
-    // --- SISTEMA DE LATIDOS DEL CORAZÓN (PROGRESIVO + OSCILANTE + IMPULSO AL GOLPEAR) ---
+    // --- SISTEMA DE LATIDOS DEL CORAZÓN (PROGRESIVO + TRAUMA POR IMPACTO + OSCILANTE) ---
     BPM: {
         INITIAL_ALERT_BPM: 110,       // Inicia en estado alerta moderado (109 ↔ 110 BPM)
         MAX_SPEED_BASE: 180,          // Llega progresivamente hasta el máximo (179 ↔ 180 BPM)
-        BASE_BANDS: [110, 120, 130, 140, 150, 160, 170, 180], // Escalones que fluctúan con su par terminado en 9
+        BASE_BANDS: [20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180],
         RAMP_UP_RATE: 0.16,           // Velocidad con la que sube progresivamente mientras corres (~6s hasta 180 BPM)
         AFK_DELAY_SEC: 1.6,           // Tiempo detenido/AFK antes de que el corazón empiece a bajar hacia descanso
         AFK_COOLDOWN_RATE: 0.11,      // Solo cae hacia descanso (110) si el jugador se queda AFK sin correr
         STRIKE_BPM_BOOST: 3,          // Aumenta un par de BPMs (+3 BPM) cada vez que golpeas con [B]
         STRIKE_MAX_BOOST: 9,          // Tope de subida adicional si masheas [B] seguido
         STRIKE_DECAY_PER_SEC: 4.5,    // Velocidad a la que se estabiliza el pico tras golpear
+        // Mecánica de Trauma Cardíaco para las Barricadas Básicas (FRAGILE_BARRICADE)
+        TRAUMA_RECOVERY_SEC: 12.5,    // Lapso de recuperación (10-15s): el BPM sube lentamente desde la mitad
+        FIRST_HIT_BPM_FACTOR: 0.5,    // 1er choque: no te mata, baja tus BPM actuales a la mitad (50%)
+        REPEAT_HIT_BPM_DROP: 70,      // 2do choque antes de recuperarte: te baja 70 BPM de golpe
+        MIN_SURVIVAL_BPM: 45,         // Si tras bajar 70 BPM caes por debajo de este umbral (o acumulas 2 choques en el lapso), mueres
         SMOOTH_SPEED: 7.5,
         HEART_ICON_PATH: 'img/corazon.png'
     },
@@ -68,43 +73,43 @@ const DEFAULT_CONFIG = {
         DEATH_REVERB_DURATION_MS: 680
     },
 
-    // --- PROGRESIÓN DE DIFICULTAD: 5 NIVELES (CADA 1000 METROS) + META DE CARRERA ---
+    // --- PROGRESIÓN DE DIFICULTAD: RUTA DUPLICADA (10,000 METROS / 2,000m POR NIVEL) ---
     DIFFICULTY: {
-        METERS_PER_LEVEL: 1000,
+        METERS_PER_LEVEL: 2000,       // Cada nivel dura 2000m para una curva suave y progresiva sin picos abruptos
         MAX_LEVEL: 5,
-        RACE_GOAL_METERS: 5000,       // Meta final de la carrera (solo los que llegan aquí entran al SQL de ganadores)
+        RACE_GOAL_METERS: 10000,      // Largo de la ruta duplicado a 10,000 metros (meta final)
         LEVELS: [
             {
                 level: 1,
                 name: 'NIVEL 1 — FALSO CONTROL',
-                subtitle: 'Solo obstáculos rompibles/manipulables de a pocos',
+                subtitle: '0m a 2000m: Adaptación enganchante + Entrada gradual de muros amarillos',
                 speedMultiplier: 1.00,
-                spawnSpacing: 520,
+                spawnSpacing: 490,
                 doubleLaneChance: 0.0,
                 monolithChance: 0.0,
-                collapsingChance: 0.35,
+                collapsingChance: 0.34,
                 minHits: 1,
                 maxHits: 1
             },
             {
                 level: 2,
                 name: 'NIVEL 2 — TENSIÓN DE IMPACTO',
-                subtitle: 'Estructuras pesadas + Mayor ritmo',
-                speedMultiplier: 1.07,
-                spawnSpacing: 460,
-                doubleLaneChance: 0.18,
+                subtitle: '2000m a 4000m: Barricadas de 2 golpes + Primeros cruces dobles',
+                speedMultiplier: 1.06,
+                spawnSpacing: 445,
+                doubleLaneChance: 0.22,
                 monolithChance: 0.0,
-                collapsingChance: 0.45,
+                collapsingChance: 0.42,
                 minHits: 1,
                 maxHits: 2
             },
             {
                 level: 3,
                 name: 'NIVEL 3 — RUPTURA',
-                subtitle: 'Aparecen Monolitos indestructibles + Estructuras pesadas',
-                speedMultiplier: 1.14,
-                spawnSpacing: 410,
-                doubleLaneChance: 0.35,
+                subtitle: '4000m a 6000m: Entran Monolitos Sólidos de forma progresiva',
+                speedMultiplier: 1.12,
+                spawnSpacing: 405,
+                doubleLaneChance: 0.36,
                 monolithChance: 0.28,
                 collapsingChance: 0.40,
                 minHits: 1,
@@ -113,8 +118,8 @@ const DEFAULT_CONFIG = {
             {
                 level: 4,
                 name: 'NIVEL 4 — FRENESÍ',
-                subtitle: 'Formaciones dobles frecuentes + Desaceleración táctica',
-                speedMultiplier: 1.21,
+                subtitle: '6000m a 8000m: Alta densidad + Lectura rápida de carriles',
+                speedMultiplier: 1.19,
                 spawnSpacing: 365,
                 doubleLaneChance: 0.52,
                 monolithChance: 0.34,
@@ -125,10 +130,10 @@ const DEFAULT_CONFIG = {
             {
                 level: 5,
                 name: 'NIVEL 5 — PESADILLA TOTAL',
-                subtitle: 'Velocidad crítica + Decisiones al límite',
-                speedMultiplier: 1.28,
+                subtitle: '8000m a 10000m: Recta final extrema hacia la meta',
+                speedMultiplier: 1.26,
                 spawnSpacing: 330,
-                doubleLaneChance: 0.68,
+                doubleLaneChance: 0.66,
                 monolithChance: 0.36,
                 collapsingChance: 0.38,
                 minHits: 2,

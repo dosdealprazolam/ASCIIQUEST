@@ -235,6 +235,10 @@ class SandboxApp {
             this._pushLog('💥 [B] ¡Barricada destrozada al paso!');
         });
 
+        this.eventBus.on('player:barricade_trauma', ({ previousBpm, newBpm, recoverySeconds }) => {
+            this._pushLog(`💔 1er Choque Barricada: BPM a la mitad (${previousBpm} → ${newBpm} BPM, recupera en ${recoverySeconds}s)`);
+        });
+
         this.eventBus.on('interaction:resisted', () => {
             this._pushLog('🛡️ [B] Monolito indestructible: resistió el empuje');
         });

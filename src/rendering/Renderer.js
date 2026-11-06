@@ -95,6 +95,13 @@ class Renderer {
             this._spawnImpactParticles(obstacle.lane, obstacle.z, '#e71d36', 24, 0);
         });
 
+        this.eventBus.on('player:barricade_trauma', ({ obstacle }) => {
+            this.addShake(18);
+            this.flashColor = '#ff2a4b';
+            this.flashAlpha = 0.38;
+            this._spawnImpactParticles(obstacle.lane, obstacle.z, '#ff5964', 28, 0);
+        });
+
         this.eventBus.on('interaction:resisted', ({ obstacle }) => {
             this.addShake(7);
             this._spawnImpactParticles(obstacle.lane, obstacle.z, '#ffffff', 14, 0);

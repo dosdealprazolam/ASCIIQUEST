@@ -221,6 +221,10 @@ class GameApp {
             this.lastActionFeedback = '💥 [B] BARRICADA DESTROZADA AL PASO';
         });
 
+        this.eventBus.on('player:barricade_trauma', () => {
+            this.lastActionFeedback = '⚠️ ¡IMPACTO CONTRA ESCOMBROS! USA [B] PARA ROMPERLOS';
+        });
+
         this.eventBus.on('interaction:resisted', () => {
             this.lastActionFeedback = '🛡️ [B] INÚTIL: MONOLITO INDESTRUCTIBLE — ESQUIVA CON [A]';
         });
@@ -440,7 +444,7 @@ class GameApp {
         if (this.btnSimulateWinDev) {
             this.btnSimulateWinDev.addEventListener('click', () => {
                 if (this.devAdminModal) this.devAdminModal.classList.add('hidden');
-                this.player.z = (this.config.DIFFICULTY.RACE_GOAL_METERS || 5000) * 10;
+                this.player.z = (this.config.DIFFICULTY.RACE_GOAL_METERS || 10000) * 10;
                 this._triggerRaceVictory();
             });
         }
@@ -579,8 +583,8 @@ class GameApp {
                 this.interactionSystem
             );
 
-            // Comprobar si llegó al final de la carrera (5000m por defecto)
-            const goalMeters = (this.config.DIFFICULTY && this.config.DIFFICULTY.RACE_GOAL_METERS) || 5000;
+            // Comprobar si llegó al final de la carrera (10000m por defecto)
+            const goalMeters = (this.config.DIFFICULTY && this.config.DIFFICULTY.RACE_GOAL_METERS) || 10000;
             if (this.player.isAlive && Math.floor(this.player.z / 10) >= goalMeters) {
                 this._triggerRaceVictory();
             }
@@ -624,27 +628,19 @@ class GameApp {
                 this.uiHeartIcon.style.transform = `scale(${beatScale.toFixed(2)})`;
             }
 
-            if (this.uiBpmBox && this.uiBpmState) {
-                if (!this.player.hasStartedRunning) {
+            if (this.uiBpmBox) {
+                if (this.player.traumaRecoveryTimer > 0) {
+                    this.uiBpmBox.className = 'bpm-readout-box bpm-drop-nine';
+                } else if (!this.player.hasStartedRunning) {
                     this.uiBpmBox.className = 'bpm-readout-box bpm-steady';
-                    this.uiBpmState.textContent = `ALERTA (${anchor - 1}↔${anchor})`;
-                } else if (strikeBoost > 0) {
+                } else if (anchor >= 180 || strikeBoost > 0) {
                     this.uiBpmBox.className = 'bpm-readout-box bpm-max';
-                    this.uiBpmState.textContent = `⚡ GOLPE [B] (+${strikeBoost} BPM)`;
-                } else if (this.player.afkIdleTimer >= (this.config.BPM.AFK_DELAY_SEC || 1.6)) {
-                    this.uiBpmBox.className = 'bpm-readout-box bpm-drop-zero';
-                    this.uiBpmState.textContent = `AFK DESCANSO (${anchor - 1}↔${anchor})`;
-                } else if (anchor >= 180) {
-                    this.uiBpmBox.className = 'bpm-readout-box bpm-max';
-                    this.uiBpmState.textContent = 'MÁXIMO (179↔180)';
                 } else if (this.input.isHoldingA && exertionPct < 96) {
                     this.uiBpmBox.className = 'bpm-readout-box bpm-steady';
-                    this.uiBpmState.textContent = `SUBIENDO (${anchor - 1}↔${anchor})`;
                 } else {
                     this.uiBpmBox.className = (bpm % 10 === 9)
                         ? 'bpm-readout-box bpm-drop-nine'
                         : 'bpm-readout-box bpm-drop-zero';
-                    this.uiBpmState.textContent = `FRENANDO (${anchor - 1}↔${anchor})`;
                 }
             }
         }

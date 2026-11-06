@@ -1,10 +1,12 @@
 /**
- * PSYCHOLOGICAL SURVIVAL RUNNER - ObstacleManager (Primeros 500m Básicos + 5 Niveles)
- * -----------------------------------------------------------------------------------
- *  - Primeros 500 metros (z <= 5000): EXCLUSIVAMENTE el obstáculo más básico
- *    (`FRAGILE_BARRICADE` de 1 solo golpe en un carril) para adaptación limpia del cerebro.
- *  - De 500m a 1000m: Se incorporan las estructuras derrumbables del Nivel 1.
- *  - Cada 1000m: Sube el nivel de intensidad (Niveles 1 a 5).
+ * PSYCHOLOGICAL SURVIVAL RUNNER - ObstacleManager (Ruta de 10,000m con Curva Progresiva Sin Picos Abruptos)
+ * ---------------------------------------------------------------------------------------------------------
+ *  - Ruta duplicada a 10,000 metros (5 niveles de 2,000 metros cada uno).
+ *  - Primeros 500 metros (z <= 5000): Exclusivamente el obstáculo más básico (`FRAGILE_BARRICADE`
+ *    de 1 golpe) con ritmo dinámico entre carriles para enganchar desde el inicio.
+ *  - De 500m a 5000m+ (y hasta los 10,000m): Curva de progresión interpolada metro a metro
+ *    para que los muros amarillos, las barricadas de 2 golpes, las formaciones dobles y los
+ *    monolitos entren de forma gradual y orgánica, sin picos bruscos que rompan el flow.
  */
 window.PSR = window.PSR || {};
 
@@ -14,7 +16,7 @@ class ObstacleManager {
         this.eventBus = eventBus;
         this.obstacles = [];
         this.nextObstacleId = 1;
-        this.nextSpawnZ = 520;
+        this.nextSpawnZ = 500;
         this.autoSpawnEnabled = true;
 
         this.currentLevel = 1;
@@ -24,7 +26,7 @@ class ObstacleManager {
     reset() {
         this.obstacles = [];
         this.nextObstacleId = 1;
-        this.nextSpawnZ = 520;
+        this.nextSpawnZ = 500;
         this.currentLevel = this.forcedLevel || 1;
 
         if (this.autoSpawnEnabled) {
@@ -34,13 +36,13 @@ class ObstacleManager {
 
     clearAll(playerZ = 0) {
         this.obstacles = [];
-        this.nextSpawnZ = playerZ + 520;
+        this.nextSpawnZ = playerZ + 500;
     }
 
     getLevelForDistance(z) {
         if (this.forcedLevel !== null) return this.forcedLevel;
         const meters = Math.floor(z / 10);
-        const metersPerLevel = this.config.DIFFICULTY.METERS_PER_LEVEL || 1000;
+        const metersPerLevel = this.config.DIFFICULTY.METERS_PER_LEVEL || 2000;
         const maxLevel = this.config.DIFFICULTY.MAX_LEVEL || 5;
         const computed = Math.floor(meters / metersPerLevel) + 1;
         return Math.min(maxLevel, Math.max(1, computed));
@@ -50,6 +52,59 @@ class ObstacleManager {
         const levels = this.config.DIFFICULTY.LEVELS;
         const idx = Math.min(levels.length - 1, Math.max(0, level - 1));
         return levels[idx];
+    }
+
+    /**
+     * Calcula una interpolación suave dentro del nivel actual para evitar picos bruscos
+     * tanto en las probabilidades de aparición como en el espaciado.
+     */
+    getSmoothParamsAtZ(z) {
+        const lvl = this.getLevelForDistance(z);
+        const currCfg = this.getLevelConfig(lvl);
+        if (this.forcedLevel !== null) {
+            return {
+                level: lvl,
+                spawnSpacing: currCfg.spawnSpacing,
+                doubleLaneChance: currCfg.doubleLaneChance,
+                monolithChance: currCfg.monolithChance,
+                collapsingChance: currCfg.collapsingChance,
+                twoHitChance: currCfg.maxHits > 1 ? 0.55 : 0,
+                maxHits: currCfg.maxHits
+            };
+        }
+
+        const meters = z / 10;
+        const metersPerLevel = this.config.DIFFICULTY.METERS_PER_LEVEL || 2000;
+        const prevCfg = lvl > 1 ? this.getLevelConfig(lvl - 1) : {
+            spawnSpacing: 510,
+            doubleLaneChance: 0.0,
+            monolithChance: 0.0,
+            collapsingChance: 0.08,
+            maxHits: 1
+        };
+
+        // En Nivel 1 (0m a 2000m), los primeros 500m son 100% básicos, y de 500m a 2000m sube suavemente
+        let t = 0;
+        if (lvl === 1) {
+            t = Math.max(0, Math.min(1, (meters - 500) / (metersPerLevel - 500)));
+        } else {
+            const levelStartMeters = (lvl - 1) * metersPerLevel;
+            t = Math.max(0, Math.min(1, (meters - levelStartMeters) / metersPerLevel));
+        }
+
+        const lerp = (a, b, f) => a + (b - a) * f;
+
+        return {
+            level: lvl,
+            spawnSpacing: Math.round(lerp(prevCfg.spawnSpacing, currCfg.spawnSpacing, t)),
+            doubleLaneChance: lerp(prevCfg.doubleLaneChance, currCfg.doubleLaneChance, t),
+            monolithChance: lerp(prevCfg.monolithChance, currCfg.monolithChance, t),
+            collapsingChance: lerp(prevCfg.collapsingChance, currCfg.collapsingChance, t),
+            // En niveles con maxHits >= 2, la probabilidad de que salga de 2 golpes también sube gradualmente (de 25% a 65%)
+            twoHitChance: currCfg.maxHits > 1 ? lerp(0.25, 0.68, t) : 0,
+            maxHits: currCfg.maxHits,
+            minHits: currCfg.minHits
+        };
     }
 
     spawnManual(type, lane, playerZ, distanceAhead = 680, requiredHits = 1) {
@@ -87,7 +142,7 @@ class ObstacleManager {
             lane: playerLane,
             z,
             fallTargetLane: fallTarget,
-            requiredHits: hits
+            requiredHits: 1
         }));
 
         this.obstacles.push(new window.PSR.Obstacle({
@@ -95,13 +150,13 @@ class ObstacleManager {
             type: TYPES.SOLID_MONOLITH,
             lane: adjacentLane,
             z,
-            requiredHits: 1
+            requiredHits: hits
         }));
     }
 
     /**
      * Secuencia inicial dentro de los primeros 500 metros:
-     * Solo el obstáculo más básico (FRAGILE_BARRICADE de 1 golpe).
+     * Solo el obstáculo más básico (FRAGILE_BARRICADE de 1 golpe) pero con ritmo enganchante.
      */
     _spawnInitialSequence() {
         const TYPES = window.PSR.OBSTACLE_TYPES;
@@ -110,7 +165,7 @@ class ObstacleManager {
             id: this.nextObstacleId++,
             type: TYPES.FRAGILE_BARRICADE,
             lane: 1,
-            z: 520,
+            z: 500,
             requiredHits: 1
         }));
 
@@ -118,11 +173,11 @@ class ObstacleManager {
             id: this.nextObstacleId++,
             type: TYPES.FRAGILE_BARRICADE,
             lane: 2,
-            z: 1080,
+            z: 1000,
             requiredHits: 1
         }));
 
-        this.nextSpawnZ = 1640;
+        this.nextSpawnZ = 1490;
     }
 
     update(dt, player) {
@@ -147,17 +202,20 @@ class ObstacleManager {
 
         if (this.autoSpawnEnabled) {
             while (player.z + spawnDist >= this.nextSpawnZ) {
-                const lvlAtSpawn = this.getLevelForDistance(this.nextSpawnZ);
-                const lvlCfg = this.getLevelConfig(lvlAtSpawn);
-                this._spawnPatternAt(this.nextSpawnZ, player.lane, lvlCfg);
-                // En los primeros 500m (z <= 5000), espaciado limpio y constante
-                const spacing = (this.nextSpawnZ <= 5000 && this.forcedLevel === null)
-                    ? 540
-                    : lvlCfg.spawnSpacing;
+                const smooth = this.getSmoothParamsAtZ(this.nextSpawnZ);
+                this._spawnPatternAt(this.nextSpawnZ, player.lane, smooth);
+
+                // En los primeros 500m (z <= 5000), el espaciado baja suavemente de 500 a 465
+                // para mantener al jugador enganchado y activo sin ningún pico brusco
+                let spacing = smooth.spawnSpacing;
+                if (this.nextSpawnZ <= 5000 && this.forcedLevel === null) {
+                    const introProgress = Math.max(0, Math.min(1, this.nextSpawnZ / 5000));
+                    spacing = Math.round(500 - introProgress * 35);
+                }
                 this.nextSpawnZ += spacing;
             }
         } else {
-            this.nextSpawnZ = Math.max(this.nextSpawnZ, player.z + 520);
+            this.nextSpawnZ = Math.max(this.nextSpawnZ, player.z + 500);
         }
 
         for (let i = this.obstacles.length - 1; i >= 0; i--) {
@@ -174,20 +232,24 @@ class ObstacleManager {
         }
     }
 
-    _rollHits(lvlCfg) {
-        const minH = lvlCfg.minHits || 1;
-        const maxH = lvlCfg.maxHits || 1;
+    _rollHits(lvlCfgOrSmooth) {
+        const minH = lvlCfgOrSmooth.minHits || 1;
+        const maxH = lvlCfgOrSmooth.maxHits || 1;
         if (maxH <= minH) return minH;
+        if (typeof lvlCfgOrSmooth.twoHitChance === 'number') {
+            return Math.random() < lvlCfgOrSmooth.twoHitChance ? maxH : minH;
+        }
         return minH + Math.floor(Math.random() * (maxH - minH + 1));
     }
 
-    _spawnPatternAt(z, playerLane, lvlCfg) {
+    _spawnPatternAt(z, playerLane, smooth) {
         const TYPES = window.PSR.OBSTACLE_TYPES;
 
         // REGLA ESTRICTA: Los primeros 500 metros (z <= 5000) SOLO tienen el obstáculo más básico
-        // (FRAGILE_BARRICADE de 1 golpe en un solo carril).
+        // (FRAGILE_BARRICADE de 1 golpe), alternando inteligentemente entre el carril del jugador
+        // y los carriles vecinos para enganchar y mantener el reto activo.
         if (z <= 5000 && this.forcedLevel === null) {
-            const lane = Math.random() < 0.68 ? playerLane : Math.floor(Math.random() * 3);
+            const lane = Math.random() < 0.72 ? playerLane : Math.floor(Math.random() * 3);
             this.obstacles.push(new window.PSR.Obstacle({
                 id: this.nextObstacleId++,
                 type: TYPES.FRAGILE_BARRICADE,
@@ -200,39 +262,39 @@ class ObstacleManager {
 
         const roll = Math.random();
 
-        if (roll < lvlCfg.doubleLaneChance) {
+        if (roll < smooth.doubleLaneChance) {
             const openLane = Math.floor(Math.random() * 3);
             const blockedLanes = [0, 1, 2].filter(l => l !== openLane);
 
             const firstLane = blockedLanes[0];
             const secondLane = blockedLanes[1];
             const fallTarget = this._pickAdjacentLane(firstLane);
-            const hits = this._rollHits(lvlCfg);
+            const hits = this._rollHits(smooth);
 
-            const isTower = Math.random() < 0.55;
+            const isTower = Math.random() < 0.52;
             this.obstacles.push(new window.PSR.Obstacle({
                 id: this.nextObstacleId++,
                 type: isTower ? TYPES.COLLAPSING_STRUCTURE : TYPES.FRAGILE_BARRICADE,
                 lane: firstLane,
                 z,
                 fallTargetLane: isTower ? fallTarget : null,
-                requiredHits: hits
+                requiredHits: isTower ? 1 : hits
             }));
 
-            const secondIsMonolith = lvlCfg.monolithChance > 0 && Math.random() < 0.65;
+            const secondIsMonolith = smooth.monolithChance > 0 && Math.random() < Math.min(0.65, smooth.monolithChance * 1.8);
             this.obstacles.push(new window.PSR.Obstacle({
                 id: this.nextObstacleId++,
                 type: secondIsMonolith ? TYPES.SOLID_MONOLITH : TYPES.FRAGILE_BARRICADE,
                 lane: secondLane,
                 z,
-                requiredHits: secondIsMonolith ? 1 : this._rollHits(lvlCfg)
+                requiredHits: secondIsMonolith ? 1 : this._rollHits(smooth)
             }));
         } else {
             const lane = Math.random() < 0.76 ? playerLane : Math.floor(Math.random() * 3);
             const typeRoll = Math.random();
-            const hits = this._rollHits(lvlCfg);
+            const hits = this._rollHits(smooth);
 
-            if (typeRoll < lvlCfg.monolithChance) {
+            if (typeRoll < smooth.monolithChance) {
                 this.obstacles.push(new window.PSR.Obstacle({
                     id: this.nextObstacleId++,
                     type: TYPES.SOLID_MONOLITH,
@@ -240,7 +302,7 @@ class ObstacleManager {
                     z,
                     requiredHits: 1
                 }));
-            } else if (typeRoll < lvlCfg.monolithChance + lvlCfg.collapsingChance) {
+            } else if (typeRoll < smooth.monolithChance + smooth.collapsingChance) {
                 const fallTarget = this._pickAdjacentLane(lane);
                 this.obstacles.push(new window.PSR.Obstacle({
                     id: this.nextObstacleId++,
@@ -248,7 +310,7 @@ class ObstacleManager {
                     lane,
                     z,
                     fallTargetLane: fallTarget,
-                    requiredHits: hits
+                    requiredHits: 1
                 }));
             } else {
                 this.obstacles.push(new window.PSR.Obstacle({

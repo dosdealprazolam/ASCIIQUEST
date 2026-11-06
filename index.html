@@ -19,20 +19,18 @@
                 <div><span class="hud-label">CARRIL:</span> <span id="hud-lane" class="hud-value">CARRIL 2 (CENTRO)</span></div>
             </div>
 
-            <!-- Apartado de BPM (Latidos del Corazón con imagen corazon.png) -->
+            <!-- Apartado de BPM (Latidos del Corazón con imagen corazon.png, sin texto explicativo) -->
             <div id="hud-bpm-box" class="bpm-readout-box bpm-steady">
                 <img id="hud-heart-icon" class="bpm-heart-img" src="img/corazon.png" onerror="if(this.src.indexOf('img/')!==-1){this.src='corazon.png';}" alt="♥" />
-                <span class="hud-label">PULSO:</span>
+                <span class="hud-label">BPM:</span>
                 <span id="hud-bpm-value" class="bpm-number">110</span>
-                <span class="bpm-unit">BPM</span>
-                <span id="hud-bpm-state" class="bpm-status-tag">ALERTA INICIAL</span>
             </div>
 
-            <!-- Barra de Progresión de los 5 Niveles (cada 1000m) -->
+            <!-- Barra de Progresión de los 5 Niveles (cada 2000m — Meta 10000m) -->
             <div class="pursuit-container" style="margin-bottom:8px;">
                 <div class="hud-row" style="margin-bottom:3px; justify-content:space-between;">
                     <span id="hud-level-name" style="color:#ff9f1c; font-weight:bold; font-size:12px;">NIVEL 1 — FALSO CONTROL (1/5)</span>
-                    <span class="hud-label" style="font-size:11px;">Meta: 5000m</span>
+                    <span class="hud-label" style="font-size:11px;">+Nivel cada 2000m (Meta: 10000m)</span>
                 </div>
                 <div class="pursuit-bar-bg" style="width:100%; border-color:#ff9f1c;">
                     <div id="hud-level-progress-fill" style="height:100%; width:0%; background:#ff9f1c; transition:width 0.1s linear;"></div>
@@ -152,7 +150,7 @@
             <p style="color:#cbd5e1; font-size:13px; margin-bottom:14px;">
                 Llegaste a la meta de los 5 niveles. Registra tu nombre en la base de datos de ganadores:
             </p>
-            <div id="victory-score" style="color:#ff9f1c; font-weight:bold; margin-bottom:14px;">DISTANCIA: 5000 m</div>
+            <div id="victory-score" style="color:#ff9f1c; font-weight:bold; margin-bottom:14px;">DISTANCIA: 10000 m</div>
             <div class="victory-form-row">
                 <input id="victory-name-input" type="text" maxlength="24" placeholder="Escribe tu nombre de ganador..." />
                 <button id="btn-save-winner" type="button" class="mode-switch-link">💾 Guardar Ganador (SQL)</button>

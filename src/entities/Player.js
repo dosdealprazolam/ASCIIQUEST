@@ -1,13 +1,17 @@
 /**
- * PSYCHOLOGICAL SURVIVAL RUNNER - Entidad Player (Corredor + Fisiología BPM Progresiva)
- * -------------------------------------------------------------------------------------
- *  - Ritmo Cardíaco (BPM) realista:
- *      1. Inicia en estado alerta moderado (`110 BPM`, fluctuando `109 ↔ 110`).
- *      2. A medida que corres, sube progresivamente (`110 → 120 → 130 → 140 → 150 → 160 → 170 → 180`).
- *      3. Una vez en el máximo (`179 ↔ 180`), si desaceleras un instante para cambiar de carril
- *         solo baja un escalón sutil (`169 ↔ 170`), y es muy difícil que caiga hasta el nivel
- *         de descanso a menos que el personaje se quede AFK / detenido sin correr.
- *      4. Al golpear con [B], el corazón aumenta un par de BPMs adicionales (+3 BPM).
+ * PSYCHOLOGICAL SURVIVAL RUNNER - Entidad Player (Corredor + Sistema BPM como Salud/Trauma)
+ * -----------------------------------------------------------------------------------------
+ *  - Fisiología normal de BPM:
+ *      * Inicia en estado alerta moderado (`110 BPM`, fluctuando `109 ↔ 110`).
+ *      * Sube progresivamente al correr (`110 → 120 → ... → 180 BPM`).
+ *      * Al golpear con [B], sube un par de BPMs adicionales (+3 BPM).
+ *      * Solo cae a descanso si el jugador se queda AFK.
+ *  - Nuevo Uso del BPM en Obstáculos Básicos (`FRAGILE_BARRICADE` ╬):
+ *      * 1er impacto contra barricada: NO te mata; baja tu BPM a la mitad (50%, ej. 180 → 90 BPM)
+ *        y entra en un lapso de recuperación lenta de 12.5 segundos (10-15s) donde el BPM va
+ *        subiendo poco a poco hasta recuperarse.
+ *      * 2do impacto dentro de ese lapso (antes de terminar de recuperarse): te resta -70 BPM
+ *        de golpe, vaciando tu pulso vital y causándote la muerte por Colapso Cardíaco.
  */
 window.PSR = window.PSR || {};
 
@@ -37,16 +41,25 @@ class Player {
         // Guardado exclusivamente para el obstáculo tentativo (TENTATIVE_HEAVY_TOWER)
         this.shoveSlowdownTimer = 0;
 
-        // Fisiología del corazón (BPM progresivo + oscilación viva + subida al golpear)
+        // Fisiología del corazón (BPM progresivo + Trauma por impacto con barricadas)
         const initialBpm = (this.config.BPM && this.config.BPM.INITIAL_ALERT_BPM) || 110;
+        const bands = (this.config.BPM && this.config.BPM.BASE_BANDS) || [20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180];
+        const initialBandIdx = Math.max(0, bands.indexOf(initialBpm));
+
         this.bpm = initialBpm;
         this.baseBpmAnchor = initialBpm;
         this.cardiacExertion = 0.0;   // 0.0 = Alerta inicial (110 BPM) -> 1.0 = Esfuerzo máximo (180 BPM)
-        this.afkIdleTimer = 0;        // Tiempo detenido sin correr ni golpear (AFK)
-        this.smoothBandIndex = 0;
+        this.afkIdleTimer = 0;
+        this.smoothBandIndex = initialBandIdx;
         this.bpmStrikeBoost = 0;
         this.bpmOscillationTimer = 0;
         this.heartPulsePhase = 0;
+
+        // Estado de Trauma Cardíaco por chocar contra Barricadas Básicas (FRAGILE_BARRICADE)
+        this.traumaRecoveryTimer = 0;     // Segundos restantes para recuperarse (0 = sano, >0 = herido recuperando BPM)
+        this.traumaRecoveryDuration = (this.config.BPM && this.config.BPM.TRAUMA_RECOVERY_SEC) || 12.5;
+        this.traumaStartBpm = initialBpm; // BPM al que cayó tras el 1er impacto (la mitad)
+        this.traumaHitsCount = 0;         // Golpes recibidos dentro de la ventana actual de 10-15s
 
         this.bActionTimer = 0;
         this.bLastOutcome = 'NONE';
@@ -57,6 +70,7 @@ class Player {
         this.deathReason = '';
         this.deathDetail = '';
         this.deathDiagnostics = null;
+        this.deathAdvice = '';
     }
 
     setTargetLane(targetLane, switchType) {
@@ -71,10 +85,6 @@ class Player {
         });
     }
 
-    /**
-     * Se dispara cada vez que el jugador ejecuta un golpe/acción con [B].
-     * Sube el corazón un par de BPMs y aporta al esfuerzo cardíaco.
-     */
     triggerContextualAction(outcome = 'EMPTY') {
         if (!this.isAlive) return;
         this.bActionTimer = this.config.CONTROLS.B_ACTION_DURATION_MS / 1000;
@@ -86,6 +96,66 @@ class Player {
         const maxBoost = bpmCfg.STRIKE_MAX_BOOST || 9;
         this.bpmStrikeBoost = Math.min(maxBoost, this.bpmStrikeBoost + boostPerStrike);
         this.cardiacExertion = Math.min(1.0, this.cardiacExertion + 0.035);
+    }
+
+    /**
+     * Aplica el impacto de una barricada de escombros (`FRAGILE_BARRICADE`) al sistema de BPM:
+     *  - Si es el 1er golpe (fuera de ventana o sano): baja los BPM a la mitad (50%) e inicia
+     *    una recuperación lenta durante 12.5 segundos (10-15s). Sobrevives.
+     *  - Si te vuelve a golpear antes de terminar de recuperarte (2do golpe en <12.5s):
+     *    baja 70 BPM de golpe y te mata por Colapso Cardíaco / quedarte sin BPMs vitales.
+     */
+    applyBarricadeTrauma() {
+        const bpmCfg = this.config.BPM || {};
+        const bands = bpmCfg.BASE_BANDS || [20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180];
+        const recoverySec = bpmCfg.TRAUMA_RECOVERY_SEC || 12.5;
+        const firstHitFactor = bpmCfg.FIRST_HIT_BPM_FACTOR || 0.5;
+        const secondHitDrop = bpmCfg.REPEAT_HIT_BPM_DROP || 70;
+        const minSurvivalBpm = bpmCfg.MIN_SURVIVAL_BPM || 45;
+
+        const previousBpm = this.bpm;
+        this.bpmStrikeBoost = 0;
+
+        // ¿Ya estaba herido recuperándose de un primer impacto dentro del lapso de 10-15s?
+        if (this.traumaRecoveryTimer > 0 && this.traumaHitsCount >= 1) {
+            this.traumaHitsCount++;
+            const droppedBpm = Math.max(0, previousBpm - secondHitDrop);
+            this.bpm = droppedBpm;
+            this.baseBpmAnchor = Math.max(20, Math.round(droppedBpm / 10) * 10);
+
+            // Al recibir el 2do impacto en el lapso de 10-15s y caer 70 BPM, colapsa y muere
+            if (droppedBpm <= minSurvivalBpm || this.traumaHitsCount >= 2) {
+                return {
+                    survived: false,
+                    hitCountInWindow: this.traumaHitsCount,
+                    previousBpm,
+                    newBpm: droppedBpm,
+                    remainingWindowSec: Number(this.traumaRecoveryTimer.toFixed(1))
+                };
+            }
+        }
+
+        // PRIMER IMPACTO: No te mata, te baja el BPM a la mitad y se va recuperando lentamente en 12.5s
+        this.traumaHitsCount = 1;
+        this.traumaRecoveryDuration = recoverySec;
+        this.traumaRecoveryTimer = recoverySec;
+
+        const rawHalf = Math.round((this.baseBpmAnchor * firstHitFactor) / 10) * 10;
+        const clampedHalf = Math.max(bands[0], Math.min(bands[bands.length - 1], rawHalf));
+        this.traumaStartBpm = clampedHalf;
+        this.baseBpmAnchor = clampedHalf;
+        this.bpm = clampedHalf;
+
+        const targetIdx = Math.max(0, bands.indexOf(clampedHalf));
+        this.smoothBandIndex = targetIdx;
+
+        return {
+            survived: true,
+            hitCountInWindow: 1,
+            previousBpm,
+            newBpm: this.bpm,
+            recoverySeconds: recoverySec
+        };
     }
 
     /**
@@ -153,7 +223,7 @@ class Player {
         const speedRatio = effectiveMaxSpeed > 0 ? (this.speed / effectiveMaxSpeed) : 0;
         this.stridePhase += dt * (4.0 + speedRatio * 15.0);
 
-        // 4. Actualizar monitor cardíaco (inicia en alerta ~110, sube progresivo a 180, no cae a descanso salvo AFK)
+        // 4. Actualizar monitor cardíaco (incluyendo recuperación lenta si sufrió un choque de barricada)
         this._updateHeartRateBpm(dt, speedRatio, isHoldingA);
 
         // 5. Interpolación rápida y precisa entre carriles
@@ -198,19 +268,12 @@ class Player {
         }
     }
 
-    /**
-     * Fisiología del Monitor de BPM:
-     *  - Inicia en estado alerta moderado (banda 0 = 110 BPM, fluctuando 109 ↔ 110).
-     *  - Mientras el jugador corre, `cardiacExertion` sube progresivamente hasta 1.0 (banda máxima = 180 BPM).
-     *  - Una vez que el corazón ya subió (ej. a 180 BPM):
-     *      * Si suelta [A] un momento para cambiar de carril o desacelera un poquito, solo baja 1 escalón
-     *        respecto a su esfuerzo actual (ej. de 180↔179 baja a 170↔169) para guiar visualmente la desaceleración.
-     *      * NO cae hasta el nivel de descanso (110 BPM) a menos que el personaje se quede AFK (detenido sin correr).
-     */
     _updateHeartRateBpm(dt, speedRatio, isHoldingA) {
         const bpmCfg = this.config.BPM || {};
-        const bands = bpmCfg.BASE_BANDS || [110, 120, 130, 140, 150, 160, 170, 180];
-        const maxBandIdx = bands.length - 1; // 7 -> 180 BPM
+        const bands = bpmCfg.BASE_BANDS || [20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180];
+        const maxBandIdx = bands.length - 1; // 180 BPM
+        const alertBaseBpm = bpmCfg.INITIAL_ALERT_BPM || 110;
+        const alertBandIdx = Math.max(0, bands.indexOf(alertBaseBpm)); // índice de 110 BPM
         const rampUpRate = bpmCfg.RAMP_UP_RATE || 0.16;
         const afkDelaySec = bpmCfg.AFK_DELAY_SEC || 1.6;
         const afkCooldownRate = bpmCfg.AFK_COOLDOWN_RATE || 0.11;
@@ -227,34 +290,43 @@ class Player {
             this.afkIdleTimer = 0;
             this.cardiacExertion = Math.min(1.0, this.cardiacExertion + rampUpRate * (0.4 + 0.6 * speedRatio) * dt);
         } else if (this.speed > 40) {
-            // Está en movimiento / cambiando de carril: no está AFK, el esfuerzo acumulado se mantiene alto
             this.afkIdleTimer = 0;
         } else {
-            // El personaje está detenido / AFK
             this.afkIdleTimer += dt;
             if (this.afkIdleTimer >= afkDelaySec) {
                 this.cardiacExertion = Math.max(0.0, this.cardiacExertion - afkCooldownRate * dt);
             }
         }
 
-        // 3. Banda techo según el esfuerzo cardíaco alcanzado hasta ahora (0 -> 110 BPM ... 7 -> 180 BPM)
-        const exertionBandIdx = this.cardiacExertion * maxBandIdx;
+        // 3. Calcular cuál sería la banda normal sin trauma (entre 110 BPM y 180 BPM)
+        const normalExertionBandIdx = alertBandIdx + this.cardiacExertion * (maxBandIdx - alertBandIdx);
 
-        // 4. Si desacelera un poquito al soltar [A], baja 1 escalón (o 2 si frena fuerte) respecto a su techo actual,
-        //    pero sin caer hasta descanso a menos que esté AFK
         let decelPenaltyBands = 0;
         if (this.hasStartedRunning && (!isHoldingA || speedRatio < 0.96)) {
             if (speedRatio >= 0.68) {
-                decelPenaltyBands = 1; // Ej: de 180 (179↔180) baja un poquito a 170 (169↔170)
+                decelPenaltyBands = 1;
             } else if (speedRatio >= 0.20) {
-                decelPenaltyBands = 2; // Ej: de 180 baja a 160 (159↔160)
+                decelPenaltyBands = 2;
             } else {
-                // Cuando ya se detuvo por completo, baja gradualmente según el enfriamiento AFK
                 decelPenaltyBands = this.afkIdleTimer < afkDelaySec ? 2 : 0;
             }
         }
 
-        const targetBandFloat = Math.max(0, exertionBandIdx - decelPenaltyBands);
+        let targetBandFloat = Math.max(alertBandIdx, normalExertionBandIdx - decelPenaltyBands);
+
+        // 4. Si el jugador sufrió un impacto contra una barricada básica (traumaRecoveryTimer > 0),
+        //    el BPM sube lentamente desde la mitad (`traumaStartBpm`) hasta su nivel normal durante los 12.5s
+        if (this.traumaRecoveryTimer > 0) {
+            this.traumaRecoveryTimer = Math.max(0, this.traumaRecoveryTimer - dt);
+            if (this.traumaRecoveryTimer === 0) {
+                this.traumaHitsCount = 0;
+            } else {
+                const startIdx = Math.max(0, bands.indexOf(this.traumaStartBpm));
+                const recoveryProgress = 1.0 - (this.traumaRecoveryTimer / this.traumaRecoveryDuration);
+                targetBandFloat = startIdx + (targetBandFloat - startIdx) * recoveryProgress;
+            }
+        }
+
         const diff = targetBandFloat - this.smoothBandIndex;
         if (Math.abs(diff) < 0.03) {
             this.smoothBandIndex = targetBandFloat;
@@ -263,16 +335,15 @@ class Player {
         }
 
         let activeBandIdx = Math.round(this.smoothBandIndex);
-        // Si estaba en el techo máximo y acaba de soltar A / desacelerar, reflejar de inmediato el escalón inferior
-        if (decelPenaltyBands > 0 && Math.round(exertionBandIdx) >= 1) {
-            activeBandIdx = Math.min(Math.round(exertionBandIdx) - 1, activeBandIdx);
+        if (this.traumaRecoveryTimer <= 0 && decelPenaltyBands > 0 && Math.round(normalExertionBandIdx) > alertBandIdx) {
+            activeBandIdx = Math.min(Math.round(normalExertionBandIdx) - 1, activeBandIdx);
         }
         activeBandIdx = Math.max(0, Math.min(maxBandIdx, activeBandIdx));
 
-        const anchor = bands[activeBandIdx]; // 110, 120, 130, 140, 150, 160, 170 o 180
+        const anchor = bands[activeBandIdx];
         this.baseBpmAnchor = anchor;
 
-        // 5. Oscilación viva de monitor entre el número terminado en 0 y su par terminado en 9 (ej. 180 ↔ 179, 110 ↔ 109)
+        // 5. Oscilación viva de monitor entre el número terminado en 0 y su par terminado en 9 (ej. 90 ↔ 89, 180 ↔ 179)
         this.bpmOscillationTimer += dt * 4.2;
         const oscWave = Math.sin(this.bpmOscillationTimer) + 0.35 * Math.cos(this.bpmOscillationTimer * 2.3);
         const oscOffset = oscWave < -0.15 ? -1 : 0;
