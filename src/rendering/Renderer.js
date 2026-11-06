@@ -149,13 +149,13 @@ class Renderer {
      */
     project(laneFloat, relZ, player) {
         const horizonY = this.height * 0.30;
-        const playerScreenY = this.height * 0.82;
+        const playerScreenY = this.height * 0.85;
         const maxZ = this.config.VISUALS.HORIZON_Z;
 
-        // Factor de profundidad no lineal para sensación de velocidad visceral
-        const clampedZ = Math.max(-110, relZ);
-        const normZ = Math.min(1, Math.max(-0.15, clampedZ / maxZ));
-        const perspective = 1 / (1 + Math.max(0, normZ) * 4.5);
+        // Factor de profundidad no lineal; permite Z negativo para que la pista continúe hasta el borde inferior
+        const clampedZ = Math.max(-130, relZ);
+        const normZ = Math.min(1, Math.max(-0.10, clampedZ / maxZ));
+        const perspective = 1 / (1 + normZ * 4.5);
 
         const y = horizonY + (playerScreenY - horizonY) * perspective;
 
@@ -219,7 +219,7 @@ class Renderer {
         const sortedObstacles = [...obstacles].sort((a, b) => b.z - a.z);
         for (const obs of sortedObstacles) {
             const relZ = obs.z - player.z;
-            if (relZ > -90 && relZ <= this.config.VISUALS.HORIZON_Z) {
+            if (relZ > -120 && relZ <= this.config.VISUALS.HORIZON_Z) {
                 this._drawObstacle(ctx, obs, relZ, player, now);
             }
         }
@@ -267,10 +267,10 @@ class Renderer {
     }
 
     _drawTrackAndLanes(ctx, player) {
-        const nearProj = this.project(1, -60, player);
+        const nearProj = this.project(1, -120, player);
         const farProj = this.project(1, this.config.VISUALS.HORIZON_Z, player);
 
-        // Superficie del asfalto fracturado
+        // Superficie del asfalto fracturado (continúa hasta el borde inferior de la pantalla)
         ctx.fillStyle = '#0d0d12';
         ctx.beginPath();
         ctx.moveTo(farProj.centerX - farProj.trackWidth * 0.5, farProj.y);
@@ -282,8 +282,9 @@ class Renderer {
 
         // Líneas de velocidad transversales para transmitir el frenetismo de la carrera
         const stepZ = 90;
-        const offsetZ = stepZ - (player.z % stepZ);
+        const offsetZ = stepZ - (player.z % stepZ) - stepZ * 2;
         for (let z = offsetZ; z < this.config.VISUALS.HORIZON_Z; z += stepZ) {
+            if (z < -120) continue;
             const p = this.project(1, z, player);
             const alpha = Math.min(0.32, p.scale * 0.38);
             ctx.strokeStyle = `rgba(120, 120, 145, ${alpha})`;
@@ -302,9 +303,9 @@ class Renderer {
             ctx.lineWidth = isOuter ? 2.5 : 1.2;
 
             ctx.beginPath();
-            for (let z = -40; z <= this.config.VISUALS.HORIZON_Z; z += 85) {
+            for (let z = -120; z <= this.config.VISUALS.HORIZON_Z; z += 85) {
                 const p = this.project(1 + dividers[i], z, player);
-                if (z === -40) ctx.moveTo(p.x, p.y);
+                if (z === -120) ctx.moveTo(p.x, p.y);
                 else ctx.lineTo(p.x, p.y);
             }
             ctx.stroke();
@@ -317,7 +318,7 @@ class Renderer {
 
         for (const node of this.asciiBackgroundNodes) {
             let relZ = (node.z - (player.z % this.config.VISUALS.HORIZON_Z));
-            if (relZ < -50) relZ += this.config.VISUALS.HORIZON_Z;
+            if (relZ < -120) relZ += this.config.VISUALS.HORIZON_Z;
 
             const lanePos = 1 + node.side * node.offsetFactor;
             const p = this.project(lanePos, relZ, player);
