@@ -1,8 +1,9 @@
 /**
- * PSYCHOLOGICAL SURVIVAL RUNNER - Configuración Global (Calibrada + 5 Niveles)
- * ----------------------------------------------------------------------------
- * Incorpora como valores base los ajustes calibrados por el usuario en el Sandbox
- * y define la progresión de 5 niveles de intensidad cada 1000 metros.
+ * PSYCHOLOGICAL SURVIVAL RUNNER - Configuración Global (Calibrada + 5 Niveles + Música)
+ * -------------------------------------------------------------------------------------
+ * Incorpora como valores base los ajustes calibrados por el usuario en el Sandbox,
+ * define la progresión de 5 niveles de intensidad cada 1000 metros y las rutas
+ * de la carpeta /music/ del proyecto.
  */
 window.PSR = window.PSR || {};
 
@@ -36,6 +37,14 @@ const DEFAULT_CONFIG = {
         TRIGGER_RAPID_DELTA: 0.06     // Rapid-Trigger: basta soltar 6% el gatillo para poder volver a pulsar
     },
 
+    // --- MÚSICA DEL NIVEL (CARPETA /music/ DEL PROYECTO) ---
+    MUSIC: {
+        PRIMARY_TRACK: 'music/track.mp3',          // Si colocas track.mp3 en /music/, se reproduce con prioridad
+        FALLBACK_TRACK: 'music/level1_track.wav',  // Track incluido por defecto en la carpeta /music/
+        DEFAULT_VOLUME: 0.78,
+        DEATH_REVERB_DURATION_MS: 680              // Duración del aumento de reverb antes del corte en seco al morir
+    },
+
     // --- PROGRESIÓN DE DIFICULTAD: 5 NIVELES (CADA 1000 METROS) ---
     DIFFICULTY: {
         METERS_PER_LEVEL: 1000,
@@ -60,7 +69,7 @@ const DEFAULT_CONFIG = {
                 speedMultiplier: 1.08,
                 spawnSpacing: 450,
                 doubleLaneChance: 0.18,
-                monolithChance: 0.0,      // Siguen siendo rompibles/empujables pero exigen mashear B
+                monolithChance: 0.0,
                 collapsingChance: 0.45,
                 minHits: 1,
                 maxHits: 2
@@ -72,7 +81,7 @@ const DEFAULT_CONFIG = {
                 speedMultiplier: 1.16,
                 spawnSpacing: 390,
                 doubleLaneChance: 0.35,
-                monolithChance: 0.28,     // Ahora no todo cede ante B: obliga a combinar A y B
+                monolithChance: 0.28,
                 collapsingChance: 0.40,
                 minHits: 2,
                 maxHits: 3
@@ -134,7 +143,6 @@ function cloneDeep(obj) {
     return JSON.parse(JSON.stringify(obj));
 }
 
-// Nueva versión de clave para aplicar los valores de la captura del usuario inmediatamente
 const STORAGE_KEY = 'PSR_CALIBRATED_CONFIG_V3';
 
 const GameConfig = cloneDeep(DEFAULT_CONFIG);
@@ -185,6 +193,7 @@ GameConfig.resetToDefaults = function () {
     Object.assign(this.LANES, fresh.LANES);
     Object.assign(this.MOVEMENT, fresh.MOVEMENT);
     Object.assign(this.CONTROLS, fresh.CONTROLS);
+    Object.assign(this.MUSIC, fresh.MUSIC);
     Object.assign(this.DIFFICULTY, fresh.DIFFICULTY);
     Object.assign(this.PURSUIT, fresh.PURSUIT);
     Object.assign(this.OBSTACLES, fresh.OBSTACLES);

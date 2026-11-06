@@ -464,11 +464,20 @@ input[type="range"] {
     padding: 0 6px;
 }
 
-/* Apartado de Música en Carrera */
-.music-deck {
+/* Apartado discreto desplegable de Música */
+.music-discrete-drawer {
     pointer-events: auto;
-    min-width: 280px;
-    max-width: 340px;
+    margin-top: 6px;
+    background: rgba(6, 6, 10, 0.96);
+    border: 1px solid rgba(255, 159, 28, 0.45);
+    padding: 8px 10px;
+    border-radius: 4px;
+    width: 260px;
+    text-align: left;
+}
+
+.music-discrete-drawer.hidden {
+    display: none;
 }
 
 .music-header {

@@ -1,0 +1,26 @@
+===================================================================
+ CARPETA OFICIAL DE MÚSICA DEL PROYECTO (ASCIIQUEST /music/)
+===================================================================
+
+1. CANCIÓN INCLUIDA POR DEFECTO:
+   - Actualmente el nivel carga automáticamente "music/level1_track.wav"
+     (o "music/track.mp3" si colocas un archivo con ese nombre aquí).
+
+2. CÓMO REEMPLAZARLA POR TU PROPIA CANCIÓN PARA SUBIRLA A GITHUB/VERCEL:
+   - Opción A (Automática):
+     Copia tu canción favorita dentro de esta carpeta "music/" y ponle
+     el nombre:
+         track.mp3
+     El juego detectará "music/track.mp3" automáticamente como prioridad #1
+     y sonará en cuanto empieces a correr manteniendo [A].
+
+   - Opción B (Varias canciones o nombres personalizados):
+     En el archivo "src/config/GameConfig.js" (sección MUSIC) puedes
+     cambiar la ruta de DEFAULT_TRACKS para apuntar al nombre exacto
+     de tu archivo dentro de "music/".
+
+3. EFECTO AL MORIR:
+   - Cuando el jugador corre manteniendo [A], la pista suena.
+   - En el instante en que el jugador muere, se activa un aumento de
+     REVERB cavernoso durante ~0.65 segundos y luego SE CORTA EN SECO
+     para dar el golpe dramático de muerte.
