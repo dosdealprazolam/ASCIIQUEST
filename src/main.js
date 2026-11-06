@@ -34,6 +34,7 @@ class GameApp {
         this.lastDeathReason = '';
         this.hasWonCurrentRun = false;
         this.winnerSavedForRun = false;
+        this.bottomBarIntroTimer = 4.0; // Solo visible los primeros 4 segundos al iniciar el juego
 
         this._cacheHudElements();
         this._initPlayerNameAndDevGate();
@@ -63,6 +64,7 @@ class GameApp {
         this.uiControlA = document.getElementById('hud-control-a');
         this.uiControlB = document.getElementById('hud-control-b');
         this.uiPursuitBar = document.getElementById('hud-pursuit-fill');
+        this.uiBottomBar = document.getElementById('bottom-bar');
         this.uiFeedback = document.getElementById('hud-feedback');
 
         // Apartado chiquito de Nombre + botones exclusivos de DevUser
@@ -694,6 +696,16 @@ class GameApp {
 
     update(dt, now) {
         this.input.update(now);
+
+        if (this.bottomBarIntroTimer > 0) {
+            this.bottomBarIntroTimer = Math.max(0, this.bottomBarIntroTimer - dt);
+            if (this.bottomBarIntroTimer <= 0.6 && this.uiBottomBar) {
+                this.uiBottomBar.classList.add('fade-out-bottom-bar');
+            }
+            if (this.bottomBarIntroTimer === 0 && this.uiBottomBar) {
+                this.uiBottomBar.classList.add('hidden');
+            }
+        }
 
         if (this.player.isAlive && !this.hasWonCurrentRun) {
             this.player.update(dt, now, this.input.isHoldingA);

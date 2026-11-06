@@ -407,7 +407,7 @@ html, body {
     border-color: #ff4d6d;
 }
 
-/* Barra inferior de lectura rápida de mecánicas */
+/* Barra inferior de lectura rápida de mecánicas (solo visible unos segundos al iniciar) */
 #bottom-bar {
     position: fixed;
     bottom: 14px;
@@ -421,6 +421,12 @@ html, body {
     text-align: center;
     pointer-events: none;
     z-index: 10;
+    transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+#bottom-bar.fade-out-bottom-bar {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
 }
 
 #hud-feedback {
