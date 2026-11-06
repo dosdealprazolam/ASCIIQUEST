@@ -1,9 +1,8 @@
 /**
- * PSYCHOLOGICAL SURVIVAL RUNNER - Configuración Global (Fase 1 + Calibración)
- * ---------------------------------------------------------------------------
- * Todos los parámetros clave de jugabilidad, tiempos de respuesta,
- * velocidades, carriles y obstáculos están centralizados aquí.
- * Soporta persistencia en vivo desde el Nivel Sandbox de Calibración.
+ * PSYCHOLOGICAL SURVIVAL RUNNER - Configuración Global (Calibrada + 5 Niveles)
+ * ----------------------------------------------------------------------------
+ * Incorpora como valores base los ajustes calibrados por el usuario en el Sandbox
+ * y define la progresión de 5 niveles de intensidad cada 1000 metros.
  */
 window.PSR = window.PSR || {};
 
@@ -13,52 +12,120 @@ const DEFAULT_CONFIG = {
         COUNT: 3,
         NAMES: ['CARRIL 1 (IZQ)', 'CARRIL 2 (CENTRO)', 'CARRIL 3 (DER)'],
         DEFAULT_LANE: 1,              // Empieza en el carril central (0, 1, 2)
-        SWITCH_LERP_SPEED: 16.0       // Velocidad de interpolación visual al cambiar de carril
+        SWITCH_LERP_SPEED: 21.0       // Calibrado por el usuario (21)
     },
 
     // --- FÍSICA DE CARRERA (CONTROL A) ---
     MOVEMENT: {
-        MAX_RUN_SPEED: 720,           // Velocidad máxima manteniendo A (unidades/seg)
-        ACCELERATION: 2600,           // Aceleración al mantener A
-        MOMENTUM_GRACE_MS: 420,       // Ventana de inercia al soltar A para cambiar de carril sin frenar en seco
+        MAX_RUN_SPEED: 860,           // Calibrado por el usuario (860 u/s)
+        ACCELERATION: 3100,           // Calibrado por el usuario (3100 u/s²)
+        MOMENTUM_GRACE_MS: 420,       // Calibrado por el usuario (420 ms)
         GRACE_DECELERATION: 320,      // Desaceleración suave durante la ventana de cambio de carril
-        STOP_DECELERATION: 1500,      // Desaceleración fuerte si el jugador suelta A y deja de correr
+        STOP_DECELERATION: 1500,      // Calibrado por el usuario (1500 u/s²)
         MIN_SPEED_THRESHOLD: 5
     },
 
-    // --- TIEMPOS DE RESPUESTA DEL CONTROL A Y B ---
+    // --- TIEMPOS DE RESPUESTA Y SENSIBILIDAD DE GATILLOS (CONTROL A Y B) ---
     CONTROLS: {
-        TAP_MAX_DURATION_MS: 230,     // Duración máxima (ms) entre presionar y soltar A para considerarse un "toque"
-        DOUBLE_TAP_WINDOW_MS: 320,    // Tiempo máximo (ms) entre el primer y segundo toque de A
-        B_ACTION_DURATION_MS: 220,    // Duración activa del impulso/empuje contextual con B
-        B_INTERACTION_RANGE: 190,     // Distancia frontal máxima en la que B puede manipular un obstáculo
-        B_MIN_RANGE: -20              // Margen trasero de interacción justa
+        TAP_MAX_DURATION_MS: 260,     // Calibrado por el usuario (260 ms)
+        DOUBLE_TAP_WINDOW_MS: 500,    // Calibrado por el usuario (500 ms)
+        B_ACTION_DURATION_MS: 150,    // Pulso visual corto para permitir mashing frenético de B
+        B_INTERACTION_RANGE: 260,     // Alcance amplio para poder mashear B múltiples veces a alta velocidad
+        B_MIN_RANGE: -25,             // Margen trasero justo
+        TRIGGER_THRESHOLD: 0.12,      // Gatillos ultra sensibles (se activan con solo 12% de recorrido)
+        TRIGGER_RAPID_DELTA: 0.06     // Rapid-Trigger: basta soltar 6% el gatillo para poder volver a pulsar
+    },
+
+    // --- PROGRESIÓN DE DIFICULTAD: 5 NIVELES (CADA 1000 METROS) ---
+    DIFFICULTY: {
+        METERS_PER_LEVEL: 1000,
+        MAX_LEVEL: 5,
+        LEVELS: [
+            {
+                level: 1,
+                name: 'NIVEL 1 — FALSO CONTROL',
+                subtitle: 'Solo obstáculos rompibles/manipulables de a pocos',
+                speedMultiplier: 1.00,
+                spawnSpacing: 520,
+                doubleLaneChance: 0.0,    // De a pocos (1 solo carril a la vez)
+                monolithChance: 0.0,      // 0% indestructibles: TODO se puede romper o empujar con B
+                collapsingChance: 0.35,   // 35% torres empujables, 65% barricadas rompibles
+                minHits: 1,
+                maxHits: 1
+            },
+            {
+                level: 2,
+                name: 'NIVEL 2 — TENSIÓN DE IMPACTO',
+                subtitle: 'Estructuras resistentes (Mashea B) + Mayor ritmo',
+                speedMultiplier: 1.08,
+                spawnSpacing: 450,
+                doubleLaneChance: 0.18,
+                monolithChance: 0.0,      // Siguen siendo rompibles/empujables pero exigen mashear B
+                collapsingChance: 0.45,
+                minHits: 1,
+                maxHits: 2
+            },
+            {
+                level: 3,
+                name: 'NIVEL 3 — RUPTURA',
+                subtitle: 'Aparecen Monolitos indestructibles + Masheo intenso',
+                speedMultiplier: 1.16,
+                spawnSpacing: 390,
+                doubleLaneChance: 0.35,
+                monolithChance: 0.28,     // Ahora no todo cede ante B: obliga a combinar A y B
+                collapsingChance: 0.40,
+                minHits: 2,
+                maxHits: 3
+            },
+            {
+                level: 4,
+                name: 'NIVEL 4 — FRENESÍ',
+                subtitle: 'Formaciones dobles frecuentes + Ráfagas de B',
+                speedMultiplier: 1.25,
+                spawnSpacing: 340,
+                doubleLaneChance: 0.55,
+                monolithChance: 0.35,
+                collapsingChance: 0.38,
+                minHits: 2,
+                maxHits: 3
+            },
+            {
+                level: 5,
+                name: 'NIVEL 5 — PESADILLA TOTAL',
+                subtitle: 'Velocidad crítica + Muros de masheo extremo',
+                speedMultiplier: 1.36,
+                spawnSpacing: 295,
+                doubleLaneChance: 0.72,
+                monolithChance: 0.38,
+                collapsingChance: 0.36,
+                minHits: 3,
+                maxHits: 4
+            }
+        ]
     },
 
     // --- PRESIÓN PSICOLÓGICA / PERSECUCIÓN ---
     PURSUIT: {
-        INITIAL_DISTANCE: 100,        // Distancia inicial de "lo que viene detrás" (0 = te alcanza y mueres)
-        RECOVERY_RATE: 14,            // Cuánto te alejas por segundo al correr a máxima velocidad
-        APPROACH_RATE_WHEN_SLOW: 38,  // Qué tan rápido se acerca la amenaza cuando sueltas A demasiado tiempo
-        DANGER_THRESHOLD: 40          // Umbral donde la distorsión visual y ansiedad se disparan
+        INITIAL_DISTANCE: 100,
+        RECOVERY_RATE: 15,
+        APPROACH_RATE_WHEN_SLOW: 38,
+        DANGER_THRESHOLD: 40
     },
 
-    // --- GENERACIÓN Y DIMENSIONES DE OBSTÁCULOS (FASE 1) ---
+    // --- GENERACIÓN Y DIMENSIONES DE OBSTÁCULOS ---
     OBSTACLES: {
-        SPAWN_DISTANCE: 1350,         // Distancia frontal a la que aparecen los obstáculos
-        DESPAWN_DISTANCE: -180,       // Distancia detrás del jugador donde se eliminan
-        BASE_SPAWN_INTERVAL_MS: 1350, // Intervalo base entre obstáculos (en ms a velocidad máxima)
-        MIN_SPAWN_INTERVAL_MS: 750,   // Intervalo mínimo para mantener tensión sin bloqueos imposibles
-        PLAYER_HITBOX_DEPTH: 34,      // Profundidad de colisión del jugador
-        LANE_TOLERANCE: 0.36,         // Margen lateral de colisión entre carriles (0.0 a 1.0)
-        TOPPLING_SPEED: 4.8           // Velocidad a la que una estructura empujada con B cae hacia otro carril
+        SPAWN_DISTANCE: 1450,
+        DESPAWN_DISTANCE: -180,
+        PLAYER_HITBOX_DEPTH: 34,
+        LANE_TOLERANCE: 0.36,
+        TOPPLING_SPEED: 5.4
     },
 
     // --- ESTÉTICA Y CÁMARA ---
     VISUALS: {
         FOV_NEAR_Z: -120,
-        HORIZON_Z: 1350,
-        SCREEN_SHAKE_DECAY: 12.0,
+        HORIZON_Z: 1450,
+        SCREEN_SHAKE_DECAY: 13.0,
         ASCII_GLITCH_DENSITY: 28
     }
 };
@@ -67,7 +134,8 @@ function cloneDeep(obj) {
     return JSON.parse(JSON.stringify(obj));
 }
 
-const STORAGE_KEY = 'PSR_CALIBRATED_CONFIG_V1';
+// Nueva versión de clave para aplicar los valores de la captura del usuario inmediatamente
+const STORAGE_KEY = 'PSR_CALIBRATED_CONFIG_V3';
 
 const GameConfig = cloneDeep(DEFAULT_CONFIG);
 
@@ -117,6 +185,7 @@ GameConfig.resetToDefaults = function () {
     Object.assign(this.LANES, fresh.LANES);
     Object.assign(this.MOVEMENT, fresh.MOVEMENT);
     Object.assign(this.CONTROLS, fresh.CONTROLS);
+    Object.assign(this.DIFFICULTY, fresh.DIFFICULTY);
     Object.assign(this.PURSUIT, fresh.PURSUIT);
     Object.assign(this.OBSTACLES, fresh.OBSTACLES);
     Object.assign(this.VISUALS, fresh.VISUALS);

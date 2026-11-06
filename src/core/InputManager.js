@@ -1,8 +1,10 @@
 /**
- * PSYCHOLOGICAL SURVIVAL RUNNER - InputManager (Respuesta Instantánea 0ms)
- * ------------------------------------------------------------------------
- * Gestiona la filosofía de DOS CONTROLES (A y B) con respuesta inmediata
- * al soltar cada toque (sin retardo de espera).
+ * PSYCHOLOGICAL SURVIVAL RUNNER - InputManager (Gatillos Ultra Sensibles + 0ms)
+ * -----------------------------------------------------------------------------
+ * Incluye tecnología "Rapid-Trigger" (Gatillo Sensible) para mando y teclado/ratón:
+ *  - Los gatillos analógicos (LT/RT, L2/R2) se activan con apenas 12% de recorrido.
+ *  - Basta levantar el dedo un 6% desde el punto máximo para rearmar el gatillo
+ *    y permitir "button mashing" frenético sin tener que soltar el gatillo hasta cero.
  */
 window.PSR = window.PSR || {};
 
@@ -23,15 +25,23 @@ class InputManager {
         this.lastTapIntervalMs = 0;
         this.tapCount = 0;
 
+        // Métricas de mashing de B
+        this.bPressTimestamps = [];
+        this.totalBMashes = 0;
+
         // Estado de la máquina de cambio de carril
         this.hasRunAtLeastOnce = false;
         this.laneSwitchReady = false;
         this.switchOriginLane = this.config.LANES.DEFAULT_LANE;
         this.currentLogicalLane = this.config.LANES.DEFAULT_LANE;
 
-        // Estado previo del mando (Gamepad)
+        // Estado Rapid-Trigger para gatillos analógicos de mando
         this.gamepadPrevA = false;
         this.gamepadPrevB = false;
+        this.peakTriggerA = 0;
+        this.troughTriggerA = 0;
+        this.peakTriggerB = 0;
+        this.troughTriggerB = 0;
 
         this._bindEvents();
     }
@@ -42,6 +52,8 @@ class InputManager {
         this.tapCount = 0;
         this.lastTapTime = 0;
         this.lastTapIntervalMs = 0;
+        this.bPressTimestamps = [];
+        this.totalBMashes = 0;
         this.hasRunAtLeastOnce = this.isHoldingA;
         this.laneSwitchReady = false;
     }
@@ -91,6 +103,19 @@ class InputManager {
             }
         });
 
+        // Soporte de clic de ratón sobre el lienzo para mashear B a máxima velocidad
+        window.addEventListener('mousedown', (e) => {
+            if (e.target && e.target.id === 'game-canvas') {
+                this._onBPressed(performance.now());
+            }
+        });
+
+        window.addEventListener('mouseup', (e) => {
+            if (this.isHoldingB) {
+                this._onBReleased(performance.now());
+            }
+        });
+
         window.addEventListener('blur', () => {
             if (this.isHoldingA) {
                 this._onAReleased(performance.now());
@@ -130,7 +155,14 @@ class InputManager {
     }
 
     _isControlBKey(code) {
-        return code === 'KeyB' || code === 'KeyL' || code === 'KeyJ' || code === 'ArrowRight' || code === 'Space';
+        return (
+            code === 'KeyB' ||
+            code === 'KeyL' ||
+            code === 'KeyJ' ||
+            code === 'KeyK' ||
+            code === 'ArrowRight' ||
+            code === 'Space'
+        );
     }
 
     _onAPressed(now) {
@@ -152,12 +184,12 @@ class InputManager {
         const { TAP_MAX_DURATION_MS, DOUBLE_TAP_WINDOW_MS } = this.config.CONTROLS;
         const laneCount = this.config.LANES.COUNT;
 
-        // Respuesta instantánea en el mismo milisegundo en que se suelta el toque
+        // Respuesta instantánea en 0ms al soltar el toque
         if (this.laneSwitchReady && pressDuration <= TAP_MAX_DURATION_MS) {
             const timeSinceLastTap = now - this.lastTapTime;
 
             if (this.tapCount === 1 && timeSinceLastTap <= DOUBLE_TAP_WINDOW_MS) {
-                // --- DOS TOQUES RÁPIDOS DE A: Regresar al carril anterior ---
+                // --- DOS TOQUES RÁPIDOS DE A ---
                 this.tapCount = 2;
                 this.lastTapIntervalMs = timeSinceLastTap;
                 this.lastTapTime = now;
@@ -172,7 +204,7 @@ class InputManager {
                     tapIntervalMs: Math.round(timeSinceLastTap)
                 });
             } else {
-                // --- UN TOQUE DE A: Cambiar al instante al carril siguiente ---
+                // --- UN TOQUE DE A ---
                 if (this.tapCount >= 1 && timeSinceLastTap > DOUBLE_TAP_WINDOW_MS) {
                     this.switchOriginLane = this.currentLogicalLane;
                 }
@@ -209,12 +241,15 @@ class InputManager {
     }
 
     _onBPressed(now) {
-        if (this.isHoldingB) return;
+        // Permitir re-disparo ultra rápido para mashing continuo
         this.isHoldingB = true;
+        this.totalBMashes++;
+        this.bPressTimestamps.push(now);
 
         this.eventBus.emit('input:b_action', {
             timestamp: now,
-            whileHoldingA: this.isHoldingA
+            whileHoldingA: this.isHoldingA,
+            mashRate: this.getBMashRate(now)
         });
     }
 
@@ -223,8 +258,16 @@ class InputManager {
         this.eventBus.emit('input:b_up', { timestamp: now });
     }
 
+    getBMashRate(now = performance.now()) {
+        // Limpiar pulsaciones de hace más de 1 segundo
+        while (this.bPressTimestamps.length > 0 && now - this.bPressTimestamps[0] > 1000) {
+            this.bPressTimestamps.shift();
+        }
+        return this.bPressTimestamps.length;
+    }
+
     update(now) {
-        this._pollGamepad(now);
+        this._pollGamepadRapidTriggers(now);
 
         if (this.isHoldingA) {
             const heldTime = now - this.aPressTime;
@@ -236,17 +279,65 @@ class InputManager {
         }
     }
 
-    _pollGamepad(now) {
+    /**
+     * Lectura de Mando con algoritmo Rapid-Trigger (Gatillos Ultra Sensibles):
+     * Permite mashear LT/RT (L2/R2), LB/RB o botones frontales con recorrido mínimo.
+     */
+    _pollGamepadRapidTriggers(now) {
         if (!navigator.getGamepads) return;
         const gamepads = navigator.getGamepads();
         const gp = gamepads && gamepads[0];
         if (!gp) return;
 
-        const gpA = Boolean(gp.buttons[0] && gp.buttons[0].pressed);
-        const gpB = Boolean(
-            (gp.buttons[1] && gp.buttons[1].pressed) ||
-            (gp.buttons[2] && gp.buttons[2].pressed)
+        const threshold = this.config.CONTROLS.TRIGGER_THRESHOLD || 0.12;
+        const rapidDelta = this.config.CONTROLS.TRIGGER_RAPID_DELTA || 0.06;
+
+        // Valor analógico máximo entre Botón A (0), LB (4) y Gatillo Izquierdo LT/L2 (6)
+        const valA = Math.max(
+            gp.buttons[0] ? gp.buttons[0].value : 0,
+            gp.buttons[4] ? gp.buttons[4].value : 0,
+            gp.buttons[6] ? gp.buttons[6].value : 0
         );
+
+        // Valor analógico máximo entre Botones B/X (1, 2), RB (5) y Gatillo Derecho RT/R2 (7)
+        const valB = Math.max(
+            gp.buttons[1] ? gp.buttons[1].value : 0,
+            gp.buttons[2] ? gp.buttons[2].value : 0,
+            gp.buttons[5] ? gp.buttons[5].value : 0,
+            gp.buttons[7] ? gp.buttons[7].value : 0
+        );
+
+        // Evaluación Rapid-Trigger para A
+        let gpA = this.gamepadPrevA;
+        if (!gpA) {
+            this.troughTriggerA = Math.min(this.troughTriggerA, valA);
+            if (valA >= threshold && (valA - this.troughTriggerA) >= rapidDelta) {
+                gpA = true;
+                this.peakTriggerA = valA;
+            }
+        } else {
+            this.peakTriggerA = Math.max(this.peakTriggerA, valA);
+            if (valA < threshold || (this.peakTriggerA - valA) >= rapidDelta) {
+                gpA = false;
+                this.troughTriggerA = valA;
+            }
+        }
+
+        // Evaluación Rapid-Trigger para B (ideal para mashear RT/R2 o B a toda velocidad)
+        let gpB = this.gamepadPrevB;
+        if (!gpB) {
+            this.troughTriggerB = Math.min(this.troughTriggerB, valB);
+            if (valB >= threshold && (valB - this.troughTriggerB) >= rapidDelta) {
+                gpB = true;
+                this.peakTriggerB = valB;
+            }
+        } else {
+            this.peakTriggerB = Math.max(this.peakTriggerB, valB);
+            if (valB < threshold || (this.peakTriggerB - valB) >= rapidDelta) {
+                gpB = false;
+                this.troughTriggerB = valB;
+            }
+        }
 
         if (gpA && !this.gamepadPrevA) this._onAPressed(now);
         if (!gpA && this.gamepadPrevA) this._onAReleased(now);
@@ -273,6 +364,7 @@ class InputManager {
             doubleTapRemainingMs,
             lastTapIntervalMs: this.lastTapIntervalMs,
             isHoldingB: this.isHoldingB,
+            bMashRate: this.getBMashRate(now),
             laneSwitchReady: this.laneSwitchReady && !isSustainedRun,
             tapCount: this.tapCount,
             currentLane: this.currentLogicalLane,

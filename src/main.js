@@ -1,13 +1,10 @@
 /**
  * PSYCHOLOGICAL SURVIVAL RUNNER - Orquestador Principal (main.js)
  * ---------------------------------------------------------------
- * Conecta de forma limpia los sistemas modulares de la Fase 1:
- *  - InputManager (Dos controles: A y B)
- *  - Player (Movimiento en 3 carriles y presión de persecución)
- *  - ObstacleManager (Generación de obstáculos y estructuras interactivas)
- *  - InteractionSystem (Manipulación contextual del entorno con B)
- *  - CollisionSystem (Detección de impactos y diagnóstico de muerte)
- *  - Renderer (Visualización 2.5D oscura + HUD minimalista)
+ * Conecta los sistemas del juego principal incluyendo:
+ *  - Progresión de 5 niveles de intensidad cada 1000 metros
+ *  - Gatillos sensibles y masheo de B sobre obstáculos multicapa
+ *  - Apartado de Música sincronizada con la carrera (MusicManager)
  */
 window.PSR = window.PSR || {};
 
@@ -23,6 +20,9 @@ class GameApp {
         this.interactionSystem = new window.PSR.InteractionSystem(this.config, this.eventBus);
         this.collisionSystem = new window.PSR.CollisionSystem(this.config, this.eventBus);
         this.renderer = new window.PSR.Renderer(this.canvas, this.config, this.eventBus);
+        this.musicManager = window.PSR.MusicManager
+            ? new window.PSR.MusicManager(this.eventBus, this.config)
+            : null;
 
         this.bestDistance = 0;
         this.lastActionFeedback = 'MANTÉN [A] PARA CORRER';
@@ -43,6 +43,8 @@ class GameApp {
         this.uiDistance = document.getElementById('hud-distance');
         this.uiBest = document.getElementById('hud-best');
         this.uiLane = document.getElementById('hud-lane');
+        this.uiLevelName = document.getElementById('hud-level-name');
+        this.uiLevelProgressFill = document.getElementById('hud-level-progress-fill');
         this.uiControlA = document.getElementById('hud-control-a');
         this.uiControlB = document.getElementById('hud-control-b');
         this.uiPursuitBar = document.getElementById('hud-pursuit-fill');
@@ -55,7 +57,6 @@ class GameApp {
     }
 
     _bindSystemEvents() {
-        // Cambio de carril con Control A (1 toque = siguiente, 2 toques = anterior)
         this.eventBus.on('input:lane_change', ({ type, targetLane }) => {
             if (!this.player.isAlive) return;
             this.player.setTargetLane(targetLane, type);
@@ -63,9 +64,9 @@ class GameApp {
 
             const laneName = this.config.LANES.NAMES[targetLane];
             if (type === 'SINGLE_TAP_NEXT') {
-                this.lastActionFeedback = `1 TOQUE [A] → CARRIL SIGUIENTE (${laneName})`;
+                this.lastActionFeedback = `1 TOQUE [A] → ${laneName}`;
             } else {
-                this.lastActionFeedback = `2 TOQUES [A] → CARRIL ANTERIOR (${laneName})`;
+                this.lastActionFeedback = `2 TOQUES [A] → ${laneName}`;
             }
         });
 
@@ -74,10 +75,8 @@ class GameApp {
             this.lastActionFeedback = '[A] SUELTA: CAMBIO DE CARRIL HABILITADO (1 o 2 TOQUES)';
         });
 
-        // Acción contextual con Control B
         this.eventBus.on('input:b_action', () => {
             if (!this.player.isAlive) {
-                // Permitir reiniciar rápidamente tras morir
                 if (performance.now() - this.deathTimestamp > 350) {
                     this.resetRun();
                 }
@@ -89,20 +88,27 @@ class GameApp {
             );
         });
 
+        this.eventBus.on('interaction:mash_hit', ({ remainingHits, requiredHits }) => {
+            this.lastActionFeedback = `⚡ ¡IMPACTO [B]! ¡SIGUE MASHEANDO! (Quedan ${remainingHits}/${requiredHits})`;
+        });
+
         this.eventBus.on('interaction:manipulated', ({ toLane }) => {
             const targetName = this.config.LANES.NAMES[toLane];
-            this.lastActionFeedback = `[B] ESTRUCTURA DERRUMBADA HACIA ${targetName}`;
+            this.lastActionFeedback = `💥 [B] ESTRUCTURA DERRUMBADA HACIA ${targetName}`;
         });
 
         this.eventBus.on('interaction:shattered', () => {
-            this.lastActionFeedback = '[B] BARRICADA DESTROZADA AL PASO';
+            this.lastActionFeedback = '💥 [B] BARRICADA DESTROZADA AL PASO';
         });
 
         this.eventBus.on('interaction:resisted', () => {
-            this.lastActionFeedback = '[B] INÚTIL: ESTRUCTURA MACIZA — CAMBIA DE CARRIL CON [A]';
+            this.lastActionFeedback = '🛡️ [B] INÚTIL: MONOLITO INDESTRUCTIBLE — ESQUIVA CON [A]';
         });
 
-        // Reinicio rápido con A o R cuando el jugador ha muerto
+        this.eventBus.on('difficulty:level_up', ({ level, config }) => {
+            this.lastActionFeedback = `🔥 ¡${config.name}! (${config.subtitle})`;
+        });
+
         this.eventBus.on('input:a_down', ({ timestamp }) => {
             if (!this.player.isAlive && timestamp - this.deathTimestamp > 400) {
                 this.resetRun();
@@ -113,16 +119,17 @@ class GameApp {
             this.resetRun();
         });
 
-        // Evento de muerte
         this.eventBus.on('player:died', ({ reason, detail, distance }) => {
             this.deathTimestamp = performance.now();
             if (distance > this.bestDistance) {
                 this.bestDistance = distance;
             }
-            this.deathReasonEl.textContent = reason;
-            this.deathDetailEl.textContent = detail;
-            this.deathScoreEl.textContent = `DISTANCIA SOBREVIVIDA: ${distance} m  |  RÉCORD: ${this.bestDistance} m`;
-            this.deathOverlay.classList.remove('hidden');
+            if (this.deathReasonEl) this.deathReasonEl.textContent = reason;
+            if (this.deathDetailEl) this.deathDetailEl.textContent = detail;
+            if (this.deathScoreEl) {
+                this.deathScoreEl.textContent = `DISTANCIA: ${distance} m (NIVEL ${this.obstacleManager.currentLevel}/5)  |  RÉCORD: ${this.bestDistance} m`;
+            }
+            if (this.deathOverlay) this.deathOverlay.classList.remove('hidden');
         });
     }
 
@@ -130,8 +137,8 @@ class GameApp {
         this.player.reset();
         this.input.reset(this.player.lane);
         this.obstacleManager.reset();
-        this.deathOverlay.classList.add('hidden');
-        this.lastActionFeedback = 'MANTÉN [A] PARA CORRER — SUELTA [A] PARA CAMBIAR DE CARRIL';
+        if (this.deathOverlay) this.deathOverlay.classList.add('hidden');
+        this.lastActionFeedback = 'NIVEL 1/5: MANTÉN [A] PARA CORRER — MASHEA [B] PARA ROMPER/EMPUJAR';
     }
 
     update(dt, now) {
@@ -141,6 +148,10 @@ class GameApp {
             this.player.update(dt, now, this.input.isHoldingA);
             this.obstacleManager.update(dt, this.player);
             this.collisionSystem.update(this.player, this.obstacleManager.obstacles);
+        }
+
+        if (this.musicManager) {
+            this.musicManager.update(this.player, this.obstacleManager.currentLevel);
         }
 
         this._updateHud(now);
@@ -160,35 +171,55 @@ class GameApp {
             this.bestDistance = distMeters;
         }
 
-        this.uiDistance.textContent = `${distMeters} m`;
-        this.uiBest.textContent = `${this.bestDistance} m`;
-        this.uiLane.textContent = this.config.LANES.NAMES[this.player.lane];
+        if (this.uiDistance) this.uiDistance.textContent = `${distMeters} m`;
+        if (this.uiBest) this.uiBest.textContent = `${this.bestDistance} m`;
+        if (this.uiLane) this.uiLane.textContent = this.config.LANES.NAMES[this.player.lane];
+
+        // Progreso de los 5 Niveles (cada 1000m)
+        const lvl = this.obstacleManager.currentLevel;
+        const lvlCfg = this.obstacleManager.getLevelConfig(lvl);
+        if (this.uiLevelName) {
+            this.uiLevelName.textContent = `${lvlCfg.name} (${lvl}/5)`;
+        }
+        if (this.uiLevelProgressFill) {
+            const metersPerLvl = this.config.DIFFICULTY.METERS_PER_LEVEL || 1000;
+            const pct = lvl >= 5 ? 100 : ((distMeters % metersPerLvl) / metersPerLvl) * 100;
+            this.uiLevelProgressFill.style.width = `${pct}%`;
+        }
 
         const ctrl = this.input.getControlState(now);
-        if (ctrl.isHoldingA) {
-            this.uiControlA.textContent = 'A: CORRIENDO';
-            this.uiControlA.className = 'pill active-run';
-        } else if (ctrl.laneSwitchReady) {
-            this.uiControlA.textContent = 'A: CAMBIO LISTO (1 o 2 TOQUES)';
-            this.uiControlA.className = 'pill switch-ready';
-        } else {
-            this.uiControlA.textContent = 'A: DETENIDO (MANTÉN A)';
-            this.uiControlA.className = 'pill idle';
+        if (this.uiControlA) {
+            if (ctrl.isHoldingA) {
+                this.uiControlA.textContent = `A: CORRIENDO (${Math.round(this.player.speed)} u/s)`;
+                this.uiControlA.className = 'pill active-run';
+            } else if (ctrl.laneSwitchReady) {
+                this.uiControlA.textContent = 'A: CAMBIO LISTO (1 o 2 TOQUES)';
+                this.uiControlA.className = 'pill switch-ready';
+            } else {
+                this.uiControlA.textContent = 'A: DETENIDO (MANTÉN A)';
+                this.uiControlA.className = 'pill idle';
+            }
         }
 
-        if (this.player.bActionTimer > 0) {
-            this.uiControlB.textContent = `B: ${this.player.bLastOutcome}`;
-            this.uiControlB.className = 'pill active-b';
-        } else {
-            this.uiControlB.textContent = 'B: ACCIÓN CONTEXTUAL';
-            this.uiControlB.className = 'pill idle';
+        if (this.uiControlB) {
+            if (this.player.bActionTimer > 0 || ctrl.bMashRate > 0) {
+                this.uiControlB.textContent = `B: ${this.player.bLastOutcome} (${ctrl.bMashRate} puls/s)`;
+                this.uiControlB.className = 'pill active-b';
+            } else {
+                this.uiControlB.textContent = 'B: MASHEO CONTEXTUAL';
+                this.uiControlB.className = 'pill idle';
+            }
         }
 
-        const pursuitPct = Math.max(0, Math.min(100, (this.player.pursuitDistance / this.config.PURSUIT.INITIAL_DISTANCE) * 100));
-        this.uiPursuitBar.style.width = `${pursuitPct}%`;
-        this.uiPursuitBar.style.backgroundColor = pursuitPct < 40 ? '#ff1e38' : '#e2e8f0';
+        if (this.uiPursuitBar) {
+            const pursuitPct = Math.max(0, Math.min(100, (this.player.pursuitDistance / this.config.PURSUIT.INITIAL_DISTANCE) * 100));
+            this.uiPursuitBar.style.width = `${pursuitPct}%`;
+            this.uiPursuitBar.style.backgroundColor = pursuitPct < 40 ? '#ff1e38' : '#e2e8f0';
+        }
 
-        this.uiFeedback.textContent = this.lastActionFeedback;
+        if (this.uiFeedback) {
+            this.uiFeedback.textContent = this.lastActionFeedback;
+        }
     }
 }
 

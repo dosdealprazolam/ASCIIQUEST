@@ -3,44 +3,76 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PSYCHOLOGICAL SURVIVAL RUNNER — Prototipo Fase 1</title>
+    <title>PSYCHOLOGICAL SURVIVAL RUNNER — 5 Niveles de Intensidad</title>
     <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
     <!-- Lienzo principal de renderizado -->
     <canvas id="game-canvas"></canvas>
 
-    <!-- HUD minimalista de estado y diagnóstico del prototipo -->
+    <!-- HUD superior de estado, progresión de 5 niveles y apartado de música -->
     <header id="hud">
         <div class="hud-panel">
             <div class="hud-row">
                 <div><span class="hud-label">DISTANCIA:</span> <span id="hud-distance" class="hud-value">0 m</span></div>
                 <div><span class="hud-label">RÉCORD:</span> <span id="hud-best" class="hud-value">0 m</span></div>
-                <div><span class="hud-label">CARRIL:</span> <span id="hud-lane" class="hud-value">CENTRO</span></div>
+                <div><span class="hud-label">CARRIL:</span> <span id="hud-lane" class="hud-value">CARRIL 2 (CENTRO)</span></div>
             </div>
+
+            <!-- Barra de Progresión de los 5 Niveles (cada 1000m) -->
+            <div class="pursuit-container" style="margin-bottom:8px;">
+                <div class="hud-row" style="margin-bottom:3px; justify-content:space-between;">
+                    <span id="hud-level-name" style="color:#ff9f1c; font-weight:bold; font-size:12px;">NIVEL 1 — FALSO CONTROL (1/5)</span>
+                    <span class="hud-label" style="font-size:11px;">+Nivel cada 1000m</span>
+                </div>
+                <div class="pursuit-bar-bg" style="width:100%; border-color:#ff9f1c;">
+                    <div id="hud-level-progress-fill" style="height:100%; width:0%; background:#ff9f1c; transition:width 0.1s linear;"></div>
+                </div>
+            </div>
+
             <div class="pursuit-container">
                 <div class="hud-row" style="margin-bottom:3px;">
                     <span class="hud-label">MARGEN ANTE LA PERSECUCIÓN:</span>
                 </div>
-                <div class="pursuit-bar-bg">
+                <div class="pursuit-bar-bg" style="width:100%;">
                     <div id="hud-pursuit-fill"></div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Apartado de Música en Carrera -->
+        <div class="hud-panel music-deck sandbox-ui-interactive">
+            <div class="music-header">
+                <span style="color:#ff9f1c; font-weight:bold; font-size:12px;">🎵 MÚSICA EN CARRERA</span>
+                <span id="music-status" class="pill idle">SIN PISTA</span>
+            </div>
+            <div id="music-track-name" class="music-track-title">
+                Carga una canción (.mp3/.wav) o suéltala aquí
+            </div>
+            <div class="music-controls-row">
+                <input id="music-file-input" type="file" accept="audio/*" style="display:none;" />
+                <button id="btn-load-music" type="button" class="mode-switch-link">📂 Cargar Canción</button>
+                <label class="toggle-label" title="La música suena mientras corres y se pausa al detenerte">
+                    <input id="chk-music-sync-run" type="checkbox" checked />
+                    Sonar al correr
+                </label>
+                <input id="music-volume" type="range" min="0" max="1" step="0.05" value="0.75" style="width:75px;" title="Volumen" />
             </div>
         </div>
 
         <div class="hud-panel controls-status">
             <a href="sandbox.html" class="mode-switch-link">⚙️ ABRIR SANDBOX DE CALIBRACIÓN</a>
             <div id="hud-control-a" class="pill idle">A: DETENIDO (MANTÉN A)</div>
-            <div id="hud-control-b" class="pill idle">B: ACCIÓN CONTEXTUAL</div>
+            <div id="hud-control-b" class="pill idle">B: MASHEO CONTEXTUAL</div>
         </div>
     </header>
 
     <!-- Resumen inferior discreto del esquema de dos botones -->
     <footer id="bottom-bar">
-        <div id="hud-feedback">MANTÉN [A] PARA CORRER — SUELTA [A] PARA CAMBIAR DE CARRIL</div>
+        <div id="hud-feedback">NIVEL 1/5: MANTÉN [A] PARA CORRER — MASHEA [B] PARA ROMPER/EMPUJAR</div>
         <div class="legend">
-            <strong>[A]</strong> Mantener: Correr &nbsp;|&nbsp; Soltar + 1 Toque: Siguiente carril &nbsp;|&nbsp; Soltar + 2 Toques: Carril anterior &nbsp;&bull;&nbsp;
-            <strong>[B]</strong> Empujar estructura a otro carril / Romper barricada
+            <strong>[A / Gatillo Izq]</strong> Mantener: Correr &nbsp;|&nbsp; Soltar + 1 o 2 Toques: Cambiar carril &nbsp;&bull;&nbsp;
+            <strong>[B / Clic / Gatillo Der]</strong> Mashear rápido: Romper barricadas / Derrumbar torres a otro carril
         </div>
     </footer>
 
@@ -54,10 +86,11 @@
         </div>
     </section>
 
-    <!-- Carga modular ordenada (compatible con doble clic directo sobre index.html sin servidor) -->
+    <!-- Carga modular ordenada -->
     <script src="src/config/GameConfig.js"></script>
     <script src="src/core/EventBus.js"></script>
     <script src="src/core/InputManager.js"></script>
+    <script src="src/core/MusicManager.js"></script>
     <script src="src/core/GameLoop.js"></script>
     <script src="src/entities/Player.js"></script>
     <script src="src/entities/Obstacle.js"></script>

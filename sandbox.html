@@ -18,7 +18,7 @@
 
         <div style="display:flex; gap:6px; margin-bottom:10px;">
             <div id="sandbox-state-a" class="pill idle" style="flex:1; text-align:center;">A: REPOSO</div>
-            <div id="sandbox-state-b" class="pill idle" style="flex:1; text-align:center;">B: LISTO</div>
+            <div id="sandbox-state-b" class="pill idle" style="flex:1; text-align:center;">B: LISTO (0/s)</div>
         </div>
 
         <!-- 1. Medidor de Pulsación de A (Toque vs Mantener) -->
@@ -67,7 +67,7 @@
         </div>
 
         <!-- 5. Diagrama de los 3 Carriles -->
-        <div class="panel-title" style="margin-top:12px;">
+        <div class="panel-title" style="margin-top:10px;">
             <span>ESTADO DE LOS 3 CARRILES</span>
             <span style="font-size:11px; color:#94a3b8;">Impactos: <strong id="sandbox-impacts" style="color:#ff1e38;">0</strong></span>
         </div>
@@ -84,8 +84,26 @@
             <div>↳ <strong>2 Toques [A]</strong> (Anterior): <strong id="val-prev-lane" style="color:#ff9f1c;">CARRIL 1 (IZQ)</strong></div>
         </div>
 
-        <!-- 6. Historial de Inputs en milisegundos -->
+        <!-- Apartado de Música también accesible en el Sandbox -->
         <div class="panel-title" style="margin-top:8px;">
+            <span>🎵 MÚSICA EN CARRERA</span>
+            <span id="music-status" class="pill idle">SIN PISTA</span>
+        </div>
+        <div class="sandbox-ui-interactive" style="pointer-events:auto; margin-bottom:8px;">
+            <div id="music-track-name" class="music-track-title">Carga una canción (.mp3/.wav)</div>
+            <div class="music-controls-row">
+                <input id="music-file-input" type="file" accept="audio/*" style="display:none;" />
+                <button id="btn-load-music" type="button" class="mode-switch-link">📂 Cargar Canción</button>
+                <label class="toggle-label">
+                    <input id="chk-music-sync-run" type="checkbox" checked />
+                    Sonar al correr
+                </label>
+                <input id="music-volume" type="range" min="0" max="1" step="0.05" value="0.75" style="width:65px;" />
+            </div>
+        </div>
+
+        <!-- 6. Historial de Inputs en milisegundos -->
+        <div class="panel-title" style="margin-top:6px;">
             <span>REGISTRO DE ENTRADAS (MS)</span>
         </div>
         <div id="sandbox-input-log"></div>
@@ -101,19 +119,19 @@
         <div class="slider-row">
             <div class="slider-label">
                 <span>Duración máx. 1 Toque [A]</span>
-                <span id="lbl-tap-max" class="slider-val">230 ms</span>
+                <span id="lbl-tap-max" class="slider-val">260 ms</span>
             </div>
             <div class="slider-help">Tiempo máx. entre presionar y soltar A para contar como toque.</div>
-            <input id="slider-tap-max" type="range" min="80" max="450" step="10" value="230" />
+            <input id="slider-tap-max" type="range" min="80" max="450" step="10" value="260" />
         </div>
 
         <div class="slider-row">
             <div class="slider-label">
                 <span>Ventana Doble Toque [A]</span>
-                <span id="lbl-double-tap" class="slider-val">320 ms</span>
+                <span id="lbl-double-tap" class="slider-val">500 ms</span>
             </div>
             <div class="slider-help">Margen entre el 1er y 2do toque rápido para regresar al carril anterior.</div>
-            <input id="slider-double-tap" type="range" min="120" max="600" step="10" value="320" />
+            <input id="slider-double-tap" type="range" min="120" max="600" step="10" value="500" />
         </div>
 
         <div class="slider-row">
@@ -128,26 +146,26 @@
         <div class="slider-row">
             <div class="slider-label">
                 <span>Rapidez lateral de carril</span>
-                <span id="lbl-lane-lerp" class="slider-val">16</span>
+                <span id="lbl-lane-lerp" class="slider-val">21</span>
             </div>
             <div class="slider-help">Qué tan rápido se desliza el personaje de un carril a otro.</div>
-            <input id="slider-lane-lerp" type="range" min="5" max="35" step="1" value="16" />
+            <input id="slider-lane-lerp" type="range" min="5" max="35" step="1" value="21" />
         </div>
 
         <div class="slider-row">
             <div class="slider-label">
                 <span>Velocidad máx. carrera</span>
-                <span id="lbl-max-speed" class="slider-val">720 u/s</span>
+                <span id="lbl-max-speed" class="slider-val">860 u/s</span>
             </div>
-            <input id="slider-max-speed" type="range" min="300" max="1400" step="20" value="720" />
+            <input id="slider-max-speed" type="range" min="300" max="1400" step="20" value="860" />
         </div>
 
         <div class="slider-row">
             <div class="slider-label">
                 <span>Aceleración al mantener [A]</span>
-                <span id="lbl-accel" class="slider-val">2600 u/s²</span>
+                <span id="lbl-accel" class="slider-val">3100 u/s²</span>
             </div>
-            <input id="slider-accel" type="range" min="800" max="5000" step="100" value="2600" />
+            <input id="slider-accel" type="range" min="800" max="5000" step="100" value="3100" />
         </div>
 
         <div class="slider-row">
@@ -161,10 +179,10 @@
         <div class="slider-row">
             <div class="slider-label">
                 <span>Alcance frontal de [B]</span>
-                <span id="lbl-b-range" class="slider-val">190 u</span>
+                <span id="lbl-b-range" class="slider-val">260 u</span>
             </div>
             <div class="slider-help">Distancia a la que B puede empujar o romper estructuras.</div>
-            <input id="slider-b-range" type="range" min="80" max="360" step="10" value="190" />
+            <input id="slider-b-range" type="range" min="80" max="380" step="10" value="260" />
         </div>
 
         <div class="sandbox-actions-row">
@@ -173,16 +191,16 @@
         </div>
     </aside>
 
-    <!-- BARRA INFERIOR: Generador Manual de Obstáculos para Pruebas -->
+    <!-- BARRA INFERIOR: Generador Manual de Obstáculos y Selector de los 5 Niveles -->
     <footer id="sandbox-spawner-bar" class="sandbox-ui-interactive">
         <button class="spawn-btn" type="button" data-spawn-slot="1">
-            <strong>[1]</strong> + Estructura Inestable (Empujar con B)
+            <strong>[1]</strong> + Estructura Inestable (B)
         </button>
         <button class="spawn-btn" type="button" data-spawn-slot="2">
-            <strong>[2]</strong> + Barricada Frágil (Romper con B)
+            <strong>[2]</strong> + Barricada Rompible (B)
         </button>
         <button class="spawn-btn" type="button" data-spawn-slot="3">
-            <strong>[3]</strong> + Monolito Sólido (Esquivar con A)
+            <strong>[3]</strong> + Monolito Sólido (A)
         </button>
         <button class="spawn-btn" type="button" data-spawn-slot="4">
             <strong>[4]</strong> + Formación 2 Carriles
@@ -190,6 +208,18 @@
         <button id="btn-clear-track" class="spawn-btn" type="button">
             <strong>[0]</strong> Limpiar Pista
         </button>
+
+        <label class="toggle-label">
+            Nivel:
+            <select id="sandbox-level-select" class="sandbox-select">
+                <option value="auto">Auto (cada 1000m)</option>
+                <option value="1">Nivel 1 (Solo Romper)</option>
+                <option value="2">Nivel 2 (Masheo 2x)</option>
+                <option value="3">Nivel 3 (+Monolitos)</option>
+                <option value="4">Nivel 4 (Frenesí)</option>
+                <option value="5">Nivel 5 (Pesadilla)</option>
+            </select>
+        </label>
 
         <label class="toggle-label">
             <input id="chk-autospawn" type="checkbox" />
@@ -205,6 +235,7 @@
     <script src="src/config/GameConfig.js"></script>
     <script src="src/core/EventBus.js"></script>
     <script src="src/core/InputManager.js"></script>
+    <script src="src/core/MusicManager.js"></script>
     <script src="src/core/GameLoop.js"></script>
     <script src="src/entities/Player.js"></script>
     <script src="src/entities/Obstacle.js"></script>

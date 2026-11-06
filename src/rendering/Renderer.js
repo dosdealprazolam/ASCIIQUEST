@@ -59,6 +59,17 @@ class Renderer {
             this._spawnImpactParticles(obstacle.initialLane, obstacle.z, '#ff9f1c', 28, toLane - obstacle.initialLane);
         });
 
+        this.eventBus.on('interaction:mash_hit', ({ obstacle }) => {
+            this.addShake(7);
+            this._spawnImpactParticles(obstacle.lane, obstacle.z, '#ffbf69', 14, 0);
+        });
+
+        this.eventBus.on('difficulty:level_up', () => {
+            this.addShake(12);
+            this.flashColor = '#ff9f1c';
+            this.flashAlpha = 0.28;
+        });
+
         this.eventBus.on('interaction:shattered', ({ obstacle }) => {
             this.addShake(10);
             this._spawnImpactParticles(obstacle.lane, obstacle.z, '#e71d36', 24, 0);
@@ -351,8 +362,9 @@ class Renderer {
             ctx.rotate(angle);
 
             // Cuerpo de la torre industrial fracturada
-            ctx.fillStyle = obs.state === 'ACTIVE' ? '#1e1922' : '#2a1818';
-            ctx.strokeStyle = obs.state === 'ACTIVE' ? '#ff9f1c' : '#ff4040';
+            const isHitFlash = obs.hitFlashTimer > 0;
+            ctx.fillStyle = isHitFlash ? '#5a3e1b' : (obs.state === 'ACTIVE' ? '#1e1922' : '#2a1818');
+            ctx.strokeStyle = isHitFlash ? '#ffffff' : (obs.state === 'ACTIVE' ? '#ff9f1c' : '#ff4040');
             ctx.lineWidth = Math.max(1.5, 2.8 * p.scale);
 
             ctx.fillRect(-w * 0.44, -h, w * 0.88, h);
@@ -366,14 +378,15 @@ class Renderer {
             ctx.lineTo(w * 0.20 * tiltDir, -h * 0.82);
             ctx.stroke();
 
-            // Símbolos ASCII estructurales
-            if (p.scale > 0.28) {
-                ctx.fillStyle = '#ff9f1c';
+            // Símbolos ASCII estructurales y capas de resistencia al masheo
+            if (p.scale > 0.25) {
+                ctx.fillStyle = isHitFlash ? '#ffffff' : '#ff9f1c';
                 ctx.font = `bold ${Math.max(10, Math.floor(20 * p.scale))}px monospace`;
                 ctx.textAlign = 'center';
                 const arrowGlyph = tiltDir > 0 ? '>>>' : '<<<';
-                ctx.fillText(arrowGlyph, 0, -h * 0.45);
-                ctx.fillText('[╫╫╫]', 0, -h * 0.20);
+                ctx.fillText(arrowGlyph, 0, -h * 0.48);
+                const pips = '■'.repeat(Math.max(1, obs.remainingHits || 1));
+                ctx.fillText(`[${pips}]`, 0, -h * 0.22);
             }
         } else if (obs.type === TYPES.SOLID_MONOLITH) {
             // --- MONOLITO INDESTRUCTIBLE (Obliga a esquivar con A) ---
@@ -400,11 +413,12 @@ class Renderer {
                 ctx.restore();
                 return;
             }
-            const h = 85 * p.scale;
+            const h = (85 + ((obs.requiredHits || 1) - 1) * 18) * p.scale;
             const jitter = Math.sin(now * 0.03 + obs.id) * 2 * p.scale;
+            const isHitFlash = obs.hitFlashTimer > 0;
 
-            ctx.fillStyle = '#251419';
-            ctx.strokeStyle = '#ff5964';
+            ctx.fillStyle = isHitFlash ? '#6b202e' : '#251419';
+            ctx.strokeStyle = isHitFlash ? '#ffffff' : '#ff5964';
             ctx.lineWidth = Math.max(1.2, 2.2 * p.scale);
 
             ctx.beginPath();
@@ -417,11 +431,12 @@ class Renderer {
             ctx.fill();
             ctx.stroke();
 
-            if (p.scale > 0.28) {
-                ctx.fillStyle = '#ff5964';
+            if (p.scale > 0.25) {
+                ctx.fillStyle = isHitFlash ? '#ffffff' : '#ff5964';
                 ctx.font = `bold ${Math.max(10, Math.floor(18 * p.scale))}px monospace`;
                 ctx.textAlign = 'center';
-                ctx.fillText('╬═╬', 0, -h * 0.35);
+                const pips = '╬'.repeat(Math.max(1, obs.remainingHits || 1));
+                ctx.fillText(pips, 0, -h * 0.35);
             }
         }
 

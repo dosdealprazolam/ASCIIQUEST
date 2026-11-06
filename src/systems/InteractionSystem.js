@@ -1,8 +1,8 @@
 /**
- * PSYCHOLOGICAL SURVIVAL RUNNER - InteractionSystem (Control B)
- * -------------------------------------------------------------
+ * PSYCHOLOGICAL SURVIVAL RUNNER - InteractionSystem (Control B + Masheo)
+ * ----------------------------------------------------------------------
  * Interpreta el contexto alrededor del jugador cuando pulsa [B]
- * mientras corre. No tiene barra de energía ni cooldown artificial.
+ * mientras corre. Soporta masheo rápido de múltiples impactos.
  */
 window.PSR = window.PSR || {};
 
@@ -12,16 +12,12 @@ class InteractionSystem {
         this.eventBus = eventBus;
     }
 
-    /**
-     * Evalúa y ejecuta la acción contextual B sobre el entorno cercano.
-     */
     executeContextualAction(player, obstacles) {
         if (!player.isAlive) return;
 
         const minRange = this.config.CONTROLS.B_MIN_RANGE;
         const maxRange = this.config.CONTROLS.B_INTERACTION_RANGE;
 
-        // Buscar el obstáculo interactivo más cercano en el carril del jugador
         let targetObs = null;
         let closestDist = Infinity;
 
@@ -31,7 +27,9 @@ class InteractionSystem {
             const relZ = obs.z - player.z;
             const laneDist = Math.abs(obs.visualLane - player.visualLane);
 
-            if (relZ >= minRange && relZ <= maxRange && laneDist <= 0.55) {
+            // Rango ampliado si el obstáculo requiere múltiples golpes de masheo
+            const extraMashRange = (obs.requiredHits > 1) ? (obs.requiredHits - 1) * 45 : 0;
+            if (relZ >= minRange && relZ <= (maxRange + extraMashRange) && laneDist <= 0.58) {
                 if (relZ < closestDist) {
                     closestDist = relZ;
                     targetObs = obs;
@@ -48,7 +46,13 @@ class InteractionSystem {
         const outcome = targetObs.interactWithB();
         player.triggerContextualAction(outcome);
 
-        if (outcome === 'MANIPULATED') {
+        if (outcome === 'MASH_HIT') {
+            this.eventBus.emit('interaction:mash_hit', {
+                obstacle: targetObs,
+                remainingHits: targetObs.remainingHits,
+                requiredHits: targetObs.requiredHits
+            });
+        } else if (outcome === 'MANIPULATED') {
             this.eventBus.emit('interaction:manipulated', {
                 obstacle: targetObs,
                 fromLane: targetObs.initialLane,
@@ -67,10 +71,6 @@ class InteractionSystem {
         }
     }
 
-    /**
-     * Verifica si existe algún obstáculo dentro del rango contextual de B
-     * (utilizado para dar tensión física/ambiental sin mostrar carteles de texto).
-     */
     getObstacleInContextualRange(player, obstacles) {
         const minRange = this.config.CONTROLS.B_MIN_RANGE;
         const maxRange = this.config.CONTROLS.B_INTERACTION_RANGE;
@@ -79,7 +79,7 @@ class InteractionSystem {
             if (obs.state !== 'ACTIVE') continue;
             const relZ = obs.z - player.z;
             const laneDist = Math.abs(obs.visualLane - player.visualLane);
-            if (relZ >= minRange && relZ <= maxRange && laneDist <= 0.55) {
+            if (relZ >= minRange && relZ <= maxRange && laneDist <= 0.58) {
                 return obs;
             }
         }

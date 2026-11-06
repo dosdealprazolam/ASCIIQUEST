@@ -1,16 +1,8 @@
 /**
- * PSYCHOLOGICAL SURVIVAL RUNNER - Entidad Obstacle
- * ------------------------------------------------
- * Define obstáculos del escenario con soporte para interacción contextual (Control B).
- *
- * Tipos implementados en el prototipo (Fase 1):
- *  1. COLLAPSING_STRUCTURE: Estructura alta e inestable que bloquea el carril.
- *     Al usar [B] cerca, el jugador la empuja y se derrumba hacia un carril adyacente,
- *     liberando el paso actual pero bloqueando el carril contiguo.
- *  2. FRAGILE_BARRICADE: Barricada de escombros que puede apartarse/romperse con [B]
- *     o esquivarse cambiando de carril con [A].
- *  3. SOLID_MONOLITH: Masa de hormigón/acero indestructible. [B] no puede moverla;
- *     obliga al jugador a cambiar de carril con [A].
+ * PSYCHOLOGICAL SURVIVAL RUNNER - Entidad Obstacle (Con Soporte de Masheo Múltiple)
+ * ---------------------------------------------------------------------------------
+ * Define obstáculos del escenario con soporte para interacción contextual (Control B)
+ * y resistencia multicapa para exigir "button mashing" en niveles superiores.
  */
 window.PSR = window.PSR || {};
 
@@ -21,33 +13,32 @@ const OBSTACLE_TYPES = {
 };
 
 class Obstacle {
-    constructor({ id, type, lane, z, fallTargetLane = null }) {
+    constructor({ id, type, lane, z, fallTargetLane = null, requiredHits = 1 }) {
         this.id = id;
         this.type = type;
 
-        // Carril lógico actual y carril visual interpolado (para estructuras que se derrumban a otro carril)
         this.initialLane = lane;
         this.lane = lane;
         this.visualLane = lane;
 
-        // Si es una estructura empujable con B, hacia qué carril adyacente se derrumbará
         this.fallTargetLane = fallTargetLane;
 
-        // Posición longitudinal en el mundo (z) y dimensiones
         this.z = z;
         this.depth = 42;
 
+        // Resistencia para masheo de B (1 golpe en Nivel 1, hasta 4 golpes rápidos en Nivel 5)
+        this.requiredHits = Math.max(1, requiredHits);
+        this.remainingHits = this.requiredHits;
+
         // Estados: 'ACTIVE' | 'TOPPLING' | 'COLLAPSED_IN_OTHER_LANE' | 'SHATTERED'
         this.state = 'ACTIVE';
-        this.toppleProgress = 0;      // 0.0 -> 1.0 durante el derrumbe lateral
-        this.shatterProgress = 0;     // 0.0 -> 1.0 al romperse
-        this.resistFlashTimer = 0;    // Destello cuando el jugador intenta usar B en algo indestructible
+        this.toppleProgress = 0;
+        this.shatterProgress = 0;
+        this.resistFlashTimer = 0;
+        this.hitFlashTimer = 0;
         this.nearMissTriggered = false;
     }
 
-    /**
-     * Indica si este obstáculo puede ser manipulado contextualmente con B ahora mismo.
-     */
     canInteractWithB() {
         if (this.state !== 'ACTIVE') return false;
         return (
@@ -58,36 +49,41 @@ class Obstacle {
     }
 
     /**
-     * Ejecuta la acción contextual B sobre el obstáculo.
-     * @returns {string} Resultado de la interacción ('MANIPULATED' | 'SHATTERED' | 'RESISTED')
+     * Ejecuta un pulso de acción contextual B sobre el obstáculo.
+     * Soporta masheo rápido cuando remainingHits > 1.
      */
     interactWithB() {
-        if (this.type === OBSTACLE_TYPES.COLLAPSING_STRUCTURE && this.state === 'ACTIVE') {
+        if (this.type === OBSTACLE_TYPES.SOLID_MONOLITH && this.state === 'ACTIVE') {
+            this.resistFlashTimer = 0.22;
+            return 'RESISTED';
+        }
+
+        if (this.state !== 'ACTIVE') return 'NONE';
+
+        this.remainingHits = Math.max(0, this.remainingHits - 1);
+        this.hitFlashTimer = 0.14;
+
+        // Si aún le quedan puntos de resistencia, registra impacto parcial para seguir masheando B
+        if (this.remainingHits > 0) {
+            return 'MASH_HIT';
+        }
+
+        if (this.type === OBSTACLE_TYPES.COLLAPSING_STRUCTURE) {
             this.state = 'TOPPLING';
             this.toppleProgress = 0;
-            // El carril original queda libre de inmediato al iniciar el empuje;
-            // la masa pasa a ocupar progresivamente el carril destino.
             this.lane = this.fallTargetLane;
             return 'MANIPULATED';
         }
 
-        if (this.type === OBSTACLE_TYPES.FRAGILE_BARRICADE && this.state === 'ACTIVE') {
+        if (this.type === OBSTACLE_TYPES.FRAGILE_BARRICADE) {
             this.state = 'SHATTERED';
             this.shatterProgress = 0;
             return 'SHATTERED';
         }
 
-        if (this.type === OBSTACLE_TYPES.SOLID_MONOLITH && this.state === 'ACTIVE') {
-            this.resistFlashTimer = 0.25;
-            return 'RESISTED';
-        }
-
         return 'NONE';
     }
 
-    /**
-     * Indica si el obstáculo sigue siendo letal en colisión.
-     */
     isLethal() {
         return this.state !== 'SHATTERED';
     }
@@ -106,6 +102,9 @@ class Obstacle {
 
         if (this.resistFlashTimer > 0) {
             this.resistFlashTimer = Math.max(0, this.resistFlashTimer - dt);
+        }
+        if (this.hitFlashTimer > 0) {
+            this.hitFlashTimer = Math.max(0, this.hitFlashTimer - dt);
         }
     }
 }

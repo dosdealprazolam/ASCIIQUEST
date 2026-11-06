@@ -463,3 +463,45 @@ input[type="range"] {
     cursor: pointer;
     padding: 0 6px;
 }
+
+/* Apartado de Música en Carrera */
+.music-deck {
+    pointer-events: auto;
+    min-width: 280px;
+    max-width: 340px;
+}
+
+.music-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.music-track-title {
+    font-size: 11px;
+    color: #cbd5e1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 6px;
+}
+
+.music-controls-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.sandbox-select {
+    background: #12141c;
+    color: #ff9f1c;
+    border: 1px solid #ff9f1c;
+    border-radius: 3px;
+    padding: 3px 6px;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: bold;
+    cursor: pointer;
+}
