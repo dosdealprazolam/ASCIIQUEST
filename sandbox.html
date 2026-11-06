@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SANDBOX DE CONTROLES Y CALIBRACIÓN — Psychological Survival Runner</title>
+    <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+    <!-- Lienzo principal de renderizado -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- PANEL IZQUIERDO: Telemetría en Vivo y Osciloscopio de Controles -->
+    <aside class="sandbox-panel sandbox-left">
+        <div class="panel-title">
+            <span>MONITOR DE CONTROLES (EN VIVO)</span>
+        </div>
+
+        <div style="display:flex; gap:6px; margin-bottom:10px;">
+            <div id="sandbox-state-a" class="pill idle" style="flex:1; text-align:center;">A: REPOSO</div>
+            <div id="sandbox-state-b" class="pill idle" style="flex:1; text-align:center;">B: LISTO</div>
+        </div>
+
+        <!-- 1. Medidor de Pulsación de A (Toque vs Mantener) -->
+        <div class="meter-group">
+            <div class="meter-header">
+                <span>PULSACIÓN [A] (Línea roja = límite Toque):</span>
+                <span id="val-hold-a" style="color:#ff9f1c;">0 ms</span>
+            </div>
+            <div class="meter-track">
+                <div id="marker-tap-threshold" class="threshold-marker" title="Umbral máximo de Toque"></div>
+                <div id="bar-hold-a" class="meter-fill"></div>
+            </div>
+        </div>
+
+        <!-- 2. Medidor de Ventana de Doble Toque -->
+        <div class="meter-group">
+            <div class="meter-header">
+                <span>VENTANA 2do TOQUE [A] (Carril anterior):</span>
+                <span id="val-double-tap">Inactiva</span>
+            </div>
+            <div class="meter-track">
+                <div id="bar-double-tap" class="meter-fill" style="background:#ff9f1c;"></div>
+            </div>
+        </div>
+
+        <!-- 3. Medidor de Ventana de Inercia al soltar A -->
+        <div class="meter-group">
+            <div class="meter-header">
+                <span>INERCIA AL SOLTAR [A] (Sin frenar):</span>
+                <span id="val-grace">420 ms</span>
+            </div>
+            <div class="meter-track">
+                <div id="bar-grace" class="meter-fill" style="background:#38bdf8;"></div>
+            </div>
+        </div>
+
+        <!-- 4. Velocidad actual -->
+        <div class="meter-group">
+            <div class="meter-header">
+                <span>VELOCIDAD DEL CORREDOR:</span>
+                <span id="val-speed">0 u/s</span>
+            </div>
+            <div class="meter-track">
+                <div id="bar-speed" class="meter-fill" style="background:#e2e8f0;"></div>
+            </div>
+        </div>
+
+        <!-- 5. Diagrama de los 3 Carriles -->
+        <div class="panel-title" style="margin-top:12px;">
+            <span>ESTADO DE LOS 3 CARRILES</span>
+            <span style="font-size:11px; color:#94a3b8;">Impactos: <strong id="sandbox-impacts" style="color:#ff1e38;">0</strong></span>
+        </div>
+
+        <div class="lanes-visualizer">
+            <div id="lane-box-0" class="lane-box">1: IZQUIERDA</div>
+            <div id="lane-box-1" class="lane-box active-lane">2: CENTRO</div>
+            <div id="lane-box-2" class="lane-box">3: DERECHA</div>
+        </div>
+
+        <div class="lane-hints">
+            <div>Estás en: <strong id="val-origin-lane" style="color:#f8fafc;">CARRIL 2 (CENTRO)</strong></div>
+            <div>↳ <strong>1 Toque [A]</strong> (Siguiente): <strong id="val-next-lane" style="color:#2ec4b6;">CARRIL 3 (DER)</strong></div>
+            <div>↳ <strong>2 Toques [A]</strong> (Anterior): <strong id="val-prev-lane" style="color:#ff9f1c;">CARRIL 1 (IZQ)</strong></div>
+        </div>
+
+        <!-- 6. Historial de Inputs en milisegundos -->
+        <div class="panel-title" style="margin-top:8px;">
+            <span>REGISTRO DE ENTRADAS (MS)</span>
+        </div>
+        <div id="sandbox-input-log"></div>
+    </aside>
+
+    <!-- PANEL DERECHO: Sliders de Calibración en Tiempo Real -->
+    <aside class="sandbox-panel sandbox-right sandbox-ui-interactive">
+        <div class="panel-title">
+            <span>CALIBRADOR EN TIEMPO REAL</span>
+            <a href="index.html" class="mode-switch-link">IR AL JUEGO ▶</a>
+        </div>
+
+        <div class="slider-row">
+            <div class="slider-label">
+                <span>Duración máx. 1 Toque [A]</span>
+                <span id="lbl-tap-max" class="slider-val">230 ms</span>
+            </div>
+            <div class="slider-help">Tiempo máx. entre presionar y soltar A para contar como toque.</div>
+            <input id="slider-tap-max" type="range" min="80" max="450" step="10" value="230" />
+        </div>
+
+        <div class="slider-row">
+            <div class="slider-label">
+                <span>Ventana Doble Toque [A]</span>
+                <span id="lbl-double-tap" class="slider-val">320 ms</span>
+            </div>
+            <div class="slider-help">Margen entre el 1er y 2do toque rápido para regresar al carril anterior.</div>
+            <input id="slider-double-tap" type="range" min="120" max="600" step="10" value="320" />
+        </div>
+
+        <div class="slider-row">
+            <div class="slider-label">
+                <span>Inercia al soltar [A]</span>
+                <span id="lbl-grace" class="slider-val">420 ms</span>
+            </div>
+            <div class="slider-help">Tiempo que conservas la velocidad mientras cambias de carril.</div>
+            <input id="slider-grace" type="range" min="0" max="1000" step="20" value="420" />
+        </div>
+
+        <div class="slider-row">
+            <div class="slider-label">
+                <span>Rapidez lateral de carril</span>
+                <span id="lbl-lane-lerp" class="slider-val">16</span>
+            </div>
+            <div class="slider-help">Qué tan rápido se desliza el personaje de un carril a otro.</div>
+            <input id="slider-lane-lerp" type="range" min="5" max="35" step="1" value="16" />
+        </div>
+
+        <div class="slider-row">
+            <div class="slider-label">
+                <span>Velocidad máx. carrera</span>
+                <span id="lbl-max-speed" class="slider-val">720 u/s</span>
+            </div>
+            <input id="slider-max-speed" type="range" min="300" max="1400" step="20" value="720" />
+        </div>
+
+        <div class="slider-row">
+            <div class="slider-label">
+                <span>Aceleración al mantener [A]</span>
+                <span id="lbl-accel" class="slider-val">2600 u/s²</span>
+            </div>
+            <input id="slider-accel" type="range" min="800" max="5000" step="100" value="2600" />
+        </div>
+
+        <div class="slider-row">
+            <div class="slider-label">
+                <span>Frenado al soltar [A]</span>
+                <span id="lbl-stop-decel" class="slider-val">1500 u/s²</span>
+            </div>
+            <input id="slider-stop-decel" type="range" min="300" max="4000" step="100" value="1500" />
+        </div>
+
+        <div class="slider-row">
+            <div class="slider-label">
+                <span>Alcance frontal de [B]</span>
+                <span id="lbl-b-range" class="slider-val">190 u</span>
+            </div>
+            <div class="slider-help">Distancia a la que B puede empujar o romper estructuras.</div>
+            <input id="slider-b-range" type="range" min="80" max="360" step="10" value="190" />
+        </div>
+
+        <div class="sandbox-actions-row">
+            <button id="btn-reset-defaults" class="sandbox-btn" type="button">↺ Valores por Defecto</button>
+            <button id="btn-copy-config" class="sandbox-btn" type="button">📋 Copiar Ajustes</button>
+        </div>
+    </aside>
+
+    <!-- BARRA INFERIOR: Generador Manual de Obstáculos para Pruebas -->
+    <footer id="sandbox-spawner-bar" class="sandbox-ui-interactive">
+        <button class="spawn-btn" type="button" data-spawn-slot="1">
+            <strong>[1]</strong> + Estructura Inestable (Empujar con B)
+        </button>
+        <button class="spawn-btn" type="button" data-spawn-slot="2">
+            <strong>[2]</strong> + Barricada Frágil (Romper con B)
+        </button>
+        <button class="spawn-btn" type="button" data-spawn-slot="3">
+            <strong>[3]</strong> + Monolito Sólido (Esquivar con A)
+        </button>
+        <button class="spawn-btn" type="button" data-spawn-slot="4">
+            <strong>[4]</strong> + Formación 2 Carriles
+        </button>
+        <button id="btn-clear-track" class="spawn-btn" type="button">
+            <strong>[0]</strong> Limpiar Pista
+        </button>
+
+        <label class="toggle-label">
+            <input id="chk-autospawn" type="checkbox" />
+            Oleadas Automáticas
+        </label>
+        <label class="toggle-label">
+            <input id="chk-mortal" type="checkbox" />
+            Muerte Real Activa
+        </label>
+    </footer>
+
+    <!-- Scripts modulares -->
+    <script src="src/config/GameConfig.js"></script>
+    <script src="src/core/EventBus.js"></script>
+    <script src="src/core/InputManager.js"></script>
+    <script src="src/core/GameLoop.js"></script>
+    <script src="src/entities/Player.js"></script>
+    <script src="src/entities/Obstacle.js"></script>
+    <script src="src/systems/ObstacleManager.js"></script>
+    <script src="src/systems/InteractionSystem.js"></script>
+    <script src="src/systems/CollisionSystem.js"></script>
+    <script src="src/rendering/Renderer.js"></script>
+    <script src="src/sandbox_main.js"></script>
+</body>
+</html>

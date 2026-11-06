@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PSYCHOLOGICAL SURVIVAL RUNNER — Prototipo Fase 1</title>
+    <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+    <!-- Lienzo principal de renderizado -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- HUD minimalista de estado y diagnóstico del prototipo -->
+    <header id="hud">
+        <div class="hud-panel">
+            <div class="hud-row">
+                <div><span class="hud-label">DISTANCIA:</span> <span id="hud-distance" class="hud-value">0 m</span></div>
+                <div><span class="hud-label">RÉCORD:</span> <span id="hud-best" class="hud-value">0 m</span></div>
+                <div><span class="hud-label">CARRIL:</span> <span id="hud-lane" class="hud-value">CENTRO</span></div>
+            </div>
+            <div class="pursuit-container">
+                <div class="hud-row" style="margin-bottom:3px;">
+                    <span class="hud-label">MARGEN ANTE LA PERSECUCIÓN:</span>
+                </div>
+                <div class="pursuit-bar-bg">
+                    <div id="hud-pursuit-fill"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="hud-panel controls-status">
+            <a href="sandbox.html" class="mode-switch-link">⚙️ ABRIR SANDBOX DE CALIBRACIÓN</a>
+            <div id="hud-control-a" class="pill idle">A: DETENIDO (MANTÉN A)</div>
+            <div id="hud-control-b" class="pill idle">B: ACCIÓN CONTEXTUAL</div>
+        </div>
+    </header>
+
+    <!-- Resumen inferior discreto del esquema de dos botones -->
+    <footer id="bottom-bar">
+        <div id="hud-feedback">MANTÉN [A] PARA CORRER — SUELTA [A] PARA CAMBIAR DE CARRIL</div>
+        <div class="legend">
+            <strong>[A]</strong> Mantener: Correr &nbsp;|&nbsp; Soltar + 1 Toque: Siguiente carril &nbsp;|&nbsp; Soltar + 2 Toques: Carril anterior &nbsp;&bull;&nbsp;
+            <strong>[B]</strong> Empujar estructura a otro carril / Romper barricada
+        </div>
+    </footer>
+
+    <!-- Pantalla de Muerte y Reinicio Inmediato -->
+    <section id="death-overlay" class="hidden">
+        <div class="death-box">
+            <h1 id="death-reason">IMPACTO MORTAL</h1>
+            <p id="death-detail"></p>
+            <div id="death-score">DISTANCIA: 0 m</div>
+            <div class="restart-prompt">PULSA [A], [B] O [R] PARA REINICIAR AL INSTANTE</div>
+        </div>
+    </section>
+
+    <!-- Carga modular ordenada (compatible con doble clic directo sobre index.html sin servidor) -->
+    <script src="src/config/GameConfig.js"></script>
+    <script src="src/core/EventBus.js"></script>
+    <script src="src/core/InputManager.js"></script>
+    <script src="src/core/GameLoop.js"></script>
+    <script src="src/entities/Player.js"></script>
+    <script src="src/entities/Obstacle.js"></script>
+    <script src="src/systems/ObstacleManager.js"></script>
+    <script src="src/systems/InteractionSystem.js"></script>
+    <script src="src/systems/CollisionSystem.js"></script>
+    <script src="src/rendering/Renderer.js"></script>
+    <script src="src/main.js"></script>
+</body>
+</html>
