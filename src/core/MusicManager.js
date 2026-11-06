@@ -60,7 +60,7 @@ class MusicManager {
             }
         };
 
-        this.audio.addEventListener('error', onError, { once: true });
+        this.audio.onerror = onError;
         this.audio.src = primaryPath;
         this.trackName = primaryPath.split('/').pop();
         this.hasTrackLoaded = true;
