@@ -8,19 +8,19 @@
 window.PSR = window.PSR || {};
 
 const DEFAULT_CONFIG = {
-    // --- CONFIGURACIÓN DE CARRILES (1 = Izquierda, 2 = Centro, 3 = Derecha) ---
+    // --- CONFIGURACIÓN DE CARRILES ---
     LANES: {
         COUNT: 3,
         NAMES: ['CARRIL 1 (IZQ)', 'CARRIL 2 (CENTRO)', 'CARRIL 3 (DER)'],
-        DEFAULT_LANE: 1,              // Empieza en el Carril 2 (índice 1 = Centro)
-        SWITCH_LERP_SPEED: 18.0       // Velocidad de interpolación visual al cambiar de carril
+        DEFAULT_LANE: 1,              // Empieza en el carril central (0, 1, 2)
+        SWITCH_LERP_SPEED: 16.0       // Velocidad de interpolación visual al cambiar de carril
     },
 
     // --- FÍSICA DE CARRERA (CONTROL A) ---
     MOVEMENT: {
         MAX_RUN_SPEED: 720,           // Velocidad máxima manteniendo A (unidades/seg)
         ACCELERATION: 2600,           // Aceleración al mantener A
-        MOMENTUM_GRACE_MS: 450,       // Ventana de inercia al soltar A para cambiar de carril sin frenar en seco
+        MOMENTUM_GRACE_MS: 420,       // Ventana de inercia al soltar A para cambiar de carril sin frenar en seco
         GRACE_DECELERATION: 320,      // Desaceleración suave durante la ventana de cambio de carril
         STOP_DECELERATION: 1500,      // Desaceleración fuerte si el jugador suelta A y deja de correr
         MIN_SPEED_THRESHOLD: 5
@@ -28,8 +28,8 @@ const DEFAULT_CONFIG = {
 
     // --- TIEMPOS DE RESPUESTA DEL CONTROL A Y B ---
     CONTROLS: {
-        TAP_MAX_DURATION_MS: 220,     // Duración máxima (ms) entre presionar y soltar A para considerarse un "toque"
-        DOUBLE_TAP_WINDOW_MS: 210,    // Ventana (ms) tras el 1er toque para detectar un 2do toque antes de mover el personaje
+        TAP_MAX_DURATION_MS: 230,     // Duración máxima (ms) entre presionar y soltar A para considerarse un "toque"
+        DOUBLE_TAP_WINDOW_MS: 320,    // Tiempo máximo (ms) entre el primer y segundo toque de A
         B_ACTION_DURATION_MS: 220,    // Duración activa del impulso/empuje contextual con B
         B_INTERACTION_RANGE: 190,     // Distancia frontal máxima en la que B puede manipular un obstáculo
         B_MIN_RANGE: -20              // Margen trasero de interacción justa
@@ -67,7 +67,7 @@ function cloneDeep(obj) {
     return JSON.parse(JSON.stringify(obj));
 }
 
-const STORAGE_KEY = 'PSR_CALIBRATED_CONFIG_V2';
+const STORAGE_KEY = 'PSR_CALIBRATED_CONFIG_V1';
 
 const GameConfig = cloneDeep(DEFAULT_CONFIG);
 
