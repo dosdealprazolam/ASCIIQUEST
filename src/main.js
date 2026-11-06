@@ -55,6 +55,7 @@ class GameApp {
         this.uiBpmValue = document.getElementById('hud-bpm-value');
         this.uiBpmState = document.getElementById('hud-bpm-state');
         this.uiHeartIcon = document.getElementById('hud-heart-icon');
+        this.uiKmProgressLabel = document.getElementById('hud-km-progress-label');
         this.uiLevelName = document.getElementById('hud-level-name');
         this.uiLevelProgressFill = document.getElementById('hud-level-progress-fill');
         this.uiControlA = document.getElementById('hud-control-a');
@@ -164,6 +165,9 @@ class GameApp {
         if (this.linkSandboxDev) {
             this.linkSandboxDev.classList.toggle('hidden', !dev);
         }
+        if (this.uiLevelName) {
+            this.uiLevelName.classList.toggle('hidden', !dev);
+        }
         if (this.devInspectorBox) {
             this.devInspectorBox.classList.toggle('hidden', !dev);
         }
@@ -230,7 +234,9 @@ class GameApp {
         });
 
         this.eventBus.on('difficulty:level_up', ({ config }) => {
-            this.lastActionFeedback = `🔥 ¡${config.name}! (${config.subtitle})`;
+            if (this.isDevMode()) {
+                this.lastActionFeedback = `🔥 [DEV] ¡${config.name}! (${config.subtitle})`;
+            }
         });
 
         this.eventBus.on('input:a_down', ({ timestamp }) => {
@@ -349,7 +355,11 @@ class GameApp {
                 this.deathAdviceEl.textContent = advice || '💡 CONSEJO: Mantén el ritmo con [A] y usa [B] al acercarte a estructuras rompibles.';
             }
             if (this.deathScoreEl) {
-                this.deathScoreEl.textContent = `DISTANCIA: ${distance} m (NIVEL ${this.obstacleManager.currentLevel}/5)  |  RÉCORD: ${this.bestDistance} m`;
+                const kmStr = (distance / 1000).toFixed(2);
+                const bestKmStr = (this.bestDistance / 1000).toFixed(2);
+                this.deathScoreEl.textContent = this.isDevMode()
+                    ? `KILÓMETROS: ${kmStr} km (${distance} m | NIVEL ${this.obstacleManager.currentLevel}/5)  |  RÉCORD: ${bestKmStr} km`
+                    : `KILÓMETROS: ${kmStr} km  |  RÉCORD: ${bestKmStr} km`;
             }
 
             // Reiniciar el formulario de reporte de jugador
@@ -390,14 +400,18 @@ class GameApp {
                 this._applyDevModeVisibility();
 
                 const distMeters = Math.floor(this.player.z / 10);
-                this.db.insertWinner({
+                const savedRow = this.db.insertWinner({
                     playerName: nameVal,
                     distanceMeters: distMeters,
                     finalBpm: this.player.bpm
                 });
                 this.winnerSavedForRun = true;
                 if (this.victorySavedMsg) {
-                    this.victorySavedMsg.textContent = `✅ ¡${nameVal} guardado en la tabla SQL race_winners!`;
+                    if (savedRow) {
+                        this.victorySavedMsg.textContent = `✅ ¡${nameVal} guardado entre los primeros 30 ganadores (#${savedRow.id}/${this.db.maxWinners})!`;
+                    } else {
+                        this.victorySavedMsg.textContent = `⚠️ La lista oficial ya completó el cupo de los primeros ${this.db.maxWinners} ganadores.`;
+                    }
                 }
                 this._refreshDevAdminUI();
             });
@@ -489,7 +503,7 @@ class GameApp {
         const winners = this.db.getWinners();
 
         if (this.countBugReportsEl) this.countBugReportsEl.textContent = `${reports.length}`;
-        if (this.countRaceWinnersEl) this.countRaceWinnersEl.textContent = `${winners.length}`;
+        if (this.countRaceWinnersEl) this.countRaceWinnersEl.textContent = `${winners.length}/${this.db.maxWinners || 30}`;
 
         if (this.devReportsList) {
             if (reports.length === 0) {
@@ -542,7 +556,7 @@ class GameApp {
             this.bestDistance = distMeters;
         }
         if (this.victoryScoreEl) {
-            this.victoryScoreEl.textContent = `META ALCANZADA: ${distMeters} m  |  PULSO FINAL: ${this.player.bpm} BPM`;
+            this.victoryScoreEl.textContent = `RECORRIDO COMPLETADO: ${(distMeters / 1000).toFixed(2)} km  |  PULSO FINAL: ${this.player.bpm} BPM`;
         }
         if (this.victoryNameInput) {
             this.victoryNameInput.value = this.getCurrentPlayerName();
@@ -567,7 +581,7 @@ class GameApp {
         if (this.deathOverlay) this.deathOverlay.classList.add('hidden');
         if (this.victoryOverlay) this.victoryOverlay.classList.add('hidden');
         this._applyDevModeVisibility();
-        this.lastActionFeedback = 'NIVEL 1/5: MANTÉN [A] PARA CORRER — MASHEA [B] PARA ROMPER/EMPUJAR';
+        this.lastActionFeedback = 'MANTÉN [A] PARA CORRER — MASHEA [B] PARA ROMPER/EMPUJAR';
     }
 
     update(dt, now) {
@@ -611,8 +625,10 @@ class GameApp {
             this.bestDistance = distMeters;
         }
 
-        if (this.uiDistance) this.uiDistance.textContent = `${distMeters} m`;
-        if (this.uiBest) this.uiBest.textContent = `${this.bestDistance} m`;
+        const kmVal = (distMeters / 1000).toFixed(2);
+        const bestKmVal = (this.bestDistance / 1000).toFixed(2);
+        if (this.uiDistance) this.uiDistance.textContent = `${kmVal} km`;
+        if (this.uiBest) this.uiBest.textContent = `${bestKmVal} km`;
         if (this.uiLane) this.uiLane.textContent = this.config.LANES.NAMES[this.player.lane];
 
         // Monitor Cardíaco (BPM progresivo desde ~110 -> 180 + icono corazon.png)
@@ -648,12 +664,18 @@ class GameApp {
         const lvl = this.obstacleManager.currentLevel;
         const lvlCfg = this.obstacleManager.getLevelConfig(lvl);
         if (this.uiLevelName) {
-            this.uiLevelName.textContent = `${lvlCfg.name} (${lvl}/5)`;
+            this.uiLevelName.textContent = `[DEV] ${lvlCfg.name} (${lvl}/5) — ${lvlCfg.subtitle}`;
+        }
+
+        // Barra que sube cada 1000m y apenas sube cae en picada a 10% (1000m), 20% (2000m), 30% (3000m)...
+        const barPct = this.obstacleManager.getKilometerBarProgress
+            ? this.obstacleManager.getKilometerBarProgress(distMeters)
+            : 0;
+        if (this.uiKmProgressLabel) {
+            this.uiKmProgressLabel.textContent = `RECORRIDO: ${kmVal} KM (${Math.floor(barPct)}%)`;
         }
         if (this.uiLevelProgressFill) {
-            const metersPerLvl = this.config.DIFFICULTY.METERS_PER_LEVEL || 1000;
-            const pct = lvl >= 5 ? 100 : ((distMeters % metersPerLvl) / metersPerLvl) * 100;
-            this.uiLevelProgressFill.style.width = `${pct}%`;
+            this.uiLevelProgressFill.style.width = `${barPct.toFixed(1)}%`;
         }
 
         const ctrl = this.input.getControlState(now);

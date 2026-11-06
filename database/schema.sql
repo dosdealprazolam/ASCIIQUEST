@@ -2,7 +2,7 @@
 -- PSYCHOLOGICAL SURVIVAL RUNNER (ASCIIQUEST) - Esquema SQL de Base de Datos
 -- ============================================================================
 -- Tablas para administrar:
---   1. race_winners: Exclusivamente jugadores que llegan al final de la carrera.
+--   1. race_winners: Exclusivamente los primeros 30 jugadores en pasar el juego.
 --   2. bug_reports:  Reportes de problemas enviados por jugadores al morir,
 --                    incluyendo telemetría técnica oculta para DevUser.
 -- ============================================================================

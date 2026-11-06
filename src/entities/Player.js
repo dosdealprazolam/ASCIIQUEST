@@ -56,10 +56,11 @@ class Player {
         this.heartPulsePhase = 0;
 
         // Estado de Trauma Cardíaco por chocar contra Barricadas Básicas (FRAGILE_BARRICADE)
-        this.traumaRecoveryTimer = 0;     // Segundos restantes para recuperarse (0 = sano, >0 = herido recuperando BPM)
-        this.traumaRecoveryDuration = (this.config.BPM && this.config.BPM.TRAUMA_RECOVERY_SEC) || 12.5;
-        this.traumaStartBpm = initialBpm; // BPM al que cayó tras el 1er impacto (la mitad)
-        this.traumaHitsCount = 0;         // Golpes recibidos dentro de la ventana actual de 10-15s
+        this.traumaRecoveryTimer = 0;      // Tiempo restante (1s normal, o 2s si recibió 2 golpes en <5s)
+        this.traumaRecoveryDuration = (this.config.BPM && this.config.BPM.REGEN_DELAY_SINGLE_SEC) || 1.0;
+        this.traumaComboWindowTimer = 0;   // Ventana de 5s; al expirar vuelve a la regeneración normal de 1s
+        this.traumaStartBpm = initialBpm;  // BPM tras restar 70 BPM
+        this.traumaHitsCount = 0;          // Golpes seguidos acumulados dentro de la ventana de 5s
 
         this.bActionTimer = 0;
         this.bLastOutcome = 'NONE';
@@ -100,61 +101,68 @@ class Player {
 
     /**
      * Aplica el impacto de una barricada de escombros (`FRAGILE_BARRICADE`) al sistema de BPM:
-     *  - Si es el 1er golpe (fuera de ventana o sano): baja los BPM a la mitad (50%) e inicia
-     *    una recuperación lenta durante 12.5 segundos (10-15s). Sobrevives.
-     *  - Si te vuelve a golpear antes de terminar de recuperarte (2do golpe en <12.5s):
-     *    baja 70 BPM de golpe y te mata por Colapso Cardíaco / quedarte sin BPMs vitales.
+     *  - Cada golpe baja 70 BPM.
+     *  - Si es 1 golpe (o han pasado >= 5s desde el anterior): se regenera 1 segundo después del golpe.
+     *  - Si recibe 2 golpes seguidos en menos de 5 segundos: el tiempo de regeneración pasa a ser
+     *    2 segundos después del último golpe. Pasados 5 segundos vuelve a su regeneración normal (1s).
+     *  - Si al restar 70 BPM se queda sin BPMs (<= 0), muere.
      */
     applyBarricadeTrauma() {
         const bpmCfg = this.config.BPM || {};
         const bands = bpmCfg.BASE_BANDS || [20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180];
-        const recoverySec = bpmCfg.TRAUMA_RECOVERY_SEC || 12.5;
-        const firstHitFactor = bpmCfg.FIRST_HIT_BPM_FACTOR || 0.5;
-        const secondHitDrop = bpmCfg.REPEAT_HIT_BPM_DROP || 70;
-        const minSurvivalBpm = bpmCfg.MIN_SURVIVAL_BPM || 45;
+        const hitDrop = bpmCfg.HIT_BPM_DROP || 70;
+        const singleDelaySec = bpmCfg.REGEN_DELAY_SINGLE_SEC || 1.0;
+        const comboDelaySec = bpmCfg.REGEN_DELAY_COMBO_SEC || 2.0;
+        const comboWindowSec = bpmCfg.COMBO_WINDOW_SEC || 5.0;
+        const minSurvivalBpm = bpmCfg.MIN_SURVIVAL_BPM !== undefined ? bpmCfg.MIN_SURVIVAL_BPM : 0;
 
         const previousBpm = this.bpm;
         this.bpmStrikeBoost = 0;
 
-        // ¿Ya estaba herido recuperándose de un primer impacto dentro del lapso de 10-15s?
-        if (this.traumaRecoveryTimer > 0 && this.traumaHitsCount >= 1) {
-            this.traumaHitsCount++;
-            const droppedBpm = Math.max(0, previousBpm - secondHitDrop);
-            this.bpm = droppedBpm;
-            this.baseBpmAnchor = Math.max(20, Math.round(droppedBpm / 10) * 10);
-
-            // Al recibir el 2do impacto en el lapso de 10-15s y caer 70 BPM, colapsa y muere
-            if (droppedBpm <= minSurvivalBpm || this.traumaHitsCount >= 2) {
-                return {
-                    survived: false,
-                    hitCountInWindow: this.traumaHitsCount,
-                    previousBpm,
-                    newBpm: droppedBpm,
-                    remainingWindowSec: Number(this.traumaRecoveryTimer.toFixed(1))
-                };
-            }
+        // ¿Se produjo dentro de los 5 segundos posteriores al golpe anterior?
+        if (this.traumaComboWindowTimer > 0) {
+            this.traumaHitsCount += 1;
+        } else {
+            this.traumaHitsCount = 1;
         }
 
-        // PRIMER IMPACTO: No te mata, te baja el BPM a la mitad y se va recuperando lentamente en 12.5s
-        this.traumaHitsCount = 1;
-        this.traumaRecoveryDuration = recoverySec;
-        this.traumaRecoveryTimer = recoverySec;
+        // Reiniciar ventana de 5 segundos desde este último golpe
+        const prevWindowRemaining = this.traumaComboWindowTimer;
+        this.traumaComboWindowTimer = comboWindowSec;
 
-        const rawHalf = Math.round((this.baseBpmAnchor * firstHitFactor) / 10) * 10;
-        const clampedHalf = Math.max(bands[0], Math.min(bands[bands.length - 1], rawHalf));
-        this.traumaStartBpm = clampedHalf;
-        this.baseBpmAnchor = clampedHalf;
-        this.bpm = clampedHalf;
+        const rawDropped = previousBpm - hitDrop;
+        if (rawDropped <= minSurvivalBpm) {
+            this.bpm = 0;
+            this.baseBpmAnchor = 0;
+            return {
+                survived: false,
+                hitCountInWindow: this.traumaHitsCount,
+                previousBpm,
+                newBpm: 0,
+                remainingWindowSec: Number(prevWindowRemaining.toFixed(1))
+            };
+        }
 
-        const targetIdx = Math.max(0, bands.indexOf(clampedHalf));
+        // Si lleva 2 o más golpes seguidos en menos de 5s -> 2s después del último golpe; si no -> 1s
+        const regenSec = this.traumaHitsCount >= 2 ? comboDelaySec : singleDelaySec;
+        this.traumaRecoveryDuration = regenSec;
+        this.traumaRecoveryTimer = regenSec;
+
+        const roundedBand = Math.round(rawDropped / 10) * 10;
+        const clampedBand = Math.max(bands[0], Math.min(bands[bands.length - 1], roundedBand));
+        this.traumaStartBpm = clampedBand;
+        this.baseBpmAnchor = clampedBand;
+        this.bpm = rawDropped;
+
+        const targetIdx = Math.max(0, bands.indexOf(clampedBand));
         this.smoothBandIndex = targetIdx;
 
         return {
             survived: true,
-            hitCountInWindow: 1,
+            hitCountInWindow: this.traumaHitsCount,
             previousBpm,
             newBpm: this.bpm,
-            recoverySeconds: recoverySec
+            recoverySeconds: regenSec
         };
     }
 
@@ -314,17 +322,20 @@ class Player {
 
         let targetBandFloat = Math.max(alertBandIdx, normalExertionBandIdx - decelPenaltyBands);
 
-        // 4. Si el jugador sufrió un impacto contra una barricada básica (traumaRecoveryTimer > 0),
-        //    el BPM sube lentamente desde la mitad (`traumaStartBpm`) hasta su nivel normal durante los 12.5s
+        // 4. Ventana de 5 segundos de golpes seguidos: luego de 5s vuelve a su regeneración normal (1s)
+        if (this.traumaComboWindowTimer > 0) {
+            this.traumaComboWindowTimer = Math.max(0, this.traumaComboWindowTimer - dt);
+            if (this.traumaComboWindowTimer === 0) {
+                this.traumaHitsCount = 0;
+            }
+        }
+
+        // 5. Tiempo de espera para regenerar tras el golpe (1s tras 1 golpe, 2s tras 2 golpes en <5s)
         if (this.traumaRecoveryTimer > 0) {
             this.traumaRecoveryTimer = Math.max(0, this.traumaRecoveryTimer - dt);
-            if (this.traumaRecoveryTimer === 0) {
-                this.traumaHitsCount = 0;
-            } else {
-                const startIdx = Math.max(0, bands.indexOf(this.traumaStartBpm));
-                const recoveryProgress = 1.0 - (this.traumaRecoveryTimer / this.traumaRecoveryDuration);
-                targetBandFloat = startIdx + (targetBandFloat - startIdx) * recoveryProgress;
-            }
+            const startIdx = Math.max(0, bands.indexOf(this.traumaStartBpm));
+            targetBandFloat = startIdx;
+            this.smoothBandIndex = startIdx;
         }
 
         const diff = targetBandFloat - this.smoothBandIndex;

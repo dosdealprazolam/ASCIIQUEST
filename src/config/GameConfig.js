@@ -42,10 +42,11 @@ const DEFAULT_CONFIG = {
         STRIKE_MAX_BOOST: 9,          // Tope de subida adicional si masheas [B] seguido
         STRIKE_DECAY_PER_SEC: 4.5,    // Velocidad a la que se estabiliza el pico tras golpear
         // Mecánica de Trauma Cardíaco para las Barricadas Básicas (FRAGILE_BARRICADE)
-        TRAUMA_RECOVERY_SEC: 12.5,    // Lapso de recuperación (10-15s): el BPM sube lentamente desde la mitad
-        FIRST_HIT_BPM_FACTOR: 0.5,    // 1er choque: no te mata, baja tus BPM actuales a la mitad (50%)
-        REPEAT_HIT_BPM_DROP: 70,      // 2do choque antes de recuperarte: te baja 70 BPM de golpe
-        MIN_SURVIVAL_BPM: 45,         // Si tras bajar 70 BPM caes por debajo de este umbral (o acumulas 2 choques en el lapso), mueres
+        HIT_BPM_DROP: 70,             // Cada golpe contra barricada baja únicamente 70 BPM
+        REGEN_DELAY_SINGLE_SEC: 1.0,  // Tiempo de regeneración normal: 1 segundo después del golpe
+        REGEN_DELAY_COMBO_SEC: 2.0,   // Si recibe 2 golpes seguidos en <5s: 2 segundos después del último golpe
+        COMBO_WINDOW_SEC: 5.0,        // Pasados 5 segundos desde el golpe, vuelve a su regeneración normal (1s)
+        MIN_SURVIVAL_BPM: 0,          // Si tras restar 70 BPM cae a <= 0 (sin BPMs), muere
         SMOOTH_SPEED: 7.5,
         HEART_ICON_PATH: 'img/corazon.png'
     },

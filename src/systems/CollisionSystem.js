@@ -149,8 +149,8 @@ class CollisionSystem {
         let explanation = '';
 
         if (traumaInfo) {
-            verdict = 'DINÁMICA DE TRAUMA BPM (2do IMPACTO EN <12.5s | -70 BPM)';
-            explanation = `Chocaste contra una 2da Barricada (#${obs.id}) cuando aún quedaban ${traumaInfo.remainingWindowSec}s de recuperación del 1er impacto. Tu pulso cayó -70 BPM (${traumaInfo.previousBpm} → ${traumaInfo.newBpm} BPM), causando colapso cardíaco.`;
+            verdict = `DINÁMICA DE TRAUMA BPM (GOLPE #${traumaInfo.hitCountInWindow} | -70 BPM -> 0 BPM)`;
+            explanation = `Chocaste contra la Barricada #${obs.id} y cada golpe resta 70 BPM (${traumaInfo.previousBpm} → ${traumaInfo.newBpm} BPM), quedándote sin pulso vital.`;
         } else if (obs.type === TYPES.SOLID_MONOLITH) {
             if (recentAttemptForThisObs) {
                 verdict = 'DINÁMICA DE JUEGO (GOLPEASTE MONOLITO SÓLIDO)';

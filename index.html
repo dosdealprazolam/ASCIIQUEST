@@ -14,8 +14,8 @@
     <header id="hud">
         <div class="hud-panel">
             <div class="hud-row">
-                <div><span class="hud-label">DISTANCIA:</span> <span id="hud-distance" class="hud-value">0 m</span></div>
-                <div><span class="hud-label">RÉCORD:</span> <span id="hud-best" class="hud-value">0 m</span></div>
+                <div><span class="hud-label">KILÓMETROS:</span> <span id="hud-distance" class="hud-value">0.00 km</span></div>
+                <div><span class="hud-label">RÉCORD:</span> <span id="hud-best" class="hud-value">0.00 km</span></div>
                 <div><span class="hud-label">CARRIL:</span> <span id="hud-lane" class="hud-value">CARRIL 2 (CENTRO)</span></div>
             </div>
 
@@ -26,14 +26,14 @@
                 <span id="hud-bpm-value" class="bpm-number">110</span>
             </div>
 
-            <!-- Barra de Progresión de los 5 Niveles (cada 2000m — Meta 10000m) -->
+            <!-- Barra de Kilómetros (sube cada 1000m y cae en picada a 10%, 20%, 30%...; títulos ocultos salvo en DevUser) -->
             <div class="pursuit-container" style="margin-bottom:8px;">
                 <div class="hud-row" style="margin-bottom:3px; justify-content:space-between;">
-                    <span id="hud-level-name" style="color:#ff9f1c; font-weight:bold; font-size:12px;">NIVEL 1 — FALSO CONTROL (1/5)</span>
-                    <span class="hud-label" style="font-size:11px;">+Nivel cada 2000m (Meta: 10000m)</span>
+                    <span id="hud-km-progress-label" class="hud-label" style="color:#ff9f1c; font-weight:bold; font-size:12px;">RECORRIDO: 0.00 KM (0%)</span>
+                    <span id="hud-level-name" class="dev-only-tool hidden" style="color:#2ec4b6; font-weight:bold; font-size:11px;">[DEV] NIVEL 1 — FALSO CONTROL (1/5)</span>
                 </div>
                 <div class="pursuit-bar-bg" style="width:100%; border-color:#ff9f1c;">
-                    <div id="hud-level-progress-fill" style="height:100%; width:0%; background:#ff9f1c; transition:width 0.1s linear;"></div>
+                    <div id="hud-level-progress-fill" style="height:100%; width:0%; background:#ff9f1c; transition:width 0.12s ease-out;"></div>
                 </div>
             </div>
 
@@ -84,7 +84,7 @@
 
     <!-- Resumen inferior discreto del esquema de dos botones -->
     <footer id="bottom-bar">
-        <div id="hud-feedback">NIVEL 1/5: MANTÉN [A] PARA CORRER — MASHEA [B] PARA ROMPER/EMPUJAR</div>
+        <div id="hud-feedback">MANTÉN [A] PARA CORRER — MASHEA [B] PARA ROMPER/EMPUJAR</div>
         <div class="legend">
             <strong>[A / Gatillo Izq]</strong> Mantener: Correr &nbsp;|&nbsp; Soltar + 1 o 2 Toques: Cambiar carril &nbsp;&bull;&nbsp;
             <strong>[B / Clic / Gatillo Der]</strong> Mashear rápido: Romper barricadas / Derrumbar torres a otro carril
@@ -146,11 +146,11 @@
     <!-- Pantalla de Victoria (Solo aparece a quienes llegan al final de la carrera para guardar su Nombre en SQL) -->
     <section id="victory-overlay" class="hidden">
         <div class="death-box victory-box">
-            <h1 style="color:#2ec4b6; font-size:22px; margin-bottom:10px;">🏆 ¡ SOBREVIVISTE AL FINAL DE LA CARRERA !</h1>
+            <h1 style="color:#2ec4b6; font-size:22px; margin-bottom:10px;">🏆 ¡ SOBREVIVISTE AL RECORRIDO !</h1>
             <p style="color:#cbd5e1; font-size:13px; margin-bottom:14px;">
-                Llegaste a la meta de los 5 niveles. Registra tu nombre en la base de datos de ganadores:
+                Solo los primeros 30 sobrevivientes quedan registrados en la base de datos de ganadores:
             </p>
-            <div id="victory-score" style="color:#ff9f1c; font-weight:bold; margin-bottom:14px;">DISTANCIA: 10000 m</div>
+            <div id="victory-score" style="color:#ff9f1c; font-weight:bold; margin-bottom:14px;">RECORRIDO: 10.00 km</div>
             <div class="victory-form-row">
                 <input id="victory-name-input" type="text" maxlength="24" placeholder="Escribe tu nombre de ganador..." />
                 <button id="btn-save-winner" type="button" class="mode-switch-link">💾 Guardar Ganador (SQL)</button>

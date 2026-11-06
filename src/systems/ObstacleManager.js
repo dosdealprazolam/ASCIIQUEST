@@ -55,6 +55,23 @@ class ObstacleManager {
     }
 
     /**
+     * Barra psicológica por cada 1000m:
+     *  - Sube hacia el 100% conforme avanzas cada 1000m.
+     *  - Apenas alcanzas 1000m cae en picada hasta 10%, a los 2000m cae hasta 20%,
+     *    a los 3000m cae hasta 30%... y así sucesivamente hasta llegar a 10000m (100%).
+     */
+    getKilometerBarProgress(distMeters) {
+        const goalMeters = (this.config.DIFFICULTY && this.config.DIFFICULTY.RACE_GOAL_METERS) || 10000;
+        const m = Math.max(0, distMeters);
+        if (m >= goalMeters) return 100;
+
+        const kmIndex = Math.floor(m / 1000); // 0..9
+        const floorPct = kmIndex * 10;         // 0%, 10%, 20%, ..., 90%
+        const progressInKm = (m % 1000) / 1000;
+        return floorPct + progressInKm * (100 - floorPct);
+    }
+
+    /**
      * Calcula una interpolación suave dentro del nivel actual para evitar picos bruscos
      * tanto en las probabilidades de aparición como en el espaciado.
      */

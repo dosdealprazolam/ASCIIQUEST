@@ -14,10 +14,16 @@ window.PSR = window.PSR || {};
 const DB_WINNERS_KEY = 'PSR_SQL_RACE_WINNERS_V1';
 const DB_REPORTS_KEY = 'PSR_SQL_BUG_REPORTS_V1';
 const DB_PLAYER_NAME_KEY = 'PSR_CURRENT_PLAYER_NAME_V1';
+const MAX_WINNERS_LIMIT = 30;
 
 class DatabaseManager {
     constructor() {
-        this.winners = this._loadTable(DB_WINNERS_KEY);
+        this.maxWinners = MAX_WINNERS_LIMIT;
+        const loadedWinners = this._loadTable(DB_WINNERS_KEY);
+        // Asegurar que nunca supere los primeros 30 ganadores registrados
+        this.winners = loadedWinners.length > this.maxWinners
+            ? loadedWinners.slice(loadedWinners.length - this.maxWinners)
+            : loadedWinners;
         this.bugReports = this._loadTable(DB_REPORTS_KEY);
     }
 
@@ -62,13 +68,21 @@ class DatabaseManager {
         return (name || '').trim() === 'DevUser';
     }
 
+    isWinnersFull() {
+        return this.winners.length >= this.maxWinners;
+    }
+
     /**
      * Registra un ganador que llegó al final de la carrera (tabla `race_winners`).
+     * Solo guarda los primeros 30 en ganar para no saturar la lista.
      */
     insertWinner({ playerName, distanceMeters, finalBpm }) {
+        if (this.winners.length >= this.maxWinners) {
+            return null;
+        }
         const cleanName = (playerName || 'Anónimo').trim() || 'Anónimo';
         const row = {
-            id: this.winners.length > 0 ? this.winners[0].id + 1 : 1,
+            id: this.winners.length + 1,
             player_name: cleanName,
             distance_meters: Math.floor(distanceMeters || 0),
             final_bpm: Math.round(finalBpm || 180),
