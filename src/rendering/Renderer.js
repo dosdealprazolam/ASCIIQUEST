@@ -65,7 +65,8 @@ class Renderer {
             : [
                 (this.config.OBSTACLES && this.config.OBSTACLES.YELLOW_RIGHT_SPRITE_PATH) || 'img/obstacle_yellow_right.png',
                 'img/obstacle_yellow_right_2.png',
-                'img/obstacle_yellow_right_3.png'
+                'img/obstacle_yellow_right_3.png',
+                'img/obstacle_yellow_right_4.png'
             ];
 
         this.yellowRightSprites = paths.map((spritePath, idx) => {
@@ -458,7 +459,7 @@ class Renderer {
 
                 const sx = tiltDir > 0 ? 105 : 45;
                 const sy = 20;
-                const sw = tiltDir > 0 ? 316 : 348;
+                const sw = tiltDir > 0 ? 324 : 348;
                 const sh = 448;
 
                 const spriteH = 245 * p.scale;

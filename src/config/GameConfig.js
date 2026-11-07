@@ -163,7 +163,8 @@ const DEFAULT_CONFIG = {
         YELLOW_RIGHT_SPRITE_PATHS: [
             'img/obstacle_yellow_right.png',
             'img/obstacle_yellow_right_2.png',
-            'img/obstacle_yellow_right_3.png'
+            'img/obstacle_yellow_right_3.png',
+            'img/obstacle_yellow_right_4.png'
         ],
         YELLOW_LEFT_SPRITE_PATH: 'img/obstacle_yellow_left.png',
         YELLOW_LEFT_SPRITE_PATHS: [
