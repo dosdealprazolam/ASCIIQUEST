@@ -32,6 +32,7 @@ class Renderer {
 
         this.yellowRightImg = null;
         this.yellowRightImgReady = false;
+        this.yellowRightSprites = [];
         this._initObstacleSprites();
 
         this._resize();
@@ -58,14 +59,26 @@ class Renderer {
 
     _initObstacleSprites() {
         if (typeof Image === 'undefined') return;
-        const rightImg = new Image();
-        const rightPath = (this.config.OBSTACLES && this.config.OBSTACLES.YELLOW_RIGHT_SPRITE_PATH)
-            || 'img/obstacle_yellow_right.png';
-        rightImg.onload = () => {
-            this.yellowRightImgReady = true;
-        };
-        rightImg.src = rightPath;
-        this.yellowRightImg = rightImg;
+        const paths = (this.config.OBSTACLES && Array.isArray(this.config.OBSTACLES.YELLOW_RIGHT_SPRITE_PATHS))
+            ? this.config.OBSTACLES.YELLOW_RIGHT_SPRITE_PATHS
+            : [
+                (this.config.OBSTACLES && this.config.OBSTACLES.YELLOW_RIGHT_SPRITE_PATH) || 'img/obstacle_yellow_right.png',
+                'img/obstacle_yellow_right_2.png'
+            ];
+
+        this.yellowRightSprites = paths.map((spritePath, idx) => {
+            const img = new Image();
+            const entry = { path: spritePath, img, ready: false };
+            img.onload = () => {
+                entry.ready = true;
+                if (idx === 0) {
+                    this.yellowRightImg = img;
+                    this.yellowRightImgReady = true;
+                }
+            };
+            img.src = spritePath;
+            return entry;
+        });
     }
 
     _resize() {
@@ -395,10 +408,16 @@ class Renderer {
             const h = 225 * p.scale;
             const tiltDir = obs.fallTargetLane > obs.initialLane ? 1 : -1;
             const isHitFlash = obs.hitFlashTimer > 0;
-            const useRightSprite = (tiltDir > 0 && this.yellowRightImgReady && this.yellowRightImg && ctx.drawImage);
+            const readyRightSprites = this.yellowRightSprites
+                ? this.yellowRightSprites.filter(s => s.ready && s.img)
+                : [];
+            const useRightSprite = (tiltDir > 0 && readyRightSprites.length > 0 && ctx.drawImage);
 
             if (useRightSprite) {
-                // El asset (img/obstacle_yellow_right.png) ya viene inclinado hacia la derecha con su poste de madera
+                const variantSeed = typeof obs.spriteVariantIndex === 'number' ? obs.spriteVariantIndex : (obs.id || 0);
+                const chosenRightImg = readyRightSprites[variantSeed % readyRightSprites.length].img;
+
+                // Los assets (obstacle_yellow_right*.png) ya vienen inclinados hacia la derecha con su poste de madera
                 let spriteAngle = 0;
                 if (obs.state === 'TOPPLING') {
                     spriteAngle = obs.toppleProgress * 1.18;
@@ -425,7 +444,7 @@ class Renderer {
                 }
 
                 // Recorte exacto del área opaca del tótem (X: 105..421, Y: 20..468 de 500x500)
-                ctx.drawImage(this.yellowRightImg, 105, 20, 316, 448, drawX, drawY, spriteW, spriteH);
+                ctx.drawImage(chosenRightImg, 105, 20, 316, 448, drawX, drawY, spriteW, spriteH);
 
                 if (isHitFlash) {
                     ctx.shadowBlur = 0;

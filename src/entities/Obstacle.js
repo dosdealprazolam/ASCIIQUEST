@@ -47,6 +47,9 @@ class Obstacle {
 
         // Telemetría para el Sistema de Diagnóstico de Muerte (Dev Inspector)
         this.debugHistory = [];
+
+        // Variante visual aleatoria fija por obstáculo para alternar entre los modelos disponibles
+        this.spriteVariantIndex = Math.floor(Math.random() * 100);
     }
 
     canInteractWithB() {

@@ -159,7 +159,11 @@ const DEFAULT_CONFIG = {
         LANE_TOLERANCE: 0.36,
         TOPPLING_SPEED: 5.8,          // Caída rápida y fluida como estaba antes
         TENTATIVE_HEAVY_TOPPLING_SPEED: 3.8, // Guardado solo para el obstáculo tentativo futuro
-        YELLOW_RIGHT_SPRITE_PATH: 'img/obstacle_yellow_right.png'
+        YELLOW_RIGHT_SPRITE_PATH: 'img/obstacle_yellow_right.png',
+        YELLOW_RIGHT_SPRITE_PATHS: [
+            'img/obstacle_yellow_right.png',
+            'img/obstacle_yellow_right_2.png'
+        ]
     },
 
     // --- ESTÉTICA Y CÁMARA ---
