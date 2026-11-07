@@ -30,6 +30,10 @@ class Renderer {
         this.heartImgReady = false;
         this._initHeartImage();
 
+        this.yellowRightImg = null;
+        this.yellowRightImgReady = false;
+        this._initObstacleSprites();
+
         this._resize();
         window.addEventListener('resize', () => this._resize());
         this._initAsciiNightmareField();
@@ -50,6 +54,18 @@ class Renderer {
         };
         img.src = configuredPath;
         this.heartImg = img;
+    }
+
+    _initObstacleSprites() {
+        if (typeof Image === 'undefined') return;
+        const rightImg = new Image();
+        const rightPath = (this.config.OBSTACLES && this.config.OBSTACLES.YELLOW_RIGHT_SPRITE_PATH)
+            || 'img/obstacle_yellow_right.png';
+        rightImg.onload = () => {
+            this.yellowRightImgReady = true;
+        };
+        rightImg.src = rightPath;
+        this.yellowRightImg = rightImg;
     }
 
     _resize() {
@@ -378,43 +394,88 @@ class Renderer {
             // --- ESTRUCTURA ENORME MANIPULABLE CON B ---
             const h = 225 * p.scale;
             const tiltDir = obs.fallTargetLane > obs.initialLane ? 1 : -1;
-
-            // Si está cayendo hacia el otro carril, rotamos la torre físicamente
-            let angle = tiltDir * 0.07; // Leve inclinación natural que sugiere hacia dónde caerá
-            if (obs.state === 'TOPPLING') {
-                angle = tiltDir * (0.07 + obs.toppleProgress * 1.32);
-            } else if (obs.state === 'COLLAPSED_IN_OTHER_LANE') {
-                angle = tiltDir * 1.42;
-            }
-
-            ctx.rotate(angle);
-
-            // Cuerpo de la torre industrial fracturada
             const isHitFlash = obs.hitFlashTimer > 0;
-            ctx.fillStyle = isHitFlash ? '#5a3e1b' : (obs.state === 'ACTIVE' ? '#1e1922' : '#2a1818');
-            ctx.strokeStyle = isHitFlash ? '#ffffff' : (obs.state === 'ACTIVE' ? '#ff9f1c' : '#ff4040');
-            ctx.lineWidth = Math.max(1.5, 2.8 * p.scale);
+            const useRightSprite = (tiltDir > 0 && this.yellowRightImgReady && this.yellowRightImg && ctx.drawImage);
 
-            ctx.fillRect(-w * 0.44, -h, w * 0.88, h);
-            ctx.strokeRect(-w * 0.44, -h, w * 0.88, h);
+            if (useRightSprite) {
+                // El asset (img/obstacle_yellow_right.png) ya viene inclinado hacia la derecha con su poste de madera
+                let spriteAngle = 0;
+                if (obs.state === 'TOPPLING') {
+                    spriteAngle = obs.toppleProgress * 1.18;
+                } else if (obs.state === 'COLLAPSED_IN_OTHER_LANE') {
+                    spriteAngle = 1.25;
+                }
 
-            // Grietas estructurales y tensores hacia el lado de derrumbe (lenguaje visual sin texto)
-            ctx.strokeStyle = 'rgba(255, 159, 28, 0.85)';
-            ctx.beginPath();
-            ctx.moveTo(-w * 0.35 * tiltDir, -h * 0.25);
-            ctx.lineTo(w * 0.42 * tiltDir, -h * 0.55);
-            ctx.lineTo(w * 0.20 * tiltDir, -h * 0.82);
-            ctx.stroke();
+                // Sombra en la base del carril
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.58)';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, w * 0.52, Math.max(3, 10 * p.scale), 0, 0, Math.PI * 2);
+                ctx.fill();
 
-            // Símbolos ASCII estructurales y capas de resistencia al masheo
-            if (p.scale > 0.25) {
-                ctx.fillStyle = isHitFlash ? '#ffffff' : '#ff9f1c';
-                ctx.font = `bold ${Math.max(10, Math.floor(20 * p.scale))}px monospace`;
-                ctx.textAlign = 'center';
-                const arrowGlyph = tiltDir > 0 ? '>>>' : '<<<';
-                ctx.fillText(arrowGlyph, 0, -h * 0.48);
-                const pips = '■'.repeat(Math.max(1, obs.remainingHits || 1));
-                ctx.fillText(`[${pips}]`, 0, -h * 0.22);
+                ctx.rotate(spriteAngle);
+
+                const spriteH = 245 * p.scale;
+                const spriteW = spriteH * (316 / 448);
+                const drawX = -spriteW * 0.43;
+                const drawY = -spriteH;
+
+                if (isHitFlash) {
+                    ctx.shadowColor = '#ffffff';
+                    ctx.shadowBlur = Math.max(6, 16 * p.scale);
+                }
+
+                // Recorte exacto del área opaca del tótem (X: 105..421, Y: 20..468 de 500x500)
+                ctx.drawImage(this.yellowRightImg, 105, 20, 316, 448, drawX, drawY, spriteW, spriteH);
+
+                if (isHitFlash) {
+                    ctx.shadowBlur = 0;
+                }
+
+                // Si requiere más de 1 golpe (niveles avanzados), mostrar indicador discreto de golpes restantes
+                if (p.scale > 0.25 && (obs.requiredHits || 1) > 1 && obs.state === 'ACTIVE') {
+                    ctx.fillStyle = isHitFlash ? '#ffffff' : '#ff9f1c';
+                    ctx.font = `bold ${Math.max(10, Math.floor(18 * p.scale))}px monospace`;
+                    ctx.textAlign = 'center';
+                    const pips = '■'.repeat(Math.max(1, obs.remainingHits || 1));
+                    ctx.fillText(`[${pips}]`, 0, -spriteH * 0.14);
+                }
+            } else {
+                // Fallback procedural (usado para los que caen hacia el lado izquierdo hasta tener su foto)
+                let angle = tiltDir * 0.07; // Leve inclinación natural que sugiere hacia dónde caerá
+                if (obs.state === 'TOPPLING') {
+                    angle = tiltDir * (0.07 + obs.toppleProgress * 1.32);
+                } else if (obs.state === 'COLLAPSED_IN_OTHER_LANE') {
+                    angle = tiltDir * 1.42;
+                }
+
+                ctx.rotate(angle);
+
+                // Cuerpo de la torre industrial fracturada
+                ctx.fillStyle = isHitFlash ? '#5a3e1b' : (obs.state === 'ACTIVE' ? '#1e1922' : '#2a1818');
+                ctx.strokeStyle = isHitFlash ? '#ffffff' : (obs.state === 'ACTIVE' ? '#ff9f1c' : '#ff4040');
+                ctx.lineWidth = Math.max(1.5, 2.8 * p.scale);
+
+                ctx.fillRect(-w * 0.44, -h, w * 0.88, h);
+                ctx.strokeRect(-w * 0.44, -h, w * 0.88, h);
+
+                // Grietas estructurales y tensores hacia el lado de derrumbe (lenguaje visual sin texto)
+                ctx.strokeStyle = 'rgba(255, 159, 28, 0.85)';
+                ctx.beginPath();
+                ctx.moveTo(-w * 0.35 * tiltDir, -h * 0.25);
+                ctx.lineTo(w * 0.42 * tiltDir, -h * 0.55);
+                ctx.lineTo(w * 0.20 * tiltDir, -h * 0.82);
+                ctx.stroke();
+
+                // Símbolos ASCII estructurales y capas de resistencia al masheo
+                if (p.scale > 0.25) {
+                    ctx.fillStyle = isHitFlash ? '#ffffff' : '#ff9f1c';
+                    ctx.font = `bold ${Math.max(10, Math.floor(20 * p.scale))}px monospace`;
+                    ctx.textAlign = 'center';
+                    const arrowGlyph = tiltDir > 0 ? '>>>' : '<<<';
+                    ctx.fillText(arrowGlyph, 0, -h * 0.48);
+                    const pips = '■'.repeat(Math.max(1, obs.remainingHits || 1));
+                    ctx.fillText(`[${pips}]`, 0, -h * 0.22);
+                }
             }
         } else if (obs.type === TYPES.SOLID_MONOLITH) {
             // --- MONOLITO INDESTRUCTIBLE (Obliga a esquivar con A) ---

@@ -158,7 +158,8 @@ const DEFAULT_CONFIG = {
         PLAYER_HITBOX_DEPTH: 34,
         LANE_TOLERANCE: 0.36,
         TOPPLING_SPEED: 5.8,          // Caída rápida y fluida como estaba antes
-        TENTATIVE_HEAVY_TOPPLING_SPEED: 3.8 // Guardado solo para el obstáculo tentativo futuro
+        TENTATIVE_HEAVY_TOPPLING_SPEED: 3.8, // Guardado solo para el obstáculo tentativo futuro
+        YELLOW_RIGHT_SPRITE_PATH: 'img/obstacle_yellow_right.png'
     },
 
     // --- ESTÉTICA Y CÁMARA ---
