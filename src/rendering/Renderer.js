@@ -33,6 +33,7 @@ class Renderer {
         this.yellowRightImg = null;
         this.yellowRightImgReady = false;
         this.yellowRightSprites = [];
+        this.yellowLeftSprites = [];
         this._initObstacleSprites();
 
         this._resize();
@@ -76,6 +77,22 @@ class Renderer {
                     this.yellowRightImg = img;
                     this.yellowRightImgReady = true;
                 }
+            };
+            img.src = spritePath;
+            return entry;
+        });
+
+        const leftPaths = (this.config.OBSTACLES && Array.isArray(this.config.OBSTACLES.YELLOW_LEFT_SPRITE_PATHS))
+            ? this.config.OBSTACLES.YELLOW_LEFT_SPRITE_PATHS
+            : [
+                (this.config.OBSTACLES && this.config.OBSTACLES.YELLOW_LEFT_SPRITE_PATH) || 'img/obstacle_yellow_left.png'
+            ];
+
+        this.yellowLeftSprites = leftPaths.map((spritePath) => {
+            const img = new Image();
+            const entry = { path: spritePath, img, ready: false };
+            img.onload = () => {
+                entry.ready = true;
             };
             img.src = spritePath;
             return entry;
@@ -412,18 +429,22 @@ class Renderer {
             const readyRightSprites = this.yellowRightSprites
                 ? this.yellowRightSprites.filter(s => s.ready && s.img)
                 : [];
-            const useRightSprite = (tiltDir > 0 && readyRightSprites.length > 0 && ctx.drawImage);
+            const readyLeftSprites = this.yellowLeftSprites
+                ? this.yellowLeftSprites.filter(s => s.ready && s.img)
+                : [];
+            const activeSideSprites = tiltDir > 0 ? readyRightSprites : readyLeftSprites;
+            const useTotemSprite = (activeSideSprites.length > 0 && ctx.drawImage);
 
-            if (useRightSprite) {
+            if (useTotemSprite) {
                 const variantSeed = typeof obs.spriteVariantIndex === 'number' ? obs.spriteVariantIndex : (obs.id || 0);
-                const chosenRightImg = readyRightSprites[variantSeed % readyRightSprites.length].img;
+                const chosenImg = activeSideSprites[variantSeed % activeSideSprites.length].img;
 
-                // Los assets (obstacle_yellow_right*.png) ya vienen inclinados hacia la derecha con su poste de madera
+                // Los assets ya vienen inclinados hacia su lado de caída (derecha con poste / izquierda con cráneos)
                 let spriteAngle = 0;
                 if (obs.state === 'TOPPLING') {
-                    spriteAngle = obs.toppleProgress * 1.18;
+                    spriteAngle = tiltDir * obs.toppleProgress * 1.18;
                 } else if (obs.state === 'COLLAPSED_IN_OTHER_LANE') {
-                    spriteAngle = 1.25;
+                    spriteAngle = tiltDir * 1.25;
                 }
 
                 // Sombra en la base del carril
@@ -434,9 +455,14 @@ class Renderer {
 
                 ctx.rotate(spriteAngle);
 
+                const sx = tiltDir > 0 ? 105 : 45;
+                const sy = 20;
+                const sw = tiltDir > 0 ? 316 : 348;
+                const sh = 448;
+
                 const spriteH = 245 * p.scale;
-                const spriteW = spriteH * (316 / 448);
-                const drawX = -spriteW * 0.43;
+                const spriteW = spriteH * (sw / sh);
+                const drawX = tiltDir > 0 ? (-spriteW * 0.43) : (-spriteW * 0.57);
                 const drawY = -spriteH;
 
                 if (isHitFlash) {
@@ -444,8 +470,7 @@ class Renderer {
                     ctx.shadowBlur = Math.max(6, 16 * p.scale);
                 }
 
-                // Recorte exacto del área opaca del tótem (X: 105..421, Y: 20..468 de 500x500)
-                ctx.drawImage(chosenRightImg, 105, 20, 316, 448, drawX, drawY, spriteW, spriteH);
+                ctx.drawImage(chosenImg, sx, sy, sw, sh, drawX, drawY, spriteW, spriteH);
 
                 if (isHitFlash) {
                     ctx.shadowBlur = 0;
