@@ -88,7 +88,7 @@ class Renderer {
             return entry;
         });
 
-        // Variante rara especial que cae a la derecha (aparece solo a partir de 5000m y muy rara vez)
+        // Variante especial que cae a la derecha (aparece a partir de 2000m)
         const rareRightPath = (this.config.OBSTACLES && this.config.OBSTACLES.YELLOW_RIGHT_RARE_SPRITE_PATH)
             || 'img/obstacle_yellow_right_rare.png';
         this.yellowRightRareImg = new Image();
@@ -97,6 +97,16 @@ class Renderer {
             this.yellowRightRareReady = true;
         };
         this.yellowRightRareImg.src = rareRightPath;
+
+        // Variante pesada en ruinas que cae a la derecha (aparece a partir de 5000m)
+        const p5000Path = (this.config.OBSTACLES && this.config.OBSTACLES.YELLOW_RIGHT_5000_SPRITE_PATH)
+            || 'img/obstacle_yellow_right_5000.png';
+        this.yellowRight5000Img = new Image();
+        this.yellowRight5000Ready = false;
+        this.yellowRight5000Img.onload = () => {
+            this.yellowRight5000Ready = true;
+        };
+        this.yellowRight5000Img.src = p5000Path;
 
         const leftPaths = (this.config.OBSTACLES && Array.isArray(this.config.OBSTACLES.YELLOW_LEFT_SPRITE_PATHS))
             ? this.config.OBSTACLES.YELLOW_LEFT_SPRITE_PATHS
@@ -527,8 +537,15 @@ class Renderer {
                 let sw = tiltDir > 0 ? 324 : 348;
                 let sh = 448;
 
-                // Si es la variante rara especial (>5000m que cae a la derecha), usamos su textura y encuadre
-                if (tiltDir > 0 && obs.isRareRightVariant && this.yellowRightRareReady && this.yellowRightRareImg) {
+                // Si es la variante pesada en ruinas (>=5000m que cae a la derecha)
+                if (tiltDir > 0 && obs.is5000RightVariant && this.yellowRight5000Ready && this.yellowRight5000Img) {
+                    chosenImg = this.yellowRight5000Img;
+                    sx = 20;
+                    sy = 45;
+                    sw = 410;
+                    sh = 435;
+                } else if (tiltDir > 0 && obs.isRareRightVariant && this.yellowRightRareReady && this.yellowRightRareImg) {
+                    // Si es la variante especial (>=2000m que cae a la derecha)
                     chosenImg = this.yellowRightRareImg;
                     sx = 80;
                     sy = 30;

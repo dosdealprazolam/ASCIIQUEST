@@ -326,7 +326,8 @@ class ObstacleManager {
             const hits = this._rollHits(smooth);
 
             const isTower = Math.random() < 0.52;
-            const isRareTower = isTower && this._isRareRightRoll(z, firstLane, fallTarget);
+            const is5000Tower = isTower && this._is5000RightRoll(z, firstLane, fallTarget);
+            const isRareTower = !is5000Tower && isTower && this._isRareRightRoll(z, firstLane, fallTarget);
             this.obstacles.push(new window.PSR.Obstacle({
                 id: this.nextObstacleId++,
                 type: isTower ? TYPES.COLLAPSING_STRUCTURE : TYPES.FRAGILE_BARRICADE,
@@ -334,7 +335,8 @@ class ObstacleManager {
                 z,
                 fallTargetLane: isTower ? fallTarget : null,
                 requiredHits: isTower ? 1 : hits,
-                isRareRightVariant: isRareTower
+                isRareRightVariant: isRareTower,
+                is5000RightVariant: is5000Tower
             }));
 
             const secondIsMonolith = smooth.monolithChance > 0 && Math.random() < Math.min(0.65, smooth.monolithChance * 1.8);
@@ -360,7 +362,8 @@ class ObstacleManager {
                 }));
             } else if (typeRoll < smooth.monolithChance + smooth.collapsingChance) {
                 const fallTarget = this._pickAdjacentLane(lane);
-                const isRare = this._isRareRightRoll(z, lane, fallTarget);
+                const is5000 = this._is5000RightRoll(z, lane, fallTarget);
+                const isRare = !is5000 && this._isRareRightRoll(z, lane, fallTarget);
                 this.obstacles.push(new window.PSR.Obstacle({
                     id: this.nextObstacleId++,
                     type: TYPES.COLLAPSING_STRUCTURE,
@@ -368,7 +371,8 @@ class ObstacleManager {
                     z,
                     fallTargetLane: fallTarget,
                     requiredHits: 1,
-                    isRareRightVariant: isRare
+                    isRareRightVariant: isRare,
+                    is5000RightVariant: is5000
                 }));
             } else {
                 this.obstacles.push(new window.PSR.Obstacle({
@@ -386,6 +390,20 @@ class ObstacleManager {
         if (lane === 0) return 1;
         if (lane === 2) return 1;
         return Math.random() < 0.5 ? 0 : 2;
+    }
+
+    /**
+     * Determina si una estructura que cae a la derecha se convierte en la variante de fortaleza en ruinas.
+     * Disponible estrictamente a partir de los 5,000 metros (z >= 50000).
+     */
+    _is5000RightRoll(z, originLane, targetLane) {
+        if (targetLane <= originLane) return false;
+        const minDistanceMeters = (this.config.OBSTACLES && this.config.OBSTACLES.YELLOW_RIGHT_5000_MIN_DISTANCE_METERS) || 5000;
+        if (z < minDistanceMeters * 10) return false;
+        const chance = (this.config.OBSTACLES && typeof this.config.OBSTACLES.YELLOW_RIGHT_5000_CHANCE === 'number')
+            ? this.config.OBSTACLES.YELLOW_RIGHT_5000_CHANCE
+            : 0.35;
+        return Math.random() < chance;
     }
 
     /**

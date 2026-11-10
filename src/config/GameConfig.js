@@ -169,6 +169,9 @@ const DEFAULT_CONFIG = {
         YELLOW_RIGHT_RARE_SPRITE_PATH: 'img/obstacle_yellow_right_rare.png',
         YELLOW_RIGHT_RARE_MIN_DISTANCE_METERS: 2000, // Disponible a partir de Nivel 2 (2,000m)
         YELLOW_RIGHT_RARE_CHANCE: 0.20,              // ~20% de probabilidad para mayor presencia visual (1 de cada 5 hacia la derecha)
+        YELLOW_RIGHT_5000_SPRITE_PATH: 'img/obstacle_yellow_right_5000.png',
+        YELLOW_RIGHT_5000_MIN_DISTANCE_METERS: 5000, // Disponible estrictamente a partir de los 5,000 metros
+        YELLOW_RIGHT_5000_CHANCE: 0.35,              // ~35% de probabilidad para estructuras hacia la derecha a partir de 5000m
         YELLOW_LEFT_SPRITE_PATH: 'img/obstacle_yellow_left.png',
         YELLOW_LEFT_SPRITE_PATHS: [
             'img/obstacle_yellow_left.png',
