@@ -322,8 +322,8 @@ class InputManager {
         const gp = gamepads && gamepads[0];
         if (!gp) return;
 
-        const threshold = this.config.CONTROLS.TRIGGER_THRESHOLD || 0.12;
-        const rapidDelta = this.config.CONTROLS.TRIGGER_RAPID_DELTA || 0.06;
+        const threshold = this.config.CONTROLS.TRIGGER_THRESHOLD || 0.08;
+        const rapidDelta = this.config.CONTROLS.TRIGGER_RAPID_DELTA || 0.035;
 
         // Valor analógico máximo entre Botón A (0), LB (4) y Gatillo Izquierdo LT/L2 (6)
         const valA = Math.max(

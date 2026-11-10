@@ -61,8 +61,8 @@ const DEFAULT_CONFIG = {
         B_MIN_RANGE: -42,
         // Guardado únicamente para el obstáculo tentativo (TENTATIVE_HEAVY_TOWER)
         TENTATIVE_KNOCKBACK_Z: 95,
-        TRIGGER_THRESHOLD: 0.12,
-        TRIGGER_RAPID_DELTA: 0.06
+        TRIGGER_THRESHOLD: 0.08,      // Gatillo ultra sensible: detecta con apenas 8% de recorrido
+        TRIGGER_RAPID_DELTA: 0.035    // Rearmado instantáneo: basta liberar un 3.5% para volver a golpear
     },
 
     // --- MÚSICA DEL NIVEL (CARPETA /music/ DEL PROYECTO) ---

@@ -21,6 +21,8 @@ class ObstacleManager {
 
         this.currentLevel = 1;
         this.forcedLevel = null;
+        this.lastSpawnedLane = -1;
+        this.consecutiveSameLaneCount = 0;
     }
 
     reset() {
@@ -28,6 +30,8 @@ class ObstacleManager {
         this.nextObstacleId = 1;
         this.nextSpawnZ = 500;
         this.currentLevel = this.forcedLevel || 1;
+        this.lastSpawnedLane = -1;
+        this.consecutiveSameLaneCount = 0;
 
         if (this.autoSpawnEnabled) {
             this._spawnInitialSequence();
@@ -264,14 +268,40 @@ class ObstacleManager {
         return minH + Math.floor(Math.random() * (maxH - minH + 1));
     }
 
+    _pickBalancedLane(playerLane, preferPlayerLaneChance = 0.55) {
+        let chosen;
+        if (Math.random() < preferPlayerLaneChance) {
+            chosen = playerLane;
+        } else {
+            const otherLanes = [0, 1, 2].filter(l => l !== this.lastSpawnedLane);
+            chosen = otherLanes.length > 0
+                ? otherLanes[Math.floor(Math.random() * otherLanes.length)]
+                : Math.floor(Math.random() * 3);
+        }
+
+        // Prevenir rachas de más de 2 obstáculos en el mismo carril
+        if (chosen === this.lastSpawnedLane) {
+            this.consecutiveSameLaneCount++;
+            if (this.consecutiveSameLaneCount >= 2) {
+                const altLanes = [0, 1, 2].filter(l => l !== chosen);
+                chosen = altLanes[Math.floor(Math.random() * altLanes.length)];
+                this.consecutiveSameLaneCount = 1;
+            }
+        } else {
+            this.lastSpawnedLane = chosen;
+            this.consecutiveSameLaneCount = 1;
+        }
+
+        return chosen;
+    }
+
     _spawnPatternAt(z, playerLane, smooth) {
         const TYPES = window.PSR.OBSTACLE_TYPES;
 
         // REGLA ESTRICTA: Los primeros 500 metros (z <= 5000) SOLO tienen el obstáculo más básico
-        // (FRAGILE_BARRICADE de 1 golpe), alternando inteligentemente entre el carril del jugador
-        // y los carriles vecinos para enganchar y mantener el reto activo.
+        // (FRAGILE_BARRICADE de 1 golpe), alternando dinámicamente entre carriles para evitar monotonía.
         if (z <= 5000 && this.forcedLevel === null) {
-            const lane = Math.random() < 0.72 ? playerLane : Math.floor(Math.random() * 3);
+            const lane = this._pickBalancedLane(playerLane, 0.52);
             this.obstacles.push(new window.PSR.Obstacle({
                 id: this.nextObstacleId++,
                 type: TYPES.FRAGILE_BARRICADE,
@@ -287,6 +317,8 @@ class ObstacleManager {
         if (roll < smooth.doubleLaneChance) {
             const openLane = Math.floor(Math.random() * 3);
             const blockedLanes = [0, 1, 2].filter(l => l !== openLane);
+            this.lastSpawnedLane = -1; // Patrón doble ocupa dos carriles
+            this.consecutiveSameLaneCount = 0;
 
             const firstLane = blockedLanes[0];
             const secondLane = blockedLanes[1];
@@ -312,7 +344,7 @@ class ObstacleManager {
                 requiredHits: secondIsMonolith ? 1 : this._rollHits(smooth)
             }));
         } else {
-            const lane = Math.random() < 0.76 ? playerLane : Math.floor(Math.random() * 3);
+            const lane = this._pickBalancedLane(playerLane, 0.55);
             const typeRoll = Math.random();
             const hits = this._rollHits(smooth);
 
