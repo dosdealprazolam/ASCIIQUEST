@@ -1035,25 +1035,74 @@ html, body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 9px;
+    gap: 13px;
     width: 100%;
-    max-width: 220px;
-    margin: 10px auto;
+    max-width: 260px;
+    margin: 16px auto 12px auto;
 }
 
 .pause-monitor-btn {
-    width: 100%;
-    text-align: center;
-    padding: 8px 16px !important;
-    font-size: 13px !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 4px 8px !important;
+    margin: 0;
+    color: #cbd5e1;
+    font-family: 'Courier New', 'MS Gothic', 'Lucida Console', monospace;
+    font-size: clamp(14px, 1.6vw, 17px) !important;
+    font-weight: bold;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    user-select: none;
+    outline: none;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    position: relative;
+    transition: color 0.15s ease, text-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.pause-monitor-btn::before {
+    content: '> ';
+    opacity: 0;
+    color: #ff9f1c;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    display: inline-block;
+    transform: translateX(-4px);
+}
+
+.pause-monitor-btn:hover {
+    color: #ff9f1c !important;
+    background: transparent !important;
+    text-shadow: 0 0 10px rgba(255, 159, 28, 0.9), 0 0 20px rgba(255, 159, 28, 0.45);
+    transform: translateX(3px);
+}
+
+.pause-monitor-btn:hover::before {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.pause-monitor-btn:active {
+    color: #ffffff !important;
+    transform: scale(0.97);
+}
+
+.pause-back-btn {
+    background: transparent;
+    border: none;
+    color: #2ec4b6;
+    font-family: inherit;
+    font-size: 11px;
     font-weight: bold;
     letter-spacing: 1px;
-    border-radius: 4px;
     cursor: pointer;
+    padding: 2px 6px;
+    transition: color 0.15s ease, text-shadow 0.15s ease;
 }
-    font-size: 12px !important;
-    letter-spacing: 0.6px;
-    cursor: pointer;
+
+.pause-back-btn:hover {
+    color: #ffffff;
+    text-shadow: 0 0 8px #2ec4b6;
 }
 
 .pause-crt-prompt {
