@@ -211,48 +211,27 @@ class InputManager {
         const pressDuration = now - this.aPressTime;
         this.lastPressDurationMs = pressDuration;
 
-        const { TAP_MAX_DURATION_MS, DOUBLE_TAP_WINDOW_MS } = this.config.CONTROLS;
+        const { TAP_MAX_DURATION_MS } = this.config.CONTROLS;
         const laneCount = this.config.LANES.COUNT;
 
-        // Respuesta instantánea en 0ms al soltar el toque
+        // Respuesta instantánea en 0ms al soltar el toque: avanza al siguiente carril sin requerir doble pulsación
         if (this.laneSwitchReady && pressDuration <= TAP_MAX_DURATION_MS) {
-            const timeSinceLastTap = now - this.lastTapTime;
+            this.tapCount = 1;
+            this.lastTapIntervalMs = 0;
+            this.lastTapTime = now;
+            const nextLane = (this.currentLogicalLane + 1) % laneCount;
+            const originLane = this.currentLogicalLane;
+            this.currentLogicalLane = nextLane;
+            this.switchOriginLane = nextLane;
 
-            if (this.tapCount === 1 && timeSinceLastTap <= DOUBLE_TAP_WINDOW_MS) {
-                // --- DOS TOQUES RÁPIDOS DE A ---
-                this.tapCount = 2;
-                this.lastTapIntervalMs = timeSinceLastTap;
-                this.lastTapTime = now;
-                const prevLane = (this.switchOriginLane - 1 + laneCount) % laneCount;
-                this.currentLogicalLane = prevLane;
-
-                this.eventBus.emit('input:lane_change', {
-                    type: 'DOUBLE_TAP_PREV',
-                    targetLane: prevLane,
-                    originLane: this.switchOriginLane,
-                    pressDurationMs: Math.round(pressDuration),
-                    tapIntervalMs: Math.round(timeSinceLastTap)
-                });
-            } else {
-                // --- UN TOQUE DE A ---
-                if (this.tapCount >= 1 && timeSinceLastTap > DOUBLE_TAP_WINDOW_MS) {
-                    this.switchOriginLane = this.currentLogicalLane;
-                }
-                this.tapCount = 1;
-                this.lastTapIntervalMs = 0;
-                this.lastTapTime = now;
-                const nextLane = (this.switchOriginLane + 1) % laneCount;
-                this.currentLogicalLane = nextLane;
-
-                this.eventBus.emit('input:lane_change', {
-                    type: 'SINGLE_TAP_NEXT',
-                    targetLane: nextLane,
-                    originLane: this.switchOriginLane,
-                    pressDurationMs: Math.round(pressDuration)
-                });
-            }
+            this.eventBus.emit('input:lane_change', {
+                type: 'SINGLE_TAP_NEXT',
+                targetLane: nextLane,
+                originLane,
+                pressDurationMs: Math.round(pressDuration)
+            });
         } else {
-            // El jugador soltó A tras mantenerlo para correr -> Desbloquea cambio de carril
+            // El jugador soltó A tras mantenerlo para correr -> Desbloquea cambio de carril con 1 toque
             this.laneSwitchReady = true;
             this.switchOriginLane = this.currentLogicalLane;
             this.tapCount = 0;

@@ -210,16 +210,12 @@ class GameApp {
             this.input.syncLane(targetLane);
 
             const laneName = this.config.LANES.NAMES[targetLane];
-            if (type === 'SINGLE_TAP_NEXT') {
-                this.lastActionFeedback = `1 TOQUE [A] → ${laneName}`;
-            } else {
-                this.lastActionFeedback = `2 TOQUES [A] → ${laneName}`;
-            }
+            this.lastActionFeedback = `TOQUE [A] → ${laneName}`;
         });
 
         this.eventBus.on('input:lane_switch_unlocked', () => {
             if (!this.player.isAlive || this.hasWonCurrentRun) return;
-            this.lastActionFeedback = '[A] SUELTA: CAMBIO DE CARRIL HABILITADO (1 o 2 TOQUES)';
+            this.lastActionFeedback = '[A] SUELTA: CAMBIO DE CARRIL HABILITADO (TOQUE [A])';
         });
 
         this.eventBus.on('input:b_action', () => {
@@ -815,7 +811,7 @@ class GameApp {
                 this.uiControlA.textContent = `A: CORRIENDO (${Math.round(this.player.speed)} u/s)`;
                 this.uiControlA.className = 'pill active-run' + devSuffix;
             } else if (ctrl.laneSwitchReady) {
-                this.uiControlA.textContent = 'A: CAMBIO LISTO (1 o 2 TOQUES)';
+                this.uiControlA.textContent = 'A: CAMBIO LISTO (TOQUE [A])';
                 this.uiControlA.className = 'pill switch-ready' + devSuffix;
             } else {
                 this.uiControlA.textContent = 'A: DETENIDO (MANTÉN A)';
