@@ -1015,76 +1015,81 @@ html, body {
 /* ==========================================================================
    PANTALLA DE PAUSA SOBRE EL MOLDE DEL MONITOR CRT (gameover_monitor.png)
    ========================================================================== */
+.death-crt-screen.pause-monitor-content {
+    left: 23% !important;
+    right: 23% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    padding: 12px 20px !important;
+}
+
 .pause-crt-title {
     color: #ff9f1c;
     font-size: clamp(20px, 2.6vw, 28px);
     letter-spacing: 3px;
     font-weight: bold;
     text-shadow: 0 0 10px rgba(255, 159, 28, 0.7);
-    margin-bottom: 4px;
+    margin: 0 0 4px 0;
+    text-align: center;
+    width: 100%;
 }
 
 .pause-crt-subtitle {
     color: #94a3b8;
     font-size: clamp(10px, 1.1vw, 12px);
     letter-spacing: 1.5px;
-    margin-bottom: 14px;
+    margin: 0 0 16px 0;
+    text-align: center;
+    width: 100%;
 }
 
 .pause-actions-list {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 13px;
+    justify-content: center;
+    gap: 14px;
     width: 100%;
-    max-width: 260px;
-    margin: 16px auto 12px auto;
+    margin: 14px 0 16px 0;
+    padding: 0;
+    text-align: center;
 }
 
 .pause-monitor-btn {
     background: transparent !important;
     border: none !important;
-    padding: 4px 8px !important;
-    margin: 0;
+    padding: 6px 14px !important;
+    margin: 0 auto;
     color: #cbd5e1;
     font-family: 'Courier New', 'MS Gothic', 'Lucida Console', monospace;
     font-size: clamp(14px, 1.6vw, 17px) !important;
     font-weight: bold;
     letter-spacing: 2px;
     text-transform: uppercase;
+    text-align: center;
+    display: block;
+    width: auto;
     cursor: pointer;
     user-select: none;
     outline: none;
     box-shadow: none !important;
     border-radius: 0 !important;
-    position: relative;
     transition: color 0.15s ease, text-shadow 0.15s ease, transform 0.15s ease;
-}
-
-.pause-monitor-btn::before {
-    content: '> ';
-    opacity: 0;
-    color: #ff9f1c;
-    transition: opacity 0.15s ease, transform 0.15s ease;
-    display: inline-block;
-    transform: translateX(-4px);
 }
 
 .pause-monitor-btn:hover {
     color: #ff9f1c !important;
     background: transparent !important;
-    text-shadow: 0 0 10px rgba(255, 159, 28, 0.9), 0 0 20px rgba(255, 159, 28, 0.45);
-    transform: translateX(3px);
-}
-
-.pause-monitor-btn:hover::before {
-    opacity: 1;
-    transform: translateX(0);
+    text-shadow: 0 0 10px rgba(255, 159, 28, 0.95), 0 0 22px rgba(255, 159, 28, 0.55);
+    transform: scale(1.06);
 }
 
 .pause-monitor-btn:active {
     color: #ffffff !important;
-    transform: scale(0.97);
+    transform: scale(0.98);
 }
 
 .pause-back-btn {
@@ -1106,9 +1111,11 @@ html, body {
 }
 
 .pause-crt-prompt {
-    margin-top: 8px;
+    margin-top: 14px;
     color: #64748b;
     font-size: 11px;
+    text-align: center;
+    width: 100%;
 }
 
 .pause-info-box {
