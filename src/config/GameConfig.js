@@ -172,7 +172,23 @@ const DEFAULT_CONFIG = {
             'img/obstacle_yellow_left_2.png'
         ],
         BARRICADE_INTACT_SPRITE_PATH: 'img/barricade_intact.png',
-        BARRICADE_DESTROYED_SPRITE_PATH: 'img/barricade_destroyed.png'
+        BARRICADE_DESTROYED_SPRITE_PATH: 'img/barricade_destroyed.png',
+        CORPSE_PILE_INTACT_SPRITE_PATH: 'img/05.png',
+        CORPSE_PILE_DESTROYED_SPRITE_PATH: 'img/06.png',
+        BARRICADE_VARIANTS: [
+            {
+                intact: 'img/barricade_intact.png',
+                destroyed: 'img/barricade_destroyed.png',
+                crop: { sx: 45, sy: 105, sw: 498, sh: 235 },
+                aspect: 228 / 492
+            },
+            {
+                intact: 'img/05.png',
+                destroyed: 'img/06.png',
+                crop: { sx: 20, sy: 65, sw: 545, sh: 330 },
+                aspect: 317 / 535
+            }
+        ]
     },
 
     // --- ESTÉTICA Y CÁMARA ---

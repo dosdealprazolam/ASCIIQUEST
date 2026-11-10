@@ -38,6 +38,7 @@ class Renderer {
         this.barricadeIntactReady = false;
         this.barricadeDestroyedImg = null;
         this.barricadeDestroyedReady = false;
+        this.barricadeVariantSprites = [];
         this._initObstacleSprites();
 
         this._resize();
@@ -104,25 +105,55 @@ class Renderer {
             return entry;
         });
 
-        // Sprites para Barricadas Frágiles (Nivel 1): Estado 1 (Intacto) y Estado 2 (Destruido en el suelo)
-        const intactPath = (this.config.OBSTACLES && this.config.OBSTACLES.BARRICADE_INTACT_SPRITE_PATH)
-            || 'img/barricade_intact.png';
-        const destroyedPath = (this.config.OBSTACLES && this.config.OBSTACLES.BARRICADE_DESTROYED_SPRITE_PATH)
-            || 'img/barricade_destroyed.png';
+        // Sprites para Barricadas Frágiles / Montones destructibles (Nivel 1):
+        // Soporta variantes múltiples (05.png intacto / 06.png destruido + barricade_intact/destroyed)
+        const variantsCfg = (this.config.OBSTACLES && this.config.OBSTACLES.BARRICADE_VARIANTS) || [
+            {
+                intact: 'img/barricade_intact.png',
+                destroyed: 'img/barricade_destroyed.png',
+                crop: { sx: 45, sy: 105, sw: 498, sh: 235 },
+                aspect: 228 / 492
+            },
+            {
+                intact: 'img/05.png',
+                destroyed: 'img/06.png',
+                crop: { sx: 20, sy: 65, sw: 545, sh: 330 },
+                aspect: 317 / 535
+            }
+        ];
 
-        const intactImg = new Image();
-        intactImg.onload = () => {
-            this.barricadeIntactReady = true;
-        };
-        intactImg.src = intactPath;
-        this.barricadeIntactImg = intactImg;
+        this.barricadeVariantSprites = variantsCfg.map((vCfg, idx) => {
+            const intactImg = new Image();
+            const destroyedImg = new Image();
+            const entry = {
+                intactImg,
+                destroyedImg,
+                intactReady: false,
+                destroyedReady: false,
+                crop: vCfg.crop || { sx: 45, sy: 105, sw: 498, sh: 235 },
+                aspect: vCfg.aspect || (228 / 492)
+            };
 
-        const destroyedImg = new Image();
-        destroyedImg.onload = () => {
-            this.barricadeDestroyedReady = true;
-        };
-        destroyedImg.src = destroyedPath;
-        this.barricadeDestroyedImg = destroyedImg;
+            intactImg.onload = () => {
+                entry.intactReady = true;
+                if (idx === 0) {
+                    this.barricadeIntactImg = intactImg;
+                    this.barricadeIntactReady = true;
+                }
+            };
+            intactImg.src = vCfg.intact;
+
+            destroyedImg.onload = () => {
+                entry.destroyedReady = true;
+                if (idx === 0) {
+                    this.barricadeDestroyedImg = destroyedImg;
+                    this.barricadeDestroyedReady = true;
+                }
+            };
+            destroyedImg.src = vCfg.destroyed;
+
+            return entry;
+        });
     }
 
     _resize() {
@@ -579,10 +610,15 @@ class Renderer {
             }
 
             // Usar sprites gráficos (Estado 1: Intacto | Estado 2: Destruido en el suelo) si están cargados
-            const hasSprites = (this.barricadeIntactReady && this.barricadeDestroyedReady && ctx.drawImage);
+            const readyVariants = (this.barricadeVariantSprites || []).filter(v => v.intactReady && v.destroyedReady);
+            const hasSprites = (readyVariants.length > 0 && ctx.drawImage);
 
             if (hasSprites) {
                 ctx.globalAlpha = fadeAlpha;
+
+                // Elegir variante visual fija por obstáculo (madera/piedras o pila de cuerpos 05/06)
+                const variantSeed = typeof obs.spriteVariantIndex === 'number' ? obs.spriteVariantIndex : (obs.id || 0);
+                const activeVariant = readyVariants[variantSeed % readyVariants.length];
 
                 // Sombra en el suelo bajo el montón
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.52)';
@@ -590,9 +626,9 @@ class Renderer {
                 ctx.ellipse(0, 0, w * 0.58, Math.max(3, 9 * p.scale), 0, 0, Math.PI * 2);
                 ctx.fill();
 
-                // Proporciones del montón de escombros (relación de aspecto original 492 x 228)
+                // Proporciones dinámicas según la relación de aspecto del sprite activo
                 const spriteW = w * 1.15;
-                const spriteH = spriteW * (228 / 492);
+                const spriteH = spriteW * activeVariant.aspect;
                 const drawX = -spriteW * 0.5;
                 const drawY = -spriteH * 0.88;
 
@@ -602,8 +638,9 @@ class Renderer {
                     ctx.shadowBlur = Math.max(8, 20 * p.scale);
                 }
 
-                const currentImg = isDestroyed ? this.barricadeDestroyedImg : this.barricadeIntactImg;
-                ctx.drawImage(currentImg, 45, 105, 498, 235, drawX, drawY, spriteW, spriteH);
+                const currentImg = isDestroyed ? activeVariant.destroyedImg : activeVariant.intactImg;
+                const crop = activeVariant.crop;
+                ctx.drawImage(currentImg, crop.sx, crop.sy, crop.sw, crop.sh, drawX, drawY, spriteW, spriteH);
 
                 if (isHitFlash) {
                     ctx.shadowBlur = 0;
