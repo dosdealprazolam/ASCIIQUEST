@@ -799,25 +799,73 @@ html, body {
 
 .death-actions-row {
     display: flex;
-    gap: 8px;
-    justify-content: center;
+    flex-direction: column;
     align-items: center;
-    flex-wrap: wrap;
-    margin-top: 2px;
+    justify-content: center;
+    gap: 10px;
+    margin: 10px auto 4px auto;
+    width: 100%;
+    text-align: center;
+}
+
+.death-menu-btn,
+.death-restart-btn,
+.death-action-btn {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    outline: none;
+    padding: 5px 12px !important;
+    margin: 0 auto;
+    font-family: 'Courier New', 'MS Gothic', 'Lucida Console', monospace;
+    font-size: clamp(13px, 1.4vw, 15px) !important;
+    font-weight: bold;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-align: center;
+    display: block;
+    width: auto;
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s ease, text-shadow 0.15s ease, transform 0.15s ease;
 }
 
 .death-restart-btn {
-    padding: 6px 16px !important;
-    font-size: 12px !important;
-    font-weight: bold;
-    letter-spacing: 0.8px;
-    border-radius: 3px;
+    color: #ff9f1c !important;
+}
+
+.death-restart-btn:hover {
+    color: #ffffff !important;
+    text-shadow: 0 0 10px rgba(255, 159, 28, 0.95), 0 0 22px rgba(255, 159, 28, 0.55);
+    transform: scale(1.06);
 }
 
 .death-action-btn {
-    padding: 5px 12px !important;
-    font-size: 11px !important;
-    border-radius: 3px;
+    color: #94a3b8 !important;
+}
+
+.death-action-btn:hover {
+    color: #2ec4b6 !important;
+    text-shadow: 0 0 10px rgba(46, 196, 182, 0.9), 0 0 22px rgba(46, 196, 182, 0.5);
+    transform: scale(1.06);
+}
+
+.death-reports-btn {
+    color: #2ec4b6 !important;
+}
+
+.death-reports-btn:hover {
+    color: #ffffff !important;
+    text-shadow: 0 0 10px rgba(46, 196, 182, 0.95);
+    transform: scale(1.06);
+}
+
+.death-restart-btn:active,
+.death-action-btn:active,
+.death-reports-btn:active {
+    color: #ffffff !important;
+    transform: scale(0.98);
 }
 
 .bug-report-form {
@@ -999,18 +1047,7 @@ html, body {
     max-width: 420px;
 }
 
-/* Botón de Reportes con símbolo de bichito (🐞) en la pantalla de Muerte */
-.death-reports-btn {
-    background: rgba(46, 196, 182, 0.14) !important;
-    border-color: #2ec4b6 !important;
-    color: #2ec4b6 !important;
-    cursor: pointer;
-}
 
-.death-reports-btn:hover {
-    background: #2ec4b6 !important;
-    color: #040406 !important;
-}
 
 /* ==========================================================================
    PANTALLA DE PAUSA SOBRE EL MOLDE DEL MONITOR CRT (gameover_monitor.png)
