@@ -112,7 +112,9 @@ class Renderer {
             ? this.config.OBSTACLES.YELLOW_LEFT_SPRITE_PATHS
             : [
                 (this.config.OBSTACLES && this.config.OBSTACLES.YELLOW_LEFT_SPRITE_PATH) || 'img/obstacle_yellow_left.png',
-                'img/obstacle_yellow_left_2.png'
+                'img/obstacle_yellow_left_2.png',
+                'img/obstacle_yellow_left_3.png',
+                'img/obstacle_yellow_left_4.png'
             ];
 
         this.yellowLeftSprites = leftPaths.map((spritePath) => {

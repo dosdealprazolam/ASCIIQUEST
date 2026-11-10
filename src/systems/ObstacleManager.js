@@ -141,6 +141,7 @@ class ObstacleManager {
             type === TYPES.TENTATIVE_HEAVY_TOWER
         );
         const fallTarget = needsFallTarget ? this._pickAdjacentLane(lane) : null;
+        const leftVariant = this._rollLeftVariantIndex(lane, fallTarget);
 
         const obs = new window.PSR.Obstacle({
             id: this.nextObstacleId++,
@@ -148,7 +149,8 @@ class ObstacleManager {
             lane,
             z,
             fallTargetLane: fallTarget,
-            requiredHits
+            requiredHits,
+            spriteVariantIndex: leftVariant
         });
         this.obstacles.push(obs);
         return obs;
@@ -328,6 +330,7 @@ class ObstacleManager {
             const isTower = Math.random() < 0.52;
             const is5000Tower = isTower && this._is5000RightRoll(z, firstLane, fallTarget);
             const isRareTower = !is5000Tower && isTower && this._isRareRightRoll(z, firstLane, fallTarget);
+            const leftVariant = isTower ? this._rollLeftVariantIndex(firstLane, fallTarget) : null;
             this.obstacles.push(new window.PSR.Obstacle({
                 id: this.nextObstacleId++,
                 type: isTower ? TYPES.COLLAPSING_STRUCTURE : TYPES.FRAGILE_BARRICADE,
@@ -336,7 +339,8 @@ class ObstacleManager {
                 fallTargetLane: isTower ? fallTarget : null,
                 requiredHits: isTower ? 1 : hits,
                 isRareRightVariant: isRareTower,
-                is5000RightVariant: is5000Tower
+                is5000RightVariant: is5000Tower,
+                spriteVariantIndex: leftVariant
             }));
 
             const secondIsMonolith = smooth.monolithChance > 0 && Math.random() < Math.min(0.65, smooth.monolithChance * 1.8);
@@ -364,6 +368,7 @@ class ObstacleManager {
                 const fallTarget = this._pickAdjacentLane(lane);
                 const is5000 = this._is5000RightRoll(z, lane, fallTarget);
                 const isRare = !is5000 && this._isRareRightRoll(z, lane, fallTarget);
+                const leftVariant = this._rollLeftVariantIndex(lane, fallTarget);
                 this.obstacles.push(new window.PSR.Obstacle({
                     id: this.nextObstacleId++,
                     type: TYPES.COLLAPSING_STRUCTURE,
@@ -372,7 +377,8 @@ class ObstacleManager {
                     fallTargetLane: fallTarget,
                     requiredHits: 1,
                     isRareRightVariant: isRare,
-                    is5000RightVariant: is5000
+                    is5000RightVariant: is5000,
+                    spriteVariantIndex: leftVariant
                 }));
             } else {
                 this.obstacles.push(new window.PSR.Obstacle({
@@ -418,6 +424,25 @@ class ObstacleManager {
             ? this.config.OBSTACLES.YELLOW_RIGHT_RARE_CHANCE
             : 0.20;
         return Math.random() < chance;
+    }
+
+    /**
+     * Selecciona la variante para estructuras que caen a la izquierda.
+     * Incorpora las 2 nuevas variantes de tótem con graffiti con una probabilidad
+     * moderada pero algo menor que las bases originales (~14% c/u vs ~36% c/u).
+     */
+    _rollLeftVariantIndex(originLane, targetLane) {
+        if (targetLane === null || targetLane >= originLane) return null; // No cae a la izquierda
+
+        const weights = (this.config.OBSTACLES && this.config.OBSTACLES.YELLOW_LEFT_SPRITE_WEIGHTS)
+            || [0.36, 0.36, 0.14, 0.14];
+        const r = Math.random();
+        let cumulative = 0;
+        for (let i = 0; i < weights.length; i++) {
+            cumulative += weights[i];
+            if (r < cumulative) return i;
+        }
+        return 0;
     }
 
     _checkCollateralCrush(toppledObs) {

@@ -17,7 +17,7 @@ const OBSTACLE_TYPES = {
 };
 
 class Obstacle {
-    constructor({ id, type, lane, z, fallTargetLane = null, requiredHits = 1, isRareRightVariant = false, is5000RightVariant = false }) {
+    constructor({ id, type, lane, z, fallTargetLane = null, requiredHits = 1, isRareRightVariant = false, is5000RightVariant = false, spriteVariantIndex = null }) {
         this.id = id;
         this.type = type;
 
@@ -53,8 +53,10 @@ class Obstacle {
         // Telemetría para el Sistema de Diagnóstico de Muerte (Dev Inspector)
         this.debugHistory = [];
 
-        // Variante visual aleatoria fija por obstáculo para alternar entre los modelos disponibles
-        this.spriteVariantIndex = Math.floor(Math.random() * 100);
+        // Variante visual aleatoria o calibrada por pesos para alternar entre los modelos disponibles
+        this.spriteVariantIndex = typeof spriteVariantIndex === 'number'
+            ? spriteVariantIndex
+            : Math.floor(Math.random() * 100);
     }
 
     canInteractWithB() {

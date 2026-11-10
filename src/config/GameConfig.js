@@ -175,8 +175,12 @@ const DEFAULT_CONFIG = {
         YELLOW_LEFT_SPRITE_PATH: 'img/obstacle_yellow_left.png',
         YELLOW_LEFT_SPRITE_PATHS: [
             'img/obstacle_yellow_left.png',
-            'img/obstacle_yellow_left_2.png'
+            'img/obstacle_yellow_left_2.png',
+            'img/obstacle_yellow_left_3.png',
+            'img/obstacle_yellow_left_4.png'
         ],
+        // Distribución calibrada: ~72% bases clásicas (36% c/u) y ~28% nuevos tótems graffiti (14% c/u)
+        YELLOW_LEFT_SPRITE_WEIGHTS: [0.36, 0.36, 0.14, 0.14],
         BARRICADE_INTACT_SPRITE_PATH: 'img/barricade_intact.png',
         BARRICADE_DESTROYED_SPRITE_PATH: 'img/barricade_destroyed.png',
         CORPSE_PILE_INTACT_SPRITE_PATH: 'img/05.png',
