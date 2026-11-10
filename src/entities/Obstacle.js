@@ -175,7 +175,7 @@ class Obstacle {
                 this.visualLane = this.fallTargetLane;
             }
         } else if (this.state === 'SHATTERED') {
-            this.shatterProgress = Math.min(1, this.shatterProgress + 5.5 * dt);
+            this.shatterProgress = Math.min(1, this.shatterProgress + 2.8 * dt);
         }
 
         if (this.resistFlashTimer > 0) {

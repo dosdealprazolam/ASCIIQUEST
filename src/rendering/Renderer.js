@@ -34,6 +34,10 @@ class Renderer {
         this.yellowRightImgReady = false;
         this.yellowRightSprites = [];
         this.yellowLeftSprites = [];
+        this.barricadeIntactImg = null;
+        this.barricadeIntactReady = false;
+        this.barricadeDestroyedImg = null;
+        this.barricadeDestroyedReady = false;
         this._initObstacleSprites();
 
         this._resize();
@@ -99,6 +103,26 @@ class Renderer {
             img.src = spritePath;
             return entry;
         });
+
+        // Sprites para Barricadas Frágiles (Nivel 1): Estado 1 (Intacto) y Estado 2 (Destruido en el suelo)
+        const intactPath = (this.config.OBSTACLES && this.config.OBSTACLES.BARRICADE_INTACT_SPRITE_PATH)
+            || 'img/barricade_intact.png';
+        const destroyedPath = (this.config.OBSTACLES && this.config.OBSTACLES.BARRICADE_DESTROYED_SPRITE_PATH)
+            || 'img/barricade_destroyed.png';
+
+        const intactImg = new Image();
+        intactImg.onload = () => {
+            this.barricadeIntactReady = true;
+        };
+        intactImg.src = intactPath;
+        this.barricadeIntactImg = intactImg;
+
+        const destroyedImg = new Image();
+        destroyedImg.onload = () => {
+            this.barricadeDestroyedReady = true;
+        };
+        destroyedImg.src = destroyedPath;
+        this.barricadeDestroyedImg = destroyedImg;
     }
 
     _resize() {
@@ -544,35 +568,87 @@ class Renderer {
                 ctx.fillText('▓▓▓', 0, -h * 0.25);
             }
         } else if (obs.type === TYPES.FRAGILE_BARRICADE) {
-            // --- BARRICADA FRÁGIL DE ESCOMBROS (Rompible con B) ---
-            if (obs.state === 'SHATTERED') {
+            // --- BARRICADA FRÁGIL DE ESCOMBROS / PALOS Y PIEDRAS (Rompible con B o con el cuerpo) ---
+            const isHitFlash = obs.hitFlashTimer > 0;
+            const isDestroyed = obs.state === 'SHATTERED';
+            const fadeAlpha = isDestroyed ? Math.max(0, 1.0 - (obs.shatterProgress || 0)) : 1.0;
+
+            if (fadeAlpha <= 0.01) {
                 ctx.restore();
                 return;
             }
-            const h = (85 + ((obs.requiredHits || 1) - 1) * 18) * p.scale;
-            const jitter = Math.sin(now * 0.03 + obs.id) * 2 * p.scale;
-            const isHitFlash = obs.hitFlashTimer > 0;
 
-            ctx.fillStyle = isHitFlash ? '#6b202e' : '#251419';
-            ctx.strokeStyle = isHitFlash ? '#ffffff' : '#ff5964';
-            ctx.lineWidth = Math.max(1.2, 2.2 * p.scale);
+            // Usar sprites gráficos (Estado 1: Intacto | Estado 2: Destruido en el suelo) si están cargados
+            const hasSprites = (this.barricadeIntactReady && this.barricadeDestroyedReady && ctx.drawImage);
 
-            ctx.beginPath();
-            ctx.moveTo(-w * 0.48, 0);
-            ctx.lineTo(-w * 0.35 + jitter, -h);
-            ctx.lineTo(0, -h * 0.72);
-            ctx.lineTo(w * 0.38 - jitter, -h * 0.95);
-            ctx.lineTo(w * 0.48, 0);
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
+            if (hasSprites) {
+                ctx.globalAlpha = fadeAlpha;
 
-            if (p.scale > 0.25) {
-                ctx.fillStyle = isHitFlash ? '#ffffff' : '#ff5964';
-                ctx.font = `bold ${Math.max(10, Math.floor(18 * p.scale))}px monospace`;
-                ctx.textAlign = 'center';
-                const pips = '╬'.repeat(Math.max(1, obs.remainingHits || 1));
-                ctx.fillText(pips, 0, -h * 0.35);
+                // Sombra en el suelo bajo el montón
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.52)';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, w * 0.58, Math.max(3, 9 * p.scale), 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Proporciones del montón de escombros (relación de aspecto original 492 x 228)
+                const spriteW = w * 1.15;
+                const spriteH = spriteW * (228 / 492);
+                const drawX = -spriteW * 0.5;
+                const drawY = -spriteH * 0.88;
+
+                // Flash feedback blanco / amarillo dorado al recibir impacto
+                if (isHitFlash) {
+                    ctx.shadowColor = '#ffea79';
+                    ctx.shadowBlur = Math.max(8, 20 * p.scale);
+                }
+
+                const currentImg = isDestroyed ? this.barricadeDestroyedImg : this.barricadeIntactImg;
+                ctx.drawImage(currentImg, 45, 105, 498, 235, drawX, drawY, spriteW, spriteH);
+
+                if (isHitFlash) {
+                    ctx.shadowBlur = 0;
+                }
+
+                // Si requiere más de 1 golpe (niveles avanzados) y sigue intacto, mostrar pips discretos
+                if (p.scale > 0.25 && !isDestroyed && (obs.requiredHits || 1) > 1) {
+                    ctx.fillStyle = isHitFlash ? '#ffffff' : '#ffbf69';
+                    ctx.font = `bold ${Math.max(10, Math.floor(16 * p.scale))}px monospace`;
+                    ctx.textAlign = 'center';
+                    const pips = '╬'.repeat(Math.max(1, obs.remainingHits || 1));
+                    ctx.fillText(pips, 0, drawY - 4);
+                }
+
+                ctx.globalAlpha = 1.0;
+            } else {
+                // Fallback procedural
+                if (isDestroyed) {
+                    ctx.restore();
+                    return;
+                }
+                const h = (85 + ((obs.requiredHits || 1) - 1) * 18) * p.scale;
+                const jitter = Math.sin(now * 0.03 + obs.id) * 2 * p.scale;
+
+                ctx.fillStyle = isHitFlash ? '#6b202e' : '#251419';
+                ctx.strokeStyle = isHitFlash ? '#ffffff' : '#ff5964';
+                ctx.lineWidth = Math.max(1.2, 2.2 * p.scale);
+
+                ctx.beginPath();
+                ctx.moveTo(-w * 0.48, 0);
+                ctx.lineTo(-w * 0.35 + jitter, -h);
+                ctx.lineTo(0, -h * 0.72);
+                ctx.lineTo(w * 0.38 - jitter, -h * 0.95);
+                ctx.lineTo(w * 0.48, 0);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                if (p.scale > 0.25) {
+                    ctx.fillStyle = isHitFlash ? '#ffffff' : '#ff5964';
+                    ctx.font = `bold ${Math.max(10, Math.floor(18 * p.scale))}px monospace`;
+                    ctx.textAlign = 'center';
+                    const pips = '╬'.repeat(Math.max(1, obs.remainingHits || 1));
+                    ctx.fillText(pips, 0, -h * 0.35);
+                }
             }
         }
 

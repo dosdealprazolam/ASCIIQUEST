@@ -170,7 +170,9 @@ const DEFAULT_CONFIG = {
         YELLOW_LEFT_SPRITE_PATHS: [
             'img/obstacle_yellow_left.png',
             'img/obstacle_yellow_left_2.png'
-        ]
+        ],
+        BARRICADE_INTACT_SPRITE_PATH: 'img/barricade_intact.png',
+        BARRICADE_DESTROYED_SPRITE_PATH: 'img/barricade_destroyed.png'
     },
 
     // --- ESTÉTICA Y CÁMARA ---
