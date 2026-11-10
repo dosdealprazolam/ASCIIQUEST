@@ -79,12 +79,8 @@
         <div class="hud-panel controls-status">
             <!-- Apartado chiquito de Nombre + Herramientas exclusivas si escribe DevUser -->
             <div style="display:flex; gap:6px; align-items:center; pointer-events:auto; flex-wrap:wrap; justify-content:flex-end;">
-                <!-- Botón visible de Pausa [P] -->
-                <button id="btn-hud-pause" type="button" class="mode-switch-link" title="Pausar juego [P]">⏸️ Pausa [P]</button>
-                <!-- Botón de acceso directo a Reportes y Contador de personas -->
-                <button id="btn-hud-reports" type="button" class="mode-switch-link hud-reports-link" title="Ver Reportes de Jugadores y Personas Registradas">
-                    📋 Reportes (<span id="hud-count-reports">0</span>) | 👥 Personas (<span id="hud-count-persons">0</span>)
-                </button>
+                <!-- Botón minimalista de Pausa (solo 2 símbolos: ⏸ para pausar o ▶ para reanudar) -->
+                <button id="btn-hud-pause" type="button" class="hud-pause-minimal" title="Pausar [P]">⏸</button>
                 <div class="player-name-mini-box">
                     <label for="player-name-input" class="hud-label" style="font-size:11px;">Nombre:</label>
                     <input id="player-name-input" type="text" maxlength="24" placeholder="Jugador" autocomplete="off" spellcheck="false" />
@@ -157,11 +153,12 @@
                     <div id="milestone-saved-msg" class="report-status-msg"></div>
                 </div>
 
-                <!-- Botón y formulario para que el jugador reporte un problema (lo lee solo DevUser) -->
+                <!-- Botón y formulario para que el jugador reporte un problema o consulte reportes -->
                 <div class="player-report-section">
                     <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-bottom:8px;">
                         <button id="btn-restart-run" type="button" class="mode-switch-link">▶ Volver a Correr [R]</button>
                         <button id="btn-toggle-bug-report" type="button" class="sandbox-btn" style="flex:0 1 auto; padding:5px 12px;">🐞 Reportar Problema</button>
+                        <button id="btn-open-reports-death" type="button" class="sandbox-btn death-reports-btn" style="flex:0 1 auto; padding:5px 12px;" title="Ver reportes de jugadores y personas registradas">🐞 Reportes (<span id="death-count-reports">0</span>) | 👥 (<span id="death-count-persons">0</span>)</button>
                     </div>
 
                     <div id="player-bug-report-form" class="bug-report-form hidden">
@@ -201,44 +198,54 @@
         </div>
     </section>
 
-    <!-- Pantalla / Menú de Pausa (Activado con [P] o al salir de la ventana) -->
+    <!-- Pantalla / Menú de Pausa sobre el Monitor CRT de Game Over (img/gameover_monitor.png) -->
     <section id="pause-overlay" class="hidden">
-        <div class="pause-menu-box">
-            <h1 class="pause-title">PAUSA</h1>
-            <p class="pause-subtitle">CARRERA DETENIDA</p>
+        <div class="death-box death-monitor-shell">
+            <!-- Capa Fondo (Z-Index: 1): Carcasa del monitor CRT con pedestal y cables -->
+            <img src="img/gameover_monitor.png" alt="Monitor Pausa" class="death-monitor-bg" />
 
-            <div class="pause-actions-list">
-                <button id="btn-pause-resume" type="button" class="pause-btn pause-btn-primary">▶ Reanudar [P]</button>
-                <button id="btn-pause-restart" type="button" class="pause-btn">🔄 Reiniciar [R]</button>
-                <button id="btn-pause-info" type="button" class="pause-btn">ℹ️ Información</button>
+            <!-- Capa Contenido (Z-Index: 2): Datos proyectados dentro del cristal oscuro del monitor -->
+            <div class="death-crt-screen pause-monitor-content">
+                <h1 class="pause-crt-title">PAUSA</h1>
+                <p class="pause-crt-subtitle">CARRERA DETENIDA</p>
+
+                <!-- Menú de opciones de pausa: Reanudar, Reiniciar, Info -->
+                <div class="pause-actions-list">
+                    <button id="btn-pause-resume" type="button" class="mode-switch-link pause-monitor-btn">▶ Reanudar [P]</button>
+                    <button id="btn-pause-restart" type="button" class="sandbox-btn pause-monitor-btn">🔄 Reiniciar [R]</button>
+                    <button id="btn-pause-info" type="button" class="sandbox-btn pause-monitor-btn">ℹ️ Información</button>
+                </div>
+
+                <!-- Subpanel de Información ("todavía sin nada conectado") -->
+                <div id="pause-info-panel" class="pause-info-box hidden">
+                    <div class="pause-info-header">
+                        <span>ℹ️ INFORMACIÓN DEL SISTEMA</span>
+                        <button id="btn-close-pause-info" type="button" class="sandbox-btn" style="flex:0 1 auto; padding:2px 8px;">✕ Volver</button>
+                    </div>
+                    <div class="pause-info-body">
+                        <div class="pause-info-item">
+                            <span class="pause-info-tag">PROYECTO:</span>
+                            <span>Psychological Survival Runner (Fase 1 / Runner)</span>
+                        </div>
+                        <div class="pause-info-item">
+                            <span class="pause-info-tag">CONTROLES:</span>
+                            <span>[A / Gatillo Izq]: Correr / Toque para cambiar de carril<br>[B / Clic / Gatillo Der]: Romper / Manipular obstáculos<br>[P / Esc]: Pausar o reanudar carrera<br>[R]: Reiniciar recorrido</span>
+                        </div>
+                        <div class="pause-info-item">
+                            <span class="pause-info-tag">OBJETIVO:</span>
+                            <span>Sobrevivir la persecución a lo largo de 10.2 km, administrando el ritmo cardíaco y abriendo paso con [B].</span>
+                        </div>
+                        <div class="pause-info-placeholder">
+                            (Módulo de información y servicios en desarrollo — actualmente sin servidores remotos conectados).
+                        </div>
+                    </div>
+                </div>
+
+                <div class="restart-prompt pause-crt-prompt">PULSA [P] O [ESC] PARA VOLVER A LA CARRERA</div>
             </div>
 
-            <!-- Subpanel de Información ("todavía sin nada conectado") -->
-            <div id="pause-info-panel" class="pause-info-box hidden">
-                <div class="pause-info-header">
-                    <span>ℹ️ INFORMACIÓN DEL SISTEMA</span>
-                    <button id="btn-close-pause-info" type="button" class="sandbox-btn" style="flex:0 1 auto; padding:2px 8px;">✕ Volver</button>
-                </div>
-                <div class="pause-info-body">
-                    <div class="pause-info-item">
-                        <span class="pause-info-tag">PROYECTO:</span>
-                        <span>Psychological Survival Runner (Fase 1 / Runner)</span>
-                    </div>
-                    <div class="pause-info-item">
-                        <span class="pause-info-tag">CONTROLES:</span>
-                        <span>[A / Gatillo Izq]: Correr / Toque para cambiar de carril<br>[B / Clic / Gatillo Der]: Romper / Manipular obstáculos<br>[P / Esc]: Pausar o reanudar carrera<br>[R]: Reiniciar recorrido</span>
-                    </div>
-                    <div class="pause-info-item">
-                        <span class="pause-info-tag">OBJETIVO:</span>
-                        <span>Sobrevivir la persecución a lo largo de 10.2 km, administrando el ritmo cardíaco y abriendo paso con [B].</span>
-                    </div>
-                    <div class="pause-info-placeholder">
-                        (Módulo de información y servicios externos en desarrollo — actualmente sin servidores remotos conectados).
-                    </div>
-                </div>
-            </div>
-
-            <div class="pause-hint">PULSA [P] O [ESC] PARA VOLVER A LA CARRERA</div>
+            <!-- Capa Filtro CRT (Z-Index: 3): Líneas de escaneo sobre el cristal -->
+            <div class="death-crt-overlay"></div>
         </div>
     </section>
 

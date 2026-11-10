@@ -73,6 +73,9 @@ class GameApp {
         this.btnHudReports = document.getElementById('btn-hud-reports');
         this.hudCountReportsEl = document.getElementById('hud-count-reports');
         this.hudCountPersonsEl = document.getElementById('hud-count-persons');
+        this.btnOpenReportsDeath = document.getElementById('btn-open-reports-death');
+        this.deathCountReportsEl = document.getElementById('death-count-reports');
+        this.deathCountPersonsEl = document.getElementById('death-count-persons');
         this.inputPlayerName = document.getElementById('player-name-input');
         this.btnToggleMusicDrawer = document.getElementById('btn-toggle-music-drawer');
         this.musicDiscreteDrawer = document.getElementById('music-discrete-drawer');
@@ -348,9 +351,17 @@ class GameApp {
             });
         }
 
-        // Botón superior de Reportes y Personas en el HUD
+        // Botón superior de Reportes y Personas en el HUD (si existe)
         if (this.btnHudReports) {
             this.btnHudReports.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this._openReportsModal();
+            });
+        }
+
+        // Botón de Reportes con símbolo de bichito (🐞) en la pantalla de Muerte
+        if (this.btnOpenReportsDeath) {
+            this.btnOpenReportsDeath.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this._openReportsModal();
             });
@@ -737,6 +748,8 @@ class GameApp {
 
         if (this.hudCountReportsEl) this.hudCountReportsEl.textContent = `${reports.length}`;
         if (this.hudCountPersonsEl) this.hudCountPersonsEl.textContent = `${personCount}`;
+        if (this.deathCountReportsEl) this.deathCountReportsEl.textContent = `${reports.length}`;
+        if (this.deathCountPersonsEl) this.deathCountPersonsEl.textContent = `${personCount}`;
 
         if (this.countBugReportsEl) this.countBugReportsEl.textContent = `${reports.length}`;
         if (this.countRaceWinnersEl) this.countRaceWinnersEl.textContent = `${winners.length}/${this.db.maxWinners || 30}`;
@@ -808,6 +821,11 @@ class GameApp {
     pauseGame() {
         if (!this.player || !this.player.isAlive || this.hasWonCurrentRun || this.isPaused) return;
         this.isPaused = true;
+        if (this.btnHudPause) {
+            this.btnHudPause.textContent = '▶';
+            this.btnHudPause.classList.add('is-paused');
+            this.btnHudPause.setAttribute('title', 'Reanudar [P]');
+        }
         if (this.pauseOverlay) this.pauseOverlay.classList.remove('hidden');
         if (this.pauseInfoPanel) this.pauseInfoPanel.classList.add('hidden');
         if (this.musicManager && this.musicManager.pauseForGamePause) {
@@ -821,6 +839,11 @@ class GameApp {
     unpauseGame() {
         if (!this.isPaused) return;
         this.isPaused = false;
+        if (this.btnHudPause) {
+            this.btnHudPause.textContent = '⏸';
+            this.btnHudPause.classList.remove('is-paused');
+            this.btnHudPause.setAttribute('title', 'Pausar [P]');
+        }
         if (this.pauseOverlay) this.pauseOverlay.classList.add('hidden');
         if (this.pauseInfoPanel) this.pauseInfoPanel.classList.add('hidden');
         if (this.loop) {
