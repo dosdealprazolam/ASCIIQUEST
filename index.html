@@ -12,38 +12,52 @@
 
     <!-- HUD superior con Monitor Médico CONTEC en la esquina superior izquierda -->
     <header id="hud">
-        <!-- Contenedor Estático del Monitor Médico (Sin interactividad directa) -->
+        <!-- Contenedor del Monitor Médico CONTEC con controles integrados -->
         <div id="hud-monitor-shell" class="monitor-shell-container">
             <!-- Capa Fondo (Z-Index: 1): Carcasa del monitor médico estirada/alargada -->
             <img class="monitor-shell-bg" src="img/image_8.png" alt="Monitor Médico" />
 
             <!-- Capa Contenido (Z-Index: 2): Pantalla de cristal oscuro (~70% izq, evitando botonera derecha) -->
             <div class="monitor-glass-screen">
-                <!-- 1. Fila Superior (Datos de Carrera) -->
+                <!-- 1. Fila Superior (Controles Integrados + Telemetría de Carrera) -->
                 <div class="monitor-top-row">
-                    <div class="monitor-stat-left">
-                        <span class="monitor-lbl">KILÓMETROS:</span>
-                        <span id="hud-distance" class="monitor-val">0.00 km</span>
+                    <div class="monitor-top-left-controls">
+                        <!-- Botón minimalista de Pausa integrado en el CRT (⏸ para pausar o ▶ para reanudar) -->
+                        <button id="btn-hud-pause" type="button" class="hud-pause-minimal monitor-crt-btn" title="Pausar / Reanudar [P]">⏸</button>
+                        <!-- Apartado de Nombre / ID del Paciente en el monitor CRT -->
+                        <div class="player-name-mini-box monitor-crt-name-box">
+                            <label for="player-name-input" class="monitor-lbl" style="font-size:10px; cursor:pointer;" title="Nombre del Jugador / Paciente">ID:</label>
+                            <input id="player-name-input" type="text" maxlength="24" placeholder="Jugador" autocomplete="off" spellcheck="false" />
+                        </div>
                     </div>
-                    <div class="monitor-stat-center">
-                        <span class="monitor-lbl">RÉCORD:</span>
-                        <span id="hud-best" class="monitor-val">0.00 km</span>
-                    </div>
-                    <div class="monitor-stat-right">
-                        <span class="monitor-lbl">CARRIL:</span>
-                        <span id="hud-lane" class="monitor-val">2 (CENTRO)</span>
+
+                    <div class="monitor-top-stats">
+                        <div class="monitor-stat-item">
+                            <span class="monitor-lbl">KM:</span>
+                            <span id="hud-distance" class="monitor-val">0.00 km</span>
+                        </div>
+                        <div class="monitor-stat-item">
+                            <span class="monitor-lbl">RÉCORD:</span>
+                            <span id="hud-best" class="monitor-val">0.00 km</span>
+                        </div>
                     </div>
                 </div>
 
-                <!-- 2. Sección Central (Ritmo Cardíaco / BPM + Onda ECG animada a la derecha) -->
+                <!-- 2. Sección Central (Ritmo Cardíaco / BPM + Carril + Onda ECG animada a la derecha) -->
                 <div class="monitor-middle-row">
                     <div id="hud-bpm-box" class="bpm-readout-box bpm-steady">
-                        <img id="hud-heart-icon" class="bpm-heart-img" src="img/corazon.png" onerror="if(this.src.indexOf('img/')!==-1){this.src='corazon.png';}" alt="♥" />
-                        <span class="monitor-bpm-lbl">BPM:</span>
-                        <span id="hud-bpm-value" class="bpm-number">110</span>
+                        <div class="bpm-primary-line">
+                            <img id="hud-heart-icon" class="bpm-heart-img" src="img/corazon.png" onerror="if(this.src.indexOf('img/')!==-1){this.src='corazon.png';}" alt="♥" />
+                            <span class="monitor-bpm-lbl">BPM:</span>
+                            <span id="hud-bpm-value" class="bpm-number">110</span>
+                        </div>
+                        <div class="monitor-stat-lane-sub">
+                            <span class="monitor-lbl-dim">CARRIL:</span>
+                            <span id="hud-lane" class="monitor-val-lane">2 (CENTRO)</span>
+                        </div>
                     </div>
                     <div class="ecg-oscilloscope-wrap">
-                        <canvas id="hud-ecg-canvas" width="260" height="36"></canvas>
+                        <canvas id="hud-ecg-canvas" width="250" height="36"></canvas>
                     </div>
                 </div>
 
@@ -74,41 +88,37 @@
                 <!-- Filtro sutil de líneas de escaneo CRT y suciedad sobre el cristal -->
                 <div class="monitor-crt-overlay"></div>
             </div>
-        </div>
 
-        <div class="hud-panel controls-status">
-            <!-- Apartado chiquito de Nombre + Herramientas exclusivas si escribe DevUser -->
-            <div style="display:flex; gap:6px; align-items:center; pointer-events:auto; flex-wrap:wrap; justify-content:flex-end;">
-                <!-- Botón minimalista de Pausa (solo 2 símbolos: ⏸ para pausar o ▶ para reanudar) -->
-                <button id="btn-hud-pause" type="button" class="hud-pause-minimal" title="Pausar [P]">⏸</button>
-                <div class="player-name-mini-box">
-                    <label for="player-name-input" class="hud-label" style="font-size:11px;">Nombre:</label>
-                    <input id="player-name-input" type="text" maxlength="24" placeholder="Jugador" autocomplete="off" spellcheck="false" />
-                </div>
-                <!-- Ocultos para jugadores normales; solo visibles cuando Nombre === DevUser -->
-                <button id="btn-toggle-music-drawer" type="button" class="mode-switch-link dev-only-tool hidden" title="Opciones discretas de audio (/music/ — Solo DevUser)">🎵 Audio</button>
-                <button id="btn-open-dev-admin" type="button" class="mode-switch-link dev-only-tool hidden">🛠️ Dev SQL / Reportes</button>
-                <a id="link-sandbox-dev" href="sandbox.html" class="mode-switch-link dev-only-tool hidden">⚙️ Sandbox</a>
-            </div>
-            <div id="hud-dev-song-time" class="pill dev-only-tool hidden" style="color:#2ec4b6; border-color:#2ec4b6;">🎵 CANCIÓN: 00:00.0 / --:--.- (0.0s)</div>
-            <div id="hud-control-a" class="pill idle dev-only-tool hidden">A: DETENIDO (MANTÉN A)</div>
-            <div id="hud-control-b" class="pill idle dev-only-tool hidden">B: MASHEO CONTEXTUAL</div>
+            <!-- Botón físico interactivo sobre la botonera derecha CONTEC -->
+            <button id="btn-contec-phys-pause" type="button" class="contec-phys-pause-hotspot" title="Pausar / Reanudar [P]"></button>
 
-            <!-- Apartado discreto desplegable de Música (Solo accesible en DevUser) -->
-            <div id="music-discrete-drawer" class="music-discrete-drawer hidden sandbox-ui-interactive">
-                <div class="music-header">
-                    <span style="color:#ff9f1c; font-weight:bold; font-size:11px;">PISTA DEL NIVEL (/music/)</span>
-                    <span id="music-status" class="pill idle">⏸️ CORRE CON [A]</span>
+            <!-- Barra discreta acoplada bajo el monitor para herramientas DevUser (Oculta para jugadores normales) -->
+            <div id="hud-dev-bar" class="hud-dev-dock dev-only-tool hidden">
+                <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                    <button id="btn-toggle-music-drawer" type="button" class="mode-switch-link dev-only-tool hidden" title="Opciones discretas de audio (/music/ — Solo DevUser)">🎵 Audio</button>
+                    <button id="btn-open-dev-admin" type="button" class="mode-switch-link dev-only-tool hidden">🛠️ Dev SQL / Reportes</button>
+                    <a id="link-sandbox-dev" href="sandbox.html" class="mode-switch-link dev-only-tool hidden">⚙️ Sandbox</a>
                 </div>
-                <div id="music-track-name" class="music-track-title">Carpeta /music/: Deejay SaeRo - Thud Weight.mp3</div>
-                <div class="music-controls-row">
-                    <input id="music-file-input" type="file" accept="audio/*" style="display:none;" />
-                    <button id="btn-load-music" type="button" class="sandbox-btn">📂 Probar otro MP3</button>
-                    <label class="toggle-label">
-                        <input id="chk-music-sync-run" type="checkbox" checked />
-                        Al correr
-                    </label>
-                    <input id="music-volume" type="range" min="0" max="1" step="0.05" value="0.78" style="width:70px;" title="Volumen" />
+                <div id="hud-dev-song-time" class="pill dev-only-tool hidden" style="color:#2ec4b6; border-color:#2ec4b6;">🎵 CANCIÓN: 00:00.0 / --:--.- (0.0s)</div>
+                <div id="hud-control-a" class="pill idle dev-only-tool hidden">A: DETENIDO (MANTÉN A)</div>
+                <div id="hud-control-b" class="pill idle dev-only-tool hidden">B: MASHEO CONTEXTUAL</div>
+
+                <!-- Apartado discreto desplegable de Música (Solo accesible en DevUser) -->
+                <div id="music-discrete-drawer" class="music-discrete-drawer hidden sandbox-ui-interactive">
+                    <div class="music-header">
+                        <span style="color:#ff9f1c; font-weight:bold; font-size:11px;">PISTA DEL NIVEL (/music/)</span>
+                        <span id="music-status" class="pill idle">⏸️ CORRE CON [A]</span>
+                    </div>
+                    <div id="music-track-name" class="music-track-title">Carpeta /music/: Deejay SaeRo - Thud Weight.mp3</div>
+                    <div class="music-controls-row">
+                        <input id="music-file-input" type="file" accept="audio/*" style="display:none;" />
+                        <button id="btn-load-music" type="button" class="sandbox-btn">📂 Probar otro MP3</button>
+                        <label class="toggle-label">
+                            <input id="chk-music-sync-run" type="checkbox" checked />
+                            Al correr
+                        </label>
+                        <input id="music-volume" type="range" min="0" max="1" step="0.05" value="0.78" style="width:70px;" title="Volumen" />
+                    </div>
                 </div>
             </div>
         </div>

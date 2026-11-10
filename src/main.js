@@ -70,6 +70,8 @@ class GameApp {
 
         // Apartado chiquito de Nombre + botones exclusivos de DevUser
         this.btnHudPause = document.getElementById('btn-hud-pause');
+        this.btnContecPhysPause = document.getElementById('btn-contec-phys-pause');
+        this.hudDevBar = document.getElementById('hud-dev-bar');
         this.btnHudReports = document.getElementById('btn-hud-reports');
         this.hudCountReportsEl = document.getElementById('hud-count-reports');
         this.hudCountPersonsEl = document.getElementById('hud-count-persons');
@@ -214,6 +216,9 @@ class GameApp {
         if (this.devInspectorBox) {
             this.devInspectorBox.classList.toggle('hidden', !dev);
         }
+        if (this.hudDevBar) {
+            this.hudDevBar.classList.toggle('hidden', !dev);
+        }
         if (this.btnOpenReportsDeath) {
             this.btnOpenReportsDeath.classList.toggle('hidden', !dev);
         }
@@ -346,9 +351,15 @@ class GameApp {
             });
         }
 
-        // Botón superior de Pausa en el HUD
+        // Botón superior de Pausa en el HUD (tanto en pantalla CRT como sobre botonera física CONTEC)
         if (this.btnHudPause) {
             this.btnHudPause.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.togglePause();
+            });
+        }
+        if (this.btnContecPhysPause) {
+            this.btnContecPhysPause.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.togglePause();
             });
@@ -829,6 +840,10 @@ class GameApp {
             this.btnHudPause.classList.add('is-paused');
             this.btnHudPause.setAttribute('title', 'Reanudar [P]');
         }
+        if (this.btnContecPhysPause) {
+            this.btnContecPhysPause.classList.add('is-paused');
+            this.btnContecPhysPause.setAttribute('title', 'Reanudar [P]');
+        }
         if (this.pauseOverlay) this.pauseOverlay.classList.remove('hidden');
         if (this.pauseInfoPanel) this.pauseInfoPanel.classList.add('hidden');
         if (this.musicManager && this.musicManager.pauseForGamePause) {
@@ -846,6 +861,10 @@ class GameApp {
             this.btnHudPause.textContent = '⏸';
             this.btnHudPause.classList.remove('is-paused');
             this.btnHudPause.setAttribute('title', 'Pausar [P]');
+        }
+        if (this.btnContecPhysPause) {
+            this.btnContecPhysPause.classList.remove('is-paused');
+            this.btnContecPhysPause.setAttribute('title', 'Pausar [P]');
         }
         if (this.pauseOverlay) this.pauseOverlay.classList.add('hidden');
         if (this.pauseInfoPanel) this.pauseInfoPanel.classList.add('hidden');
