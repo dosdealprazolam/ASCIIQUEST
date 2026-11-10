@@ -214,6 +214,9 @@ class GameApp {
         if (this.devInspectorBox) {
             this.devInspectorBox.classList.toggle('hidden', !dev);
         }
+        if (this.btnOpenReportsDeath) {
+            this.btnOpenReportsDeath.classList.toggle('hidden', !dev);
+        }
     }
 
     _bindSystemEvents() {
@@ -720,7 +723,7 @@ class GameApp {
     }
 
     _openReportsModal() {
-        if (!this.devAdminModal) return;
+        if (!this.isDevMode() || !this.devAdminModal) return;
         this._refreshDevAdminUI();
         this.devAdminModal.classList.remove('hidden');
     }
