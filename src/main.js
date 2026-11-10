@@ -39,6 +39,7 @@ class GameApp {
         this._cacheHudElements();
         this._initPlayerNameAndDevGate();
         this._bindSystemEvents();
+        this._updateTutorialLegend(this.input ? this.input.activeDevice : 'KEYBOARD_MOUSE');
         this.resetRun();
 
         this.loop = new window.PSR.GameLoop(
@@ -66,6 +67,7 @@ class GameApp {
         this.uiPursuitBar = document.getElementById('hud-pursuit-fill');
         this.uiBottomBar = document.getElementById('bottom-bar');
         this.uiFeedback = document.getElementById('hud-feedback');
+        this.uiLegend = document.getElementById('hud-legend') || (document.querySelector ? document.querySelector('#bottom-bar .legend') : null);
 
         // Apartado chiquito de Nombre + botones exclusivos de DevUser
         this.inputPlayerName = document.getElementById('player-name-input');
@@ -210,16 +212,11 @@ class GameApp {
             this.input.syncLane(targetLane);
 
             const laneName = this.config.LANES.NAMES[targetLane];
-            if (type === 'SINGLE_TAP_NEXT') {
-                this.lastActionFeedback = `1 TOQUE [A] → ${laneName}`;
-            } else {
-                this.lastActionFeedback = `2 TOQUES [A] → ${laneName}`;
-            }
+            this.lastActionFeedback = `PULSACIÓN [A] → ${laneName}`;
         });
 
-        this.eventBus.on('input:lane_switch_unlocked', () => {
-            if (!this.player.isAlive || this.hasWonCurrentRun) return;
-            this.lastActionFeedback = '[A] SUELTA: CAMBIO DE CARRIL HABILITADO (1 o 2 TOQUES)';
+        this.eventBus.on('input:device_changed', ({ device }) => {
+            this._updateTutorialLegend(device);
         });
 
         this.eventBus.on('input:b_action', () => {
@@ -814,11 +811,8 @@ class GameApp {
             if (ctrl.isHoldingA) {
                 this.uiControlA.textContent = `A: CORRIENDO (${Math.round(this.player.speed)} u/s)`;
                 this.uiControlA.className = 'pill active-run' + devSuffix;
-            } else if (ctrl.laneSwitchReady) {
-                this.uiControlA.textContent = 'A: CAMBIO LISTO (1 o 2 TOQUES)';
-                this.uiControlA.className = 'pill switch-ready' + devSuffix;
             } else {
-                this.uiControlA.textContent = 'A: DETENIDO (MANTÉN A)';
+                this.uiControlA.textContent = 'A: CAMBIO DERECHA / CORRER';
                 this.uiControlA.className = 'pill idle' + devSuffix;
             }
         }
@@ -840,6 +834,17 @@ class GameApp {
 
         if (this.uiFeedback) {
             this.uiFeedback.textContent = this.lastActionFeedback;
+        }
+    }
+
+    _updateTutorialLegend(device = 'KEYBOARD_MOUSE') {
+        if (!this.uiLegend) return;
+        if (device === 'TOUCH') {
+            this.uiLegend.innerHTML = '<strong>[Mitad Izquierda]</strong> Mantener: Correr &bull; Toque: Cambiar carril a la derecha &nbsp;|&nbsp; <strong>[Mitad Derecha]</strong> Toque: Golpear / Romper';
+        } else if (device === 'GAMEPAD') {
+            this.uiLegend.innerHTML = '<strong>[A / Gatillo Izq (LT)]</strong> Mantener: Correr &bull; Pulsar: Cambiar carril a la derecha &nbsp;|&nbsp; <strong>[B / Gatillo Der (RT)]</strong> Golpear / Romper';
+        } else {
+            this.uiLegend.innerHTML = '<strong>[Espacio / A]</strong> Mantener: Correr &bull; Pulsar: Cambiar carril a la derecha &nbsp;|&nbsp; <strong>[Clic Izquierdo / B]</strong> Golpear / Romper';
         }
     }
 

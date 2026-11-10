@@ -248,12 +248,15 @@ class Player {
         // 4. Actualizar monitor cardíaco (incluyendo recuperación lenta si sufrió un choque de barricada)
         this._updateHeartRateBpm(dt, speedRatio, isHoldingA);
 
-        // 5. Interpolación rápida y precisa entre carriles
+        // 5. Interpolación rápida y precisa entre carriles (Snappy ~0.08s - 0.10s con EaseOut fuerte)
         const laneDiff = this.lane - this.visualLane;
-        if (Math.abs(laneDiff) < 0.005) {
+        if (Math.abs(laneDiff) < 0.002) {
             this.visualLane = this.lane;
         } else {
-            this.visualLane += laneDiff * Math.min(1, this.config.LANES.SWITCH_LERP_SPEED * dt);
+            // Factor dinámico que acelera con el cambio y frena de golpe al llegar al centro del carril
+            const easeFactor = 1.0 + Math.min(1.5, Math.abs(laneDiff) * 1.8);
+            const lerpSpeed = (this.config.LANES.SWITCH_LERP_SPEED || 32.0) * easeFactor;
+            this.visualLane += laneDiff * Math.min(1, lerpSpeed * dt);
         }
 
         // 6. Temporizador visual de la acción contextual B
