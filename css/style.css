@@ -775,18 +775,21 @@ html, body {
     border-bottom-color: #ff9f1c;
 }
 
-/* Caja de consejo para el jugador en la pantalla de muerte */
+/* Consejo para el jugador en la pantalla de muerte (sin caja, solo letra amarilla limpia y centrada) */
 .death-advice-box {
-    background: rgba(8, 20, 14, 0.68);
-    border: 1px solid rgba(255, 159, 28, 0.48);
-    color: #fde68a;
-    text-shadow: 0 0 4px rgba(255, 159, 28, 0.35);
-    font-size: clamp(9.5px, 1vw, 11px);
-    line-height: 1.32;
-    padding: 3px 8px;
-    border-radius: 3px;
-    margin-bottom: 5px;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    color: #ff9f1c;
+    text-shadow: 0 0 5px rgba(255, 159, 28, 0.55);
+    font-size: clamp(10px, 1.05vw, 11.5px);
+    line-height: 1.35;
+    padding: 2px 4px;
+    margin-bottom: 6px;
     width: 100%;
+    text-align: center;
+    letter-spacing: 0.5px;
 }
 
 /* Formulario de Reportar Problema para jugadores */
@@ -866,6 +869,102 @@ html, body {
 .death-reports-btn:active {
     color: #ffffff !important;
     transform: scale(0.98);
+}
+
+/* Sección de hito +5000m en pantalla de muerte: estilo Flash / Arcade retro sin bloques */
+.death-milestone-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 2px 0;
+    margin: 4px auto 6px auto;
+    text-align: center;
+}
+
+.death-milestone-title {
+    color: #2ec4b6;
+    font-family: inherit;
+    font-size: clamp(10px, 1.05vw, 11.5px);
+    font-weight: bold;
+    letter-spacing: 1.2px;
+    text-align: center;
+    text-shadow: 0 0 6px rgba(46, 196, 182, 0.6);
+    margin-bottom: 5px;
+}
+
+.death-milestone-form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    width: 100%;
+}
+
+#milestone-name-input {
+    background: transparent;
+    border: none;
+    border-bottom: 1.5px solid rgba(46, 196, 182, 0.7);
+    border-radius: 0;
+    color: #ffffff;
+    font-family: inherit;
+    font-size: clamp(11.5px, 1.2vw, 13px);
+    font-weight: bold;
+    letter-spacing: 2px;
+    text-align: center;
+    padding: 3px 6px;
+    width: min(220px, 85%);
+    outline: none;
+    text-shadow: 0 0 6px rgba(46, 196, 182, 0.6);
+    transition: border-color 0.2s, box-shadow 0.2s, text-shadow 0.2s;
+    user-select: text;
+}
+
+#milestone-name-input::placeholder {
+    color: rgba(46, 196, 182, 0.4);
+    font-weight: normal;
+    letter-spacing: 1.2px;
+}
+
+#milestone-name-input:focus {
+    border-bottom-color: #ff9f1c;
+    box-shadow: 0 4px 8px -2px rgba(255, 159, 28, 0.4);
+    text-shadow: 0 0 8px rgba(255, 159, 28, 0.7);
+}
+
+.death-save-name-btn {
+    color: #2ec4b6 !important;
+    text-shadow: 0 0 5px rgba(46, 196, 182, 0.5);
+    font-size: clamp(11.5px, 1.15vw, 13px) !important;
+    letter-spacing: 2px !important;
+    margin-top: 1px;
+}
+
+.death-save-name-btn:hover {
+    color: #ffffff !important;
+    text-shadow: 0 0 10px rgba(46, 196, 182, 0.95), 0 0 16px rgba(255, 255, 255, 0.8) !important;
+    transform: scale(1.06);
+}
+
+.death-save-name-btn:active {
+    color: #ffffff !important;
+    transform: scale(0.98);
+}
+
+.death-milestone-status {
+    font-size: 11px;
+    color: #2ec4b6;
+    font-weight: bold;
+    letter-spacing: 0.8px;
+    text-align: center;
+    margin-top: 4px;
+    text-shadow: 0 0 6px rgba(46, 196, 182, 0.6);
 }
 
 .bug-report-form {

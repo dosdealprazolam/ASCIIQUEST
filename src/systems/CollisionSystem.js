@@ -100,30 +100,30 @@ class CollisionSystem {
 
         let reason = 'COLISIÓN MORTAL';
         let detail = 'No reaccionaste a tiempo ante el obstáculo.';
-        let advice = '💡 CONSEJO: Mantén la vista adelantada y usa [A] para cambiar de carril o [B] para abrirte paso.';
+        let advice = 'CONSEJO: Mantén la vista adelantada y usa [A] para cambiar de carril o [B] para abrirte paso.';
 
         if (obs.type === TYPES.COLLAPSING_STRUCTURE || obs.type === TYPES.TENTATIVE_HEAVY_TOWER) {
             if (obs.state === 'ACTIVE') {
                 reason = 'IMPACTO CONTRA ESTRUCTURA INESTABLE (MURO AMARILLO)';
                 detail = `No tumbaste el muro amarillo a tiempo antes del choque.`;
-                advice = `💡 CONSEJO: Cuando estés cerca del muro amarillo, pulsa [B] para tumbarlo hacia ${laneNames[obs.fallTargetLane]} o esquívalo cambiando de carril con [A].`;
+                advice = `CONSEJO: Cuando estés cerca del muro amarillo, pulsa [B] para tumbarlo hacia ${laneNames[obs.fallTargetLane]} o esquívalo cambiando de carril con [A].`;
             } else {
                 reason = 'APLASTADO POR DERRUMBE PROVOCADO';
                 detail = `Tumbaste el muro amarillo hacia ${laneNames[obs.fallTargetLane]} y te metiste en el carril donde cayó.`;
-                advice = `💡 CONSEJO: Fíjate en las flechas (>>> o <<<) del muro amarillo: al golpearlo con [B] tu carril queda seguro, ¡no te cambies hacia el carril donde cae!`;
+                advice = `CONSEJO: Fíjate en las flechas (>>> o <<<) del muro amarillo: al golpearlo con [B] tu carril queda seguro, ¡no te cambies hacia el carril donde cae!`;
             }
         } else if (obs.type === TYPES.SOLID_MONOLITH) {
             reason = 'IMPACTO CONTRA MONOLITO INDESTRUCTIBLE';
             detail = 'Los bloques macizos rojos no se pueden romper ni empujar con [B].';
-            advice = '💡 CONSEJO: Para esquivar un Monolito Sólido suelta [A], da 1 toque rápido (carril siguiente) o 2 toques rápidos (carril anterior) y vuelve a mantener [A].';
+            advice = 'CONSEJO: Para esquivar un Monolito Sólido suelta [A], da 1 toque rápido (carril siguiente) o 2 toques rápidos (carril anterior) y vuelve a mantener [A].';
         } else if (obs.type === TYPES.FRAGILE_BARRICADE) {
             reason = 'IMPACTO CONTRA BARRICADA DE ESCOMBROS';
             detail = obs.requiredHits > 1
                 ? `No lograste romper todas las capas de la barricada antes de chocar.`
                 : 'Chocaste contra una barricada de escombros sin destruirla ni esquivarla.';
             advice = obs.requiredHits > 1
-                ? `💡 CONSEJO: Las barricadas con varios símbolos (╬╬) requieren mashear [B] ${obs.requiredHits} veces rápidas seguidas al acercarte.`
-                : '💡 CONSEJO: Pulsa [B] justo antes de chocar contra los escombros para destrozarlos o esquívalos con [A].';
+                ? `CONSEJO: Las barricadas con varios símbolos (╬╬) requieren mashear [B] ${obs.requiredHits} veces rápidas seguidas al acercarte.`
+                : 'CONSEJO: Pulsa [B] justo antes de chocar contra los escombros para destrozarlos o esquívalos con [A].';
         }
 
         const diagnostics = this._analyzeTechnicalCause(obs, player, relZAtDeath, interactionSystem, traumaInfo);

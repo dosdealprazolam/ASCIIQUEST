@@ -144,23 +144,23 @@
                 <h1 id="death-reason">IMPACTO MORTAL</h1>
                 <p id="death-detail"></p>
 
-                <!-- Consejo claro para el jugador de cómo evitar que vuelva a pasar -->
+                <!-- Consejo claro para el jugador de cómo evitar que vuelva a pasar (solo en letra amarilla, sin recuadro) -->
                 <div id="death-advice" class="death-advice-box">
-                    💡 CONSEJO: Mantén la vista adelantada y usa [A] para esquivar o [B] para abrirte paso.
+                    CONSEJO: Mantén la vista adelantada y usa [A] para esquivar o [B] para abrirte paso.
                 </div>
 
                 <div id="death-score">DISTANCIA: 0 m</div>
 
-                <!-- Registro temporal para quienes superan los 5000m mientras nadie haya ganado la carrera completa -->
-                <div id="death-5000m-milestone-box" class="bug-report-form hidden" style="border-color:#2ec4b6; margin-bottom:8px;">
-                    <div style="color:#2ec4b6; font-weight:bold; font-size:11px; margin-bottom:5px;">
-                        🏅 ¡SUPERASTE LOS 5.00 KM! Registra tu nombre en la lista de sobrevivientes (+5000m):
+                <!-- Registro temporal para quienes superan los 5000m en orden vertical, solo texto retro clickeable sin bloques -->
+                <div id="death-5000m-milestone-box" class="death-milestone-box hidden">
+                    <div class="death-milestone-title">
+                        ¡SUPERASTE LOS 5.00 KM! REGISTRA TU NOMBRE:
                     </div>
-                    <div class="victory-form-row" style="margin-bottom:3px;">
-                        <input id="milestone-name-input" type="text" maxlength="24" placeholder="Escribe tu nombre..." />
-                        <button id="btn-save-milestone-winner" type="button" class="mode-switch-link">💾 Guardar Nombre</button>
+                    <div class="death-milestone-form">
+                        <input id="milestone-name-input" type="text" maxlength="24" placeholder="ESCRIBE TU NOMBRE..." autocomplete="off" />
+                        <button id="btn-save-milestone-winner" type="button" class="death-menu-btn death-save-name-btn">Guardar Nombre</button>
                     </div>
-                    <div id="milestone-saved-msg" class="report-status-msg"></div>
+                    <div id="milestone-saved-msg" class="death-milestone-status"></div>
                 </div>
 
                 <!-- Opciones de reinicio y reporte en disposición vertical y texto limpio -->

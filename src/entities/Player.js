@@ -283,7 +283,7 @@ class Player {
                             obstacleInfo: 'Ninguno (alcanzado por la persecución)',
                             bInteractionSummary: 'N/A'
                         },
-                        '💡 CONSEJO: Nunca dejes suelta la tecla [A] por mucho tiempo. Tras dar 1 o 2 toques para cambiar de carril, vuelve a mantener [A] de inmediato.'
+                        'CONSEJO: Nunca dejes suelta la tecla [A] por mucho tiempo. Tras dar 1 o 2 toques para cambiar de carril, vuelve a mantener [A] de inmediato.'
                     );
                 }
             }

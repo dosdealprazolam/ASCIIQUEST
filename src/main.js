@@ -513,7 +513,8 @@ class GameApp {
             if (this.deathReasonEl) this.deathReasonEl.textContent = reason;
             if (this.deathDetailEl) this.deathDetailEl.textContent = detail;
             if (this.deathAdviceEl) {
-                this.deathAdviceEl.textContent = advice || '💡 CONSEJO: Mantén el ritmo con [A] y usa [B] al acercarte a estructuras rompibles.';
+                const cleanAdvice = advice ? advice.replace(/^💡\s*/, '') : 'CONSEJO: Mantén el ritmo con [A] y usa [B] al acercarte a estructuras rompibles.';
+                this.deathAdviceEl.textContent = cleanAdvice;
             }
             if (this.deathScoreEl) {
                 const kmStr = (distance / 1000).toFixed(2);
@@ -551,10 +552,10 @@ class GameApp {
                         this.lastMilestoneRowId = row.id;
                         this.winnerSavedForRun = true;
                         if (this.milestoneSavedMsg) {
-                            this.milestoneSavedMsg.textContent = `✅ ¡${currentName} (${distance} m) guardado en la lista (+5000m)!`;
+                            this.milestoneSavedMsg.textContent = `¡${currentName} (${distance} m) guardado en la lista (+5000m)!`;
                         }
                     } else if (this.milestoneSavedMsg) {
-                        this.milestoneSavedMsg.textContent = `⚠️ La lista ya alcanzó el límite de ${this.db.maxWinners} registros.`;
+                        this.milestoneSavedMsg.textContent = `La lista ya alcanzó el límite de ${this.db.maxWinners} registros.`;
                     }
                     this._refreshDevAdminUI();
                 } else if (this.milestoneSavedMsg) {
@@ -657,9 +658,9 @@ class GameApp {
                 this.winnerSavedForRun = true;
                 if (this.milestoneSavedMsg) {
                     if (savedRow) {
-                        this.milestoneSavedMsg.textContent = `✅ ¡${nameVal} (${distMeters} m) guardado en la lista (+5000m)!`;
+                        this.milestoneSavedMsg.textContent = `¡${nameVal} (${distMeters} m) guardado en la lista (+5000m)!`;
                     } else {
-                        this.milestoneSavedMsg.textContent = `⚠️ La lista ya alcanzó el límite de ${this.db.maxWinners} registros.`;
+                        this.milestoneSavedMsg.textContent = `La lista ya alcanzó el límite de ${this.db.maxWinners} registros.`;
                     }
                 }
                 this._refreshDevAdminUI();
