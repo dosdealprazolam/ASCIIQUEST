@@ -104,25 +104,25 @@ class CollisionSystem {
 
         if (obs.type === TYPES.COLLAPSING_STRUCTURE || obs.type === TYPES.TENTATIVE_HEAVY_TOWER) {
             if (obs.state === 'ACTIVE') {
-                reason = 'IMPACTO CONTRA ESTRUCTURA INESTABLE (MURO AMARILLO)';
-                detail = `No tumbaste el muro amarillo a tiempo antes del choque.`;
-                advice = `CONSEJO: Cuando estés cerca del muro amarillo, pulsa [B] para tumbarlo hacia ${laneNames[obs.fallTargetLane]} o esquívalo cambiando de carril con [A].`;
+                reason = 'IMPACTO CONTRA ESTRUCTURA INESTABLE';
+                detail = `No derrumbaste la estructura a tiempo antes del choque.`;
+                advice = `CONSEJO: Fíjate hacia dónde está inclinada la estructura. Pulsa [B] a tiempo para derrumbarla hacia ${laneNames[obs.fallTargetLane]} o esquívala cambiando de carril con [A].`;
             } else {
                 reason = 'APLASTADO POR DERRUMBE PROVOCADO';
-                detail = `Tumbaste el muro amarillo hacia ${laneNames[obs.fallTargetLane]} y te metiste en el carril donde cayó.`;
-                advice = `CONSEJO: Fíjate en las flechas (>>> o <<<) del muro amarillo: al golpearlo con [B] tu carril queda seguro, ¡no te cambies hacia el carril donde cae!`;
+                detail = `Derrumbaste la estructura hacia ${laneNames[obs.fallTargetLane]} y te metiste en el carril donde cayó.`;
+                advice = `CONSEJO: Fíjate en la inclinación de la estructura: al golpearla con [B] tu carril queda despejado, ¡nunca te cambies hacia el carril donde cae!`;
             }
         } else if (obs.type === TYPES.SOLID_MONOLITH) {
             reason = 'IMPACTO CONTRA MONOLITO INDESTRUCTIBLE';
-            detail = 'Los bloques macizos rojos no se pueden romper ni empujar con [B].';
-            advice = 'CONSEJO: Para esquivar un Monolito Sólido suelta [A], da 1 toque rápido (carril siguiente) o 2 toques rápidos (carril anterior) y vuelve a mantener [A].';
+            detail = 'Los monolitos rojos no se pueden romper ni empujar con [B].';
+            advice = 'CONSEJO: Ante un monolito indestructible, no intentes golpearlo con [B]: suelta [A], esquiva cambiando de carril y vuelve a mantener [A].';
         } else if (obs.type === TYPES.FRAGILE_BARRICADE) {
             reason = 'IMPACTO CONTRA BARRICADA DE ESCOMBROS';
             detail = obs.requiredHits > 1
                 ? `No lograste romper todas las capas de la barricada antes de chocar.`
                 : 'Chocaste contra una barricada de escombros sin destruirla ni esquivarla.';
             advice = obs.requiredHits > 1
-                ? `CONSEJO: Las barricadas con varios símbolos (╬╬) requieren mashear [B] ${obs.requiredHits} veces rápidas seguidas al acercarte.`
+                ? `CONSEJO: Las barricadas reforzadas requieren mashear [B] ${obs.requiredHits} veces rápidas seguidas al acercarte.`
                 : 'CONSEJO: Pulsa [B] justo antes de chocar contra los escombros para destrozarlos o esquívalos con [A].';
         }
 
@@ -160,8 +160,8 @@ class CollisionSystem {
                 explanation = `Chocaste contra un Monolito Sólido (#${obs.id}) en ${laneNames[obs.lane]} sin haber cambiado de carril a tiempo.`;
             }
         } else if (obs.state === 'TOPPLING' || obs.state === 'COLLAPSED_IN_OTHER_LANE') {
-            verdict = 'DINÁMICA DE JUEGO (TE METISTE AL CARRIL DONDE CAYÓ EL MURO)';
-            explanation = `Sí tumbaste el muro amarillo #${obs.id} con [B] desde ${laneNames[obs.initialLane]} hacia ${laneNames[obs.fallTargetLane]} (progreso caída: ${Math.round(obs.toppleProgress * 100)}%), pero luego moviste tu corredor a ${laneNames[obs.fallTargetLane]}.`;
+            verdict = 'DINÁMICA DE JUEGO (TE METISTE AL CARRIL DONDE CAYÓ LA ESTRUCTURA)';
+            explanation = `Sí derrumbaste la estructura #${obs.id} con [B] desde ${laneNames[obs.initialLane]} hacia ${laneNames[obs.fallTargetLane]} (progreso caída: ${Math.round(obs.toppleProgress * 100)}%), pero luego moviste tu corredor a ${laneNames[obs.fallTargetLane]}.`;
         } else if (obs.hitsReceived > 0 && obs.remainingHits > 0) {
             // Recibió golpe(s) pero le faltaron capas por romper
             verdict = `DINÁMICA DE MASHEO (FALTÓ ${obs.remainingHits} GOLPE DE [B])`;

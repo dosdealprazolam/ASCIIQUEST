@@ -123,7 +123,7 @@ class Obstacle {
             return 'MANIPULATED';
         }
 
-        // --- MURO AMARILLO (COLLAPSING_STRUCTURE): Siempre se tumba al golpearlo en rango ---
+        // --- ESTRUCTURA INESTABLE (COLLAPSING_STRUCTURE): Siempre se derrumba al golpearla en rango ---
         if (this.type === OBSTACLE_TYPES.COLLAPSING_STRUCTURE) {
             this.remainingHits = 0;
             this.state = 'TOPPLING';
@@ -132,7 +132,7 @@ class Obstacle {
             this.debugHistory.push({
                 relZ: Math.round(relZ),
                 outcome: 'MANIPULATED',
-                note: `Muro amarillo tumbado hacia carril ${this.fallTargetLane + 1}`
+                note: `Estructura derrumbada hacia carril ${this.fallTargetLane + 1}`
             });
             return 'MANIPULATED';
         }
