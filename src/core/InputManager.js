@@ -106,6 +106,10 @@ class InputManager {
                 this._onBPressed(performance.now());
             } else if (e.code === 'KeyR') {
                 this.eventBus.emit('input:restart');
+            } else if (e.code === 'KeyP') {
+                this.eventBus.emit('input:pause_toggle');
+            } else if (e.code === 'Escape') {
+                this.eventBus.emit('input:escape');
             } else if (e.code === 'Digit1' || e.code === 'Numpad1') {
                 this.eventBus.emit('sandbox:spawn_key', { slot: 1 });
             } else if (e.code === 'Digit2' || e.code === 'Numpad2') {

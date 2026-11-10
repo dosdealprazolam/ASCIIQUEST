@@ -85,6 +85,18 @@ class MusicManager {
     }
 
     /**
+     * Pausa momentáneamente la música cuando el juego entra en pausa (con [P] o al salir de la pestaña),
+     * manteniendo intacto el segundo exacto de reproducción para reanudar sin saltos.
+     */
+    pauseForGamePause() {
+        if (this.audio && this.isCurrentlyPlaying) {
+            this.audio.pause();
+            this.isCurrentlyPlaying = false;
+            this._updateMusicUI(false);
+        }
+    }
+
+    /**
      * Inicia la canción desde el segundo 0:00 limpiando cualquier cola de reverb previa.
      */
     startFromBeginning() {

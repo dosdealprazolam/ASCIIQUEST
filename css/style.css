@@ -766,6 +766,159 @@ html, body {
     user-select: text;
 }
 
+/* Botón destacado de Reportes y Contador en el HUD */
+.hud-reports-link {
+    background: rgba(46, 196, 182, 0.14) !important;
+    border-color: #2ec4b6 !important;
+    color: #2ec4b6 !important;
+    cursor: pointer;
+}
+
+.hud-reports-link:hover {
+    background: #2ec4b6 !important;
+    color: #040406 !important;
+}
+
+/* ==========================================================================
+   MENÚ DE PAUSA (Activado con [P] o al perder foco la ventana)
+   ========================================================================== */
+#pause-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(4, 4, 8, 0.86);
+    backdrop-filter: blur(4px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 25;
+    padding: 16px;
+}
+
+.pause-menu-box {
+    background: #090a10;
+    border: 2px solid #ff9f1c;
+    border-radius: 6px;
+    padding: 24px 28px;
+    width: 100%;
+    max-width: 440px;
+    text-align: center;
+    box-shadow: 0 0 35px rgba(255, 159, 28, 0.22), 0 0 60px rgba(0, 0, 0, 0.9);
+    user-select: none;
+}
+
+.pause-title {
+    font-size: 28px;
+    color: #ff9f1c;
+    letter-spacing: 3px;
+    font-weight: bold;
+    text-shadow: 0 0 10px rgba(255, 159, 28, 0.6);
+    margin-bottom: 4px;
+}
+
+.pause-subtitle {
+    font-size: 11px;
+    color: #94a3b8;
+    letter-spacing: 1.5px;
+    margin-bottom: 20px;
+}
+
+.pause-actions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.pause-btn {
+    background: #141620;
+    color: #e2e8f0;
+    border: 1px solid #384152;
+    padding: 10px 14px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.pause-btn:hover {
+    background: #232838;
+    border-color: #ff9f1c;
+    color: #ffffff;
+}
+
+.pause-btn-primary {
+    background: rgba(255, 159, 28, 0.18);
+    border-color: #ff9f1c;
+    color: #ff9f1c;
+}
+
+.pause-btn-primary:hover {
+    background: #ff9f1c;
+    color: #040406;
+}
+
+.pause-info-box {
+    margin-top: 14px;
+    background: #05060a;
+    border: 1px solid #2ec4b6;
+    border-radius: 4px;
+    padding: 12px 14px;
+    text-align: left;
+    font-size: 11px;
+    animation: fadeIn 0.18s ease-out;
+}
+
+.pause-info-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #2ec4b6;
+    font-weight: bold;
+    font-size: 11px;
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid rgba(46, 196, 182, 0.25);
+}
+
+.pause-info-body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: #cbd5e1;
+    line-height: 1.45;
+}
+
+.pause-info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.pause-info-tag {
+    color: #ff9f1c;
+    font-weight: bold;
+    font-size: 10px;
+}
+
+.pause-info-placeholder {
+    color: #64748b;
+    font-style: italic;
+    font-size: 10px;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px dashed #1e2430;
+}
+
+.pause-hint {
+    font-size: 10px;
+    color: #64748b;
+    margin-top: 8px;
+    letter-spacing: 0.5px;
+}
+
 /* Modal Exclusivo de Administración DevUser */
 #dev-admin-modal {
     position: fixed;

@@ -79,6 +79,12 @@
         <div class="hud-panel controls-status">
             <!-- Apartado chiquito de Nombre + Herramientas exclusivas si escribe DevUser -->
             <div style="display:flex; gap:6px; align-items:center; pointer-events:auto; flex-wrap:wrap; justify-content:flex-end;">
+                <!-- Botón visible de Pausa [P] -->
+                <button id="btn-hud-pause" type="button" class="mode-switch-link" title="Pausar juego [P]">⏸️ Pausa [P]</button>
+                <!-- Botón de acceso directo a Reportes y Contador de personas -->
+                <button id="btn-hud-reports" type="button" class="mode-switch-link hud-reports-link" title="Ver Reportes de Jugadores y Personas Registradas">
+                    📋 Reportes (<span id="hud-count-reports">0</span>) | 👥 Personas (<span id="hud-count-persons">0</span>)
+                </button>
                 <div class="player-name-mini-box">
                     <label for="player-name-input" class="hud-label" style="font-size:11px;">Nombre:</label>
                     <input id="player-name-input" type="text" maxlength="24" placeholder="Jugador" autocomplete="off" spellcheck="false" />
@@ -195,6 +201,47 @@
         </div>
     </section>
 
+    <!-- Pantalla / Menú de Pausa (Activado con [P] o al salir de la ventana) -->
+    <section id="pause-overlay" class="hidden">
+        <div class="pause-menu-box">
+            <h1 class="pause-title">PAUSA</h1>
+            <p class="pause-subtitle">CARRERA DETENIDA</p>
+
+            <div class="pause-actions-list">
+                <button id="btn-pause-resume" type="button" class="pause-btn pause-btn-primary">▶ Reanudar [P]</button>
+                <button id="btn-pause-restart" type="button" class="pause-btn">🔄 Reiniciar [R]</button>
+                <button id="btn-pause-info" type="button" class="pause-btn">ℹ️ Información</button>
+            </div>
+
+            <!-- Subpanel de Información ("todavía sin nada conectado") -->
+            <div id="pause-info-panel" class="pause-info-box hidden">
+                <div class="pause-info-header">
+                    <span>ℹ️ INFORMACIÓN DEL SISTEMA</span>
+                    <button id="btn-close-pause-info" type="button" class="sandbox-btn" style="flex:0 1 auto; padding:2px 8px;">✕ Volver</button>
+                </div>
+                <div class="pause-info-body">
+                    <div class="pause-info-item">
+                        <span class="pause-info-tag">PROYECTO:</span>
+                        <span>Psychological Survival Runner (Fase 1 / Runner)</span>
+                    </div>
+                    <div class="pause-info-item">
+                        <span class="pause-info-tag">CONTROLES:</span>
+                        <span>[A / Gatillo Izq]: Correr / Toque para cambiar de carril<br>[B / Clic / Gatillo Der]: Romper / Manipular obstáculos<br>[P / Esc]: Pausar o reanudar carrera<br>[R]: Reiniciar recorrido</span>
+                    </div>
+                    <div class="pause-info-item">
+                        <span class="pause-info-tag">OBJETIVO:</span>
+                        <span>Sobrevivir la persecución a lo largo de 10.2 km, administrando el ritmo cardíaco y abriendo paso con [B].</span>
+                    </div>
+                    <div class="pause-info-placeholder">
+                        (Módulo de información y servicios externos en desarrollo — actualmente sin servidores remotos conectados).
+                    </div>
+                </div>
+            </div>
+
+            <div class="pause-hint">PULSA [P] O [ESC] PARA VOLVER A LA CARRERA</div>
+        </div>
+    </section>
+
     <!-- Pantalla de Victoria (Solo aparece a quienes llegan al final de la carrera para guardar su Nombre en SQL) -->
     <section id="victory-overlay" class="hidden">
         <div class="death-box victory-box">
@@ -214,17 +261,17 @@
         </div>
     </section>
 
-    <!-- Modal Exclusivo de Administración DevUser (Reportes de Problemas + Ganadores + SQL Dump) -->
+    <!-- Modal de Reportes de Jugadores, Personas Registradas y Consola SQL -->
     <section id="dev-admin-modal" class="hidden">
         <div class="dev-modal-box">
             <div class="panel-title">
-                <span>🛠️ CONSOLA EXCLUSIVA DE DESARROLLADOR (DevUser)</span>
+                <span>📋 PANEL DE REPORTES Y REGISTROS DE JUGADORES</span>
                 <button id="btn-close-dev-admin" type="button" class="sandbox-btn" style="flex:0 1 auto; padding:4px 10px;">✕ Cerrar</button>
             </div>
 
             <div class="dev-tabs-row">
-                <button id="tab-btn-reports" type="button" class="sandbox-btn active-dev-tab">🐞 Reportes de Jugadores (<span id="count-bug-reports">0</span>)</button>
-                <button id="tab-btn-winners" type="button" class="sandbox-btn">🏆 Ganadores SQL (<span id="count-race-winners">0</span>)</button>
+                <button id="tab-btn-reports" type="button" class="sandbox-btn active-dev-tab">🐞 Reportes de Problemas (<span id="count-bug-reports">0</span>)</button>
+                <button id="tab-btn-winners" type="button" class="sandbox-btn">👥 Personas Registradas / Ganadores (<span id="count-race-winners">0</span>)</button>
                 <button id="tab-btn-sql" type="button" class="sandbox-btn">🗄️ Base de Datos SQL (Exportar)</button>
             </div>
 

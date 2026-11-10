@@ -34,6 +34,7 @@ class GameApp {
         this.lastDeathReason = '';
         this.hasWonCurrentRun = false;
         this.winnerSavedForRun = false;
+        this.isPaused = false;
         this.bottomBarIntroTimer = 4.0; // Solo visible los primeros 4 segundos al iniciar el juego
 
         this._cacheHudElements();
@@ -68,12 +69,24 @@ class GameApp {
         this.uiFeedback = document.getElementById('hud-feedback');
 
         // Apartado chiquito de Nombre + botones exclusivos de DevUser
+        this.btnHudPause = document.getElementById('btn-hud-pause');
+        this.btnHudReports = document.getElementById('btn-hud-reports');
+        this.hudCountReportsEl = document.getElementById('hud-count-reports');
+        this.hudCountPersonsEl = document.getElementById('hud-count-persons');
         this.inputPlayerName = document.getElementById('player-name-input');
         this.btnToggleMusicDrawer = document.getElementById('btn-toggle-music-drawer');
         this.musicDiscreteDrawer = document.getElementById('music-discrete-drawer');
         this.uiDevSongTime = document.getElementById('hud-dev-song-time');
         this.btnOpenDevAdmin = document.getElementById('btn-open-dev-admin');
         this.linkSandboxDev = document.getElementById('link-sandbox-dev');
+
+        // Menú de Pausa (Activado con [P] o al salir de la ventana)
+        this.pauseOverlay = document.getElementById('pause-overlay');
+        this.btnPauseResume = document.getElementById('btn-pause-resume');
+        this.btnPauseRestart = document.getElementById('btn-pause-restart');
+        this.btnPauseInfo = document.getElementById('btn-pause-info');
+        this.pauseInfoPanel = document.getElementById('pause-info-panel');
+        this.btnClosePauseInfo = document.getElementById('btn-close-pause-info');
 
         // Pantalla de Muerte (Jugador vs DevUser)
         this.deathOverlay = document.getElementById('death-overlay');
@@ -198,9 +211,6 @@ class GameApp {
         if (this.devInspectorBox) {
             this.devInspectorBox.classList.toggle('hidden', !dev);
         }
-        if (!dev && this.devAdminModal) {
-            this.devAdminModal.classList.add('hidden');
-        }
     }
 
     _bindSystemEvents() {
@@ -278,6 +288,107 @@ class GameApp {
         this.eventBus.on('input:restart', () => {
             this.resetRun();
         });
+
+        // Pausa mediante tecla [P] o mando
+        this.eventBus.on('input:pause_toggle', () => {
+            if (this.devAdminModal && !this.devAdminModal.classList.contains('hidden')) {
+                return;
+            }
+            if (!this.player.isAlive || this.hasWonCurrentRun) return;
+            this.togglePause();
+        });
+
+        // Manejo de [Escape]: cerrar modales/info o pausar/reanudar
+        this.eventBus.on('input:escape', () => {
+            if (this.devAdminModal && !this.devAdminModal.classList.contains('hidden')) {
+                this.devAdminModal.classList.add('hidden');
+                return;
+            }
+            if (this.isPaused) {
+                if (this.pauseInfoPanel && !this.pauseInfoPanel.classList.contains('hidden')) {
+                    this.pauseInfoPanel.classList.add('hidden');
+                    return;
+                }
+                this.unpauseGame();
+                return;
+            }
+            if (this.player.isAlive && !this.hasWonCurrentRun) {
+                this.pauseGame();
+            }
+        });
+
+        // Detección automática de salida de ventana / desenfoque para pausar
+        window.addEventListener('blur', () => {
+            if (this.player && this.player.isAlive && !this.hasWonCurrentRun && !this.isPaused) {
+                const isTyping = document.activeElement && (
+                    document.activeElement.tagName === 'INPUT' ||
+                    document.activeElement.tagName === 'TEXTAREA'
+                );
+                if (!isTyping) {
+                    this.pauseGame();
+                }
+            }
+        });
+
+        if (typeof document !== 'undefined' && document.addEventListener) {
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    if (this.player && this.player.isAlive && !this.hasWonCurrentRun && !this.isPaused) {
+                        this.pauseGame();
+                    }
+                }
+            });
+        }
+
+        // Botón superior de Pausa en el HUD
+        if (this.btnHudPause) {
+            this.btnHudPause.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.togglePause();
+            });
+        }
+
+        // Botón superior de Reportes y Personas en el HUD
+        if (this.btnHudReports) {
+            this.btnHudReports.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this._openReportsModal();
+            });
+        }
+
+        // Botones del menú de pausa
+        if (this.btnPauseResume) {
+            this.btnPauseResume.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.unpauseGame();
+            });
+        }
+
+        if (this.btnPauseRestart) {
+            this.btnPauseRestart.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.unpauseGame();
+                this.resetRun();
+            });
+        }
+
+        if (this.btnPauseInfo) {
+            this.btnPauseInfo.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (this.pauseInfoPanel) {
+                    this.pauseInfoPanel.classList.toggle('hidden');
+                }
+            });
+        }
+
+        if (this.btnClosePauseInfo) {
+            this.btnClosePauseInfo.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (this.pauseInfoPanel) {
+                    this.pauseInfoPanel.classList.add('hidden');
+                }
+            });
+        }
 
         if (this.btnRestartRun) {
             this.btnRestartRun.addEventListener('click', (e) => {
@@ -597,16 +708,35 @@ class GameApp {
         }
     }
 
-    _openDevAdminModal() {
-        if (!this.isDevMode() || !this.devAdminModal) return;
+    _openReportsModal() {
+        if (!this.devAdminModal) return;
         this._refreshDevAdminUI();
         this.devAdminModal.classList.remove('hidden');
+    }
+
+    _openDevAdminModal() {
+        this._openReportsModal();
     }
 
     _refreshDevAdminUI() {
         if (!this.db) return;
         const reports = this.db.getBugReports();
         const winners = this.db.getWinners();
+
+        // Contar personas únicas participantes o registradas
+        const uniqueNames = new Set();
+        winners.forEach(w => {
+            const n = (w.player_name || '').trim();
+            if (n && n.toLowerCase() !== 'anónimo' && n.toLowerCase() !== 'anonimo') uniqueNames.add(n.toLowerCase());
+        });
+        reports.forEach(r => {
+            const n = (r.player_name || '').trim();
+            if (n && n.toLowerCase() !== 'jugador' && n.toLowerCase() !== 'anónimo') uniqueNames.add(n.toLowerCase());
+        });
+        const personCount = Math.max(winners.length, uniqueNames.size);
+
+        if (this.hudCountReportsEl) this.hudCountReportsEl.textContent = `${reports.length}`;
+        if (this.hudCountPersonsEl) this.hudCountPersonsEl.textContent = `${personCount}`;
 
         if (this.countBugReportsEl) this.countBugReportsEl.textContent = `${reports.length}`;
         if (this.countRaceWinnersEl) this.countRaceWinnersEl.textContent = `${winners.length}/${this.db.maxWinners || 30}`;
@@ -675,7 +805,39 @@ class GameApp {
         }
     }
 
+    pauseGame() {
+        if (!this.player || !this.player.isAlive || this.hasWonCurrentRun || this.isPaused) return;
+        this.isPaused = true;
+        if (this.pauseOverlay) this.pauseOverlay.classList.remove('hidden');
+        if (this.pauseInfoPanel) this.pauseInfoPanel.classList.add('hidden');
+        if (this.musicManager && this.musicManager.pauseForGamePause) {
+            this.musicManager.pauseForGamePause();
+        }
+        if (this.input && this.input._forceSilentReleaseAll) {
+            this.input._forceSilentReleaseAll();
+        }
+    }
+
+    unpauseGame() {
+        if (!this.isPaused) return;
+        this.isPaused = false;
+        if (this.pauseOverlay) this.pauseOverlay.classList.add('hidden');
+        if (this.pauseInfoPanel) this.pauseInfoPanel.classList.add('hidden');
+        if (this.loop) {
+            this.loop.lastFrameTime = performance.now();
+        }
+    }
+
+    togglePause() {
+        if (this.isPaused) {
+            this.unpauseGame();
+        } else {
+            this.pauseGame();
+        }
+    }
+
     resetRun() {
+        this.unpauseGame();
         this.hasWonCurrentRun = false;
         this.winnerSavedForRun = false;
         this.player.reset();
@@ -688,9 +850,14 @@ class GameApp {
         if (this.victoryOverlay) this.victoryOverlay.classList.add('hidden');
         this._applyDevModeVisibility();
         this.lastActionFeedback = 'MANTÉN [A] PARA CORRER — MASHEA [B] PARA ROMPER/EMPUJAR';
+        this._refreshDevAdminUI();
     }
 
     update(dt, now) {
+        if (this.isPaused) {
+            return;
+        }
+
         this.input.update(now);
 
         if (this.bottomBarIntroTimer > 0) {
