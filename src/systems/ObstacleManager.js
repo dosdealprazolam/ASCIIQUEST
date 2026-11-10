@@ -390,15 +390,15 @@ class ObstacleManager {
 
     /**
      * Determina si una estructura que cae a la derecha se convierte en la variante rara especial.
-     * Regla estricta: Solo aparece a partir de los 5,000 metros (z >= 50000) y con probabilidad muy baja.
+     * Disponible a partir de los 2,000 metros (z >= 20000) con probabilidad calibrada (~20%).
      */
     _isRareRightRoll(z, originLane, targetLane) {
         if (targetLane <= originLane) return false;
-        const minDistanceMeters = (this.config.OBSTACLES && this.config.OBSTACLES.YELLOW_RIGHT_RARE_MIN_DISTANCE_METERS) || 5000;
+        const minDistanceMeters = (this.config.OBSTACLES && this.config.OBSTACLES.YELLOW_RIGHT_RARE_MIN_DISTANCE_METERS) || 2000;
         if (z < minDistanceMeters * 10) return false;
         const chance = (this.config.OBSTACLES && typeof this.config.OBSTACLES.YELLOW_RIGHT_RARE_CHANCE === 'number')
             ? this.config.OBSTACLES.YELLOW_RIGHT_RARE_CHANCE
-            : 0.06;
+            : 0.20;
         return Math.random() < chance;
     }
 
