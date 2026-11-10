@@ -13,28 +13,29 @@ class InputManager {
         this.eventBus = eventBus;
         this.config = config;
 
-        // Dispositivo activo detectado ('KEYBOARD_MOUSE' | 'TOUCH' | 'GAMEPAD')
-        this.activeDevice = 'KEYBOARD_MOUSE';
-
         // Estado físico de los controles
         this.isHoldingA = false;
         this.isHoldingB = false;
 
-        // Tiempos para detección directa de toques y carrera en Control A
+        // Tiempos para detección precisa de toques (Tap vs Hold) en Control A
         this.aPressTime = 0;
         this.aReleaseTime = 0;
         this.lastPressDurationMs = 0;
-        this.hasMovedLaneOnPress = false;
+        this.lastTapTime = 0;
+        this.lastTapIntervalMs = 0;
+        this.tapCount = 0;
 
         // Métricas de mashing de B
         this.bPressTimestamps = [];
         this.totalBMashes = 0;
 
-        // Estado de carriles
+        // Estado de la máquina de cambio de carril
         this.hasRunAtLeastOnce = false;
+        this.laneSwitchReady = false;
+        this.switchOriginLane = this.config.LANES.DEFAULT_LANE;
         this.currentLogicalLane = this.config.LANES.DEFAULT_LANE;
 
-        // Estado Rapid-Trigger con deadzone baja para gatillos analógicos
+        // Estado Rapid-Trigger para gatillos analógicos de mando
         this.gamepadPrevA = false;
         this.gamepadPrevB = false;
         this.peakTriggerA = 0;
@@ -47,10 +48,14 @@ class InputManager {
 
     reset(initialLane = this.config.LANES.DEFAULT_LANE) {
         this.currentLogicalLane = initialLane;
+        this.switchOriginLane = initialLane;
+        this.tapCount = 0;
+        this.lastTapTime = 0;
+        this.lastTapIntervalMs = 0;
         this.bPressTimestamps = [];
         this.totalBMashes = 0;
         this.hasRunAtLeastOnce = this.isHoldingA;
-        this.hasMovedLaneOnPress = false;
+        this.laneSwitchReady = false;
     }
 
     _forceSilentReleaseAll() {
@@ -58,18 +63,12 @@ class InputManager {
         this.isHoldingB = false;
         this.gamepadPrevA = false;
         this.gamepadPrevB = false;
-        this.hasMovedLaneOnPress = false;
+        this.laneSwitchReady = false;
+        this.tapCount = 0;
     }
 
     syncLane(laneIndex) {
         this.currentLogicalLane = laneIndex;
-    }
-
-    _setDevice(device) {
-        if (this.activeDevice !== device) {
-            this.activeDevice = device;
-            this.eventBus.emit('input:device_changed', { device });
-        }
     }
 
     _isTypingText() {
@@ -92,7 +91,6 @@ class InputManager {
                 return;
             }
             if (e.repeat) return;
-            this._setDevice('KEYBOARD_MOUSE');
 
             if (this._isControlAKey(e.code)) {
                 e.preventDefault();
@@ -132,13 +130,10 @@ class InputManager {
             }
         });
 
-        // Soporte de clic de ratón (izquierdo o derecho) sobre el lienzo para ejecutar Acción B
+        // Soporte de clic de ratón sobre el lienzo para mashear B a máxima velocidad
         window.addEventListener('mousedown', (e) => {
-            this._setDevice('KEYBOARD_MOUSE');
             if (e.target && e.target.id === 'game-canvas') {
-                if (e.button === 0 || e.button === 2) {
-                    this._onBPressed(performance.now());
-                }
+                this._onBPressed(performance.now());
             }
         });
 
@@ -160,9 +155,7 @@ class InputManager {
             });
         }
 
-        // Detección táctil directa por zonas de pantalla (Móvil)
         window.addEventListener('touchstart', (e) => {
-            this._setDevice('TOUCH');
             if (e.target && e.target.closest && e.target.closest('.sandbox-ui-interactive')) return;
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const t = e.changedTouches[i];
@@ -175,7 +168,6 @@ class InputManager {
         }, { passive: true });
 
         window.addEventListener('touchend', (e) => {
-            this._setDevice('TOUCH');
             if (e.target && e.target.closest && e.target.closest('.sandbox-ui-interactive')) return;
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const t = e.changedTouches[i];
@@ -189,7 +181,7 @@ class InputManager {
     }
 
     _isControlAKey(code) {
-        return code === 'KeyA' || code === 'Space' || code === 'ArrowLeft';
+        return code === 'KeyA' || code === 'ArrowLeft';
     }
 
     _isControlBKey(code) {
@@ -198,7 +190,8 @@ class InputManager {
             code === 'KeyL' ||
             code === 'KeyJ' ||
             code === 'KeyK' ||
-            code === 'ArrowRight'
+            code === 'ArrowRight' ||
+            code === 'Space'
         );
     }
 
@@ -206,7 +199,6 @@ class InputManager {
         if (this.isHoldingA) return;
         this.isHoldingA = true;
         this.aPressTime = now;
-        this.hasMovedLaneOnPress = false;
 
         this.eventBus.emit('input:a_down', { timestamp: now });
     }
@@ -219,20 +211,56 @@ class InputManager {
         const pressDuration = now - this.aPressTime;
         this.lastPressDurationMs = pressDuration;
 
-        const tapMaxDuration = (this.config.CONTROLS && this.config.CONTROLS.TAP_MAX_DURATION_MS) || 220;
-        const laneCount = (this.config.LANES && this.config.LANES.COUNT) || 3;
+        const { TAP_MAX_DURATION_MS, DOUBLE_TAP_WINDOW_MS } = this.config.CONTROLS;
+        const laneCount = this.config.LANES.COUNT;
 
-        // Si fue una pulsación (tap): cambio directo e instantáneo al carril contiguo derecho
-        if (pressDuration <= tapMaxDuration) {
-            const nextLane = (this.currentLogicalLane + 1) % laneCount;
-            const originLane = this.currentLogicalLane;
-            this.currentLogicalLane = nextLane;
+        // Respuesta instantánea en 0ms al soltar el toque
+        if (this.laneSwitchReady && pressDuration <= TAP_MAX_DURATION_MS) {
+            const timeSinceLastTap = now - this.lastTapTime;
 
-            this.eventBus.emit('input:lane_change', {
-                type: 'SINGLE_TAP_RIGHT',
-                targetLane: nextLane,
-                originLane,
-                pressDurationMs: Math.round(pressDuration)
+            if (this.tapCount === 1 && timeSinceLastTap <= DOUBLE_TAP_WINDOW_MS) {
+                // --- DOS TOQUES RÁPIDOS DE A ---
+                this.tapCount = 2;
+                this.lastTapIntervalMs = timeSinceLastTap;
+                this.lastTapTime = now;
+                const prevLane = (this.switchOriginLane - 1 + laneCount) % laneCount;
+                this.currentLogicalLane = prevLane;
+
+                this.eventBus.emit('input:lane_change', {
+                    type: 'DOUBLE_TAP_PREV',
+                    targetLane: prevLane,
+                    originLane: this.switchOriginLane,
+                    pressDurationMs: Math.round(pressDuration),
+                    tapIntervalMs: Math.round(timeSinceLastTap)
+                });
+            } else {
+                // --- UN TOQUE DE A ---
+                if (this.tapCount >= 1 && timeSinceLastTap > DOUBLE_TAP_WINDOW_MS) {
+                    this.switchOriginLane = this.currentLogicalLane;
+                }
+                this.tapCount = 1;
+                this.lastTapIntervalMs = 0;
+                this.lastTapTime = now;
+                const nextLane = (this.switchOriginLane + 1) % laneCount;
+                this.currentLogicalLane = nextLane;
+
+                this.eventBus.emit('input:lane_change', {
+                    type: 'SINGLE_TAP_NEXT',
+                    targetLane: nextLane,
+                    originLane: this.switchOriginLane,
+                    pressDurationMs: Math.round(pressDuration)
+                });
+            }
+        } else {
+            // El jugador soltó A tras mantenerlo para correr -> Desbloquea cambio de carril
+            this.laneSwitchReady = true;
+            this.switchOriginLane = this.currentLogicalLane;
+            this.tapCount = 0;
+
+            this.eventBus.emit('input:lane_switch_unlocked', {
+                originLane: this.switchOriginLane,
+                timestamp: now,
+                heldDurationMs: Math.round(pressDuration)
             });
         }
 
@@ -243,7 +271,7 @@ class InputManager {
     }
 
     _onBPressed(now) {
-        // Permitir re-disparo ultra rápido para acción contextual continua
+        // Permitir re-disparo ultra rápido para mashing continuo
         this.isHoldingB = true;
         this.totalBMashes++;
         this.bPressTimestamps.push(now);
@@ -261,6 +289,7 @@ class InputManager {
     }
 
     getBMashRate(now = performance.now()) {
+        // Limpiar pulsaciones de hace más de 1 segundo
         while (this.bPressTimestamps.length > 0 && now - this.bPressTimestamps[0] > 1000) {
             this.bPressTimestamps.shift();
         }
@@ -272,9 +301,10 @@ class InputManager {
 
         if (this.isHoldingA) {
             const heldTime = now - this.aPressTime;
-            const tapMax = (this.config.CONTROLS && this.config.CONTROLS.TAP_MAX_DURATION_MS) || 220;
-            if (heldTime > tapMax) {
+            if (heldTime > this.config.CONTROLS.TAP_MAX_DURATION_MS) {
                 this.hasRunAtLeastOnce = true;
+                this.switchOriginLane = this.currentLogicalLane;
+                this.tapCount = 0;
             }
         }
     }
@@ -292,8 +322,8 @@ class InputManager {
         const gp = gamepads && gamepads[0];
         if (!gp) return;
 
-        const threshold = this.config.CONTROLS.TRIGGER_THRESHOLD || 0.11;
-        const rapidDelta = this.config.CONTROLS.TRIGGER_RAPID_DELTA || 0.05;
+        const threshold = this.config.CONTROLS.TRIGGER_THRESHOLD || 0.12;
+        const rapidDelta = this.config.CONTROLS.TRIGGER_RAPID_DELTA || 0.06;
 
         // Valor analógico máximo entre Botón A (0), LB (4) y Gatillo Izquierdo LT/L2 (6)
         const valA = Math.max(
@@ -309,10 +339,6 @@ class InputManager {
             gp.buttons[5] ? gp.buttons[5].value : 0,
             gp.buttons[7] ? gp.buttons[7].value : 0
         );
-
-        if (valA > 0.05 || valB > 0.05) {
-            this._setDevice('GAMEPAD');
-        }
 
         // Evaluación Rapid-Trigger para A
         let gpA = this.gamepadPrevA;
@@ -358,18 +384,24 @@ class InputManager {
 
     getControlState(now = performance.now()) {
         const heldDuration = this.isHoldingA ? (now - this.aPressTime) : 0;
-        const tapMax = (this.config.CONTROLS && this.config.CONTROLS.TAP_MAX_DURATION_MS) || 220;
-        const isSustainedRun = this.isHoldingA && heldDuration > tapMax;
+        const isSustainedRun = this.isHoldingA && heldDuration > this.config.CONTROLS.TAP_MAX_DURATION_MS;
+        const doubleTapRemainingMs = (this.tapCount === 1)
+            ? Math.max(0, this.config.CONTROLS.DOUBLE_TAP_WINDOW_MS - (now - this.lastTapTime))
+            : 0;
 
         return {
-            activeDevice: this.activeDevice,
             isHoldingA: this.isHoldingA,
             isSustainedRun,
             heldDurationMs: heldDuration,
             lastPressDurationMs: this.lastPressDurationMs,
+            doubleTapRemainingMs,
+            lastTapIntervalMs: this.lastTapIntervalMs,
             isHoldingB: this.isHoldingB,
             bMashRate: this.getBMashRate(now),
-            currentLane: this.currentLogicalLane
+            laneSwitchReady: this.laneSwitchReady && !isSustainedRun,
+            tapCount: this.tapCount,
+            currentLane: this.currentLogicalLane,
+            switchOriginLane: this.switchOriginLane
         };
     }
 }

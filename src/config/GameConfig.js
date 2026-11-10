@@ -14,8 +14,7 @@ const DEFAULT_CONFIG = {
         COUNT: 3,
         NAMES: ['CARRIL 1 (IZQ)', 'CARRIL 2 (CENTRO)', 'CARRIL 3 (DER)'],
         DEFAULT_LANE: 1,
-        SWITCH_LERP_SPEED: 32.0,      // Transición snappy instantánea (~0.08s - 0.10s) con EaseOut
-        SWITCH_WRAP: true             // Cicla al carril 1 si ya está en el carril extremo derecho
+        SWITCH_LERP_SPEED: 21.0
     },
 
     // --- FÍSICA DE CARRERA (CONTROL A) ---
@@ -54,15 +53,16 @@ const DEFAULT_CONFIG = {
 
     // --- TIEMPOS DE RESPUESTA Y RANGO CORREGIDO (CONTROL A Y B) ---
     CONTROLS: {
-        TAP_MAX_DURATION_MS: 220,     // Detección ágil de pulsación para cambiar de carril
+        TAP_MAX_DURATION_MS: 260,
+        DOUBLE_TAP_WINDOW_MS: 500,
         B_ACTION_DURATION_MS: 160,
         B_BUFFER_WINDOW_MS: 140,      // Buffer fluido para golpe cercano sin fallar a alta velocidad
         B_INTERACTION_RANGE: 210,     // Distancia de ataque corregida y realista
         B_MIN_RANGE: -42,
         // Guardado únicamente para el obstáculo tentativo (TENTATIVE_HEAVY_TOWER)
         TENTATIVE_KNOCKBACK_Z: 95,
-        TRIGGER_THRESHOLD: 0.11,      // Deadzone ultrabaja (0.11) para respuesta inmediata al toque
-        TRIGGER_RAPID_DELTA: 0.05
+        TRIGGER_THRESHOLD: 0.12,
+        TRIGGER_RAPID_DELTA: 0.06
     },
 
     // --- MÚSICA DEL NIVEL (CARPETA /music/ DEL PROYECTO) ---
