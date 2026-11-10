@@ -166,6 +166,9 @@ const DEFAULT_CONFIG = {
             'img/obstacle_yellow_right_3.png',
             'img/obstacle_yellow_right_4.png'
         ],
+        YELLOW_RIGHT_RARE_SPRITE_PATH: 'img/obstacle_yellow_right_rare.png',
+        YELLOW_RIGHT_RARE_MIN_DISTANCE_METERS: 5000,
+        YELLOW_RIGHT_RARE_CHANCE: 0.06, // Aparece muy rara vez (~6%) y estrictamente a partir de los 5000m
         YELLOW_LEFT_SPRITE_PATH: 'img/obstacle_yellow_left.png',
         YELLOW_LEFT_SPRITE_PATHS: [
             'img/obstacle_yellow_left.png',

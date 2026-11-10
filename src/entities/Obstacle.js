@@ -17,7 +17,7 @@ const OBSTACLE_TYPES = {
 };
 
 class Obstacle {
-    constructor({ id, type, lane, z, fallTargetLane = null, requiredHits = 1 }) {
+    constructor({ id, type, lane, z, fallTargetLane = null, requiredHits = 1, isRareRightVariant = false }) {
         this.id = id;
         this.type = type;
 
@@ -29,6 +29,9 @@ class Obstacle {
 
         this.z = z;
         this.depth = 42;
+
+        // Variante rara especial de pilar caído a la derecha (solo >= 5000m y muy rara vez)
+        this.isRareRightVariant = !!isRareRightVariant;
 
         // El muro amarillo (COLLAPSING_STRUCTURE) siempre responde al golpe certero en rango
         this.requiredHits = type === OBSTACLE_TYPES.COLLAPSING_STRUCTURE

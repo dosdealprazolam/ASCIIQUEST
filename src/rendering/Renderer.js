@@ -88,6 +88,16 @@ class Renderer {
             return entry;
         });
 
+        // Variante rara especial que cae a la derecha (aparece solo a partir de 5000m y muy rara vez)
+        const rareRightPath = (this.config.OBSTACLES && this.config.OBSTACLES.YELLOW_RIGHT_RARE_SPRITE_PATH)
+            || 'img/obstacle_yellow_right_rare.png';
+        this.yellowRightRareImg = new Image();
+        this.yellowRightRareReady = false;
+        this.yellowRightRareImg.onload = () => {
+            this.yellowRightRareReady = true;
+        };
+        this.yellowRightRareImg.src = rareRightPath;
+
         const leftPaths = (this.config.OBSTACLES && Array.isArray(this.config.OBSTACLES.YELLOW_LEFT_SPRITE_PATHS))
             ? this.config.OBSTACLES.YELLOW_LEFT_SPRITE_PATHS
             : [
@@ -494,7 +504,7 @@ class Renderer {
 
             if (useTotemSprite) {
                 const variantSeed = typeof obs.spriteVariantIndex === 'number' ? obs.spriteVariantIndex : (obs.id || 0);
-                const chosenImg = activeSideSprites[variantSeed % activeSideSprites.length].img;
+                let chosenImg = activeSideSprites[variantSeed % activeSideSprites.length].img;
 
                 // Los assets ya vienen inclinados hacia su lado de caída (derecha con poste / izquierda con cráneos)
                 let spriteAngle = 0;
@@ -512,10 +522,19 @@ class Renderer {
 
                 ctx.rotate(spriteAngle);
 
-                const sx = tiltDir > 0 ? 105 : 45;
-                const sy = 20;
-                const sw = tiltDir > 0 ? 324 : 348;
-                const sh = 448;
+                let sx = tiltDir > 0 ? 105 : 45;
+                let sy = 20;
+                let sw = tiltDir > 0 ? 324 : 348;
+                let sh = 448;
+
+                // Si es la variante rara especial (>5000m que cae a la derecha), usamos su textura y encuadre
+                if (tiltDir > 0 && obs.isRareRightVariant && this.yellowRightRareReady && this.yellowRightRareImg) {
+                    chosenImg = this.yellowRightRareImg;
+                    sx = 80;
+                    sy = 30;
+                    sw = 350;
+                    sh = 440;
+                }
 
                 const spriteH = 245 * p.scale;
                 const spriteW = spriteH * (sw / sh);
