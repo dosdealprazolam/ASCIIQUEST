@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SURVIVAL RUNNER — MULTIJUGADOR LOCAL (2 JUGADORES / 6 CARRILES)</title>
+    <link rel="stylesheet" href="css/multiplayer.css" />
+</head>
+<body>
+    <!-- Lienzo Principal 2.5D para 6 Carriles -->
+    <canvas id="multiplayer-canvas"></canvas>
+
+    <!-- Filtro CRT retro con scanlines y viñeta -->
+    <div class="crt-overlay"></div>
+
+    <!-- HUD Superior Dual para 2 Jugadores -->
+    <header id="mp-top-bar">
+        <!-- Lado Izquierdo: Telemetría de JUGADOR 1 -->
+        <div class="player-hud-card player-hud-p1">
+            <div class="player-title p1-color">JUGADOR 1 [CARRILES 1-3]</div>
+            <div class="lives-row">
+                <span style="color:#94a3b8;">VIDAS:</span>
+                <div id="p1-lives-icons" class="lives-icons">
+                    <span class="heart-full">♥</span>
+                    <span class="heart-full">♥</span>
+                    <span class="heart-full">♥</span>
+                </div>
+            </div>
+            <div class="telemetry-row">
+                <span id="p1-bpm-val" style="color:#2ec4b6; font-weight:bold;">110 BPM</span>
+                <span style="color:#64748b;">|</span>
+                <span>PERSECUCIÓN:</span>
+                <div class="pursuit-bar-track">
+                    <div id="p1-pursuit-bar" class="pursuit-bar-fill" style="background:#2ec4b6;"></div>
+                </div>
+            </div>
+            <div class="controls-hint">
+                <strong style="color:#2ec4b6;">[A]</strong> Mantener: Correr | Micro-soltado (&lt;0.25s): Cambiar carril &nbsp;|&nbsp; <strong style="color:#2ec4b6;">[F]</strong> Golpear
+            </div>
+        </div>
+
+        <!-- Centro: Distancia Total y Navegación -->
+        <div id="mp-center-info">
+            <div class="mp-mode-badge">PRUEBA MULTIJUGADOR 2P (6 CARRILES)</div>
+            <div id="mp-distance-val" class="distance-display">0.00 km</div>
+            <a href="index.html" class="nav-link-btn">◀ VOLVER AL MODO INDIVIDUAL</a>
+        </div>
+
+        <!-- Lado Derecho: Telemetría de JUGADOR 2 -->
+        <div class="player-hud-card player-hud-p2">
+            <div class="player-title p2-color">JUGADOR 2 [CARRILES 4-6]</div>
+            <div class="lives-row">
+                <span style="color:#94a3b8;">VIDAS:</span>
+                <div id="p2-lives-icons" class="lives-icons">
+                    <span class="heart-full">♥</span>
+                    <span class="heart-full">♥</span>
+                    <span class="heart-full">♥</span>
+                </div>
+            </div>
+            <div class="telemetry-row">
+                <div class="pursuit-bar-track">
+                    <div id="p2-pursuit-bar" class="pursuit-bar-fill" style="background:#ff9f1c;"></div>
+                </div>
+                <span>:PERSECUCIÓN</span>
+                <span style="color:#64748b;">|</span>
+                <span id="p2-bpm-val" style="color:#ff9f1c; font-weight:bold;">110 BPM</span>
+            </div>
+            <div class="controls-hint">
+                <strong style="color:#ff9f1c;">[H]</strong> Mantener: Correr | Micro-soltado (&lt;0.25s): Cambiar carril &nbsp;|&nbsp; <strong style="color:#ff9f1c;">[L]</strong> Golpear
+            </div>
+        </div>
+    </header>
+
+    <!-- Alertas en vivo de eliminación individual -->
+    <div id="p1-elimination-banner" class="elimination-banner elimination-p1 hidden">
+        💀 JUGADOR 1 ELIMINADO
+    </div>
+    <div id="p2-elimination-banner" class="elimination-banner elimination-p2 hidden">
+        💀 JUGADOR 2 ELIMINADO
+    </div>
+
+    <!-- Pantalla de Fin de Partida / Game Over Dual (Puro texto retro vertical) -->
+    <section id="mp-gameover-overlay" class="hidden">
+        <h1 class="mp-modal-title">FIN DE LA CARRERA</h1>
+        <div id="mp-winner-announcement" class="mp-winner-announcement">¡VICTORIA!</div>
+        <div id="mp-stats-summary" class="mp-stats-summary"></div>
+
+        <div class="mp-actions-column">
+            <button id="mp-btn-restart" type="button" class="mp-action-btn mp-btn-restart">REINICIAR PARTIDA [R]</button>
+            <a href="index.html" class="mp-action-btn mp-btn-exit">VOLVER AL MODO INDIVIDUAL</a>
+        </div>
+    </section>
+
+    <!-- Script de lógica y renderizado multijugador -->
+    <script src="src/multiplayer/MultiplayerApp.js"></script>
+</body>
+</html>

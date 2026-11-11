@@ -1,0 +1,317 @@
+/* ==========================================================================
+   PSYCHOLOGICAL SURVIVAL RUNNER — MODO MULTIJUGADOR LOCAL (2 JUGADORES)
+   Estilo retro CRT, 6 carriles, HUD dual y división central aislada.
+   ========================================================================== */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #040406;
+    font-family: 'Courier New', 'MS Gothic', 'Consolas', monospace;
+    color: #e2e8f0;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+#multiplayer-canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+    background: #040406;
+}
+
+/* Capa CRT scanlines y grano */
+.crt-overlay {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 10;
+    background: repeating-linear-gradient(
+        to bottom,
+        rgba(0, 0, 0, 0) 0px,
+        rgba(0, 0, 0, 0) 2px,
+        rgba(0, 10, 6, 0.22) 3px,
+        rgba(0, 0, 0, 0.28) 4px
+    );
+    box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.85);
+}
+
+/* HUD Superior Unificado para 2 Jugadores */
+#mp-top-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 10px 18px;
+    background: linear-gradient(to bottom, rgba(4, 6, 8, 0.92) 0%, rgba(4, 6, 8, 0.65) 75%, transparent 100%);
+    pointer-events: none;
+}
+
+/* Columnas de los Jugadores en el HUD */
+.player-hud-card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 270px;
+    pointer-events: auto;
+}
+
+.player-hud-p1 {
+    text-align: left;
+}
+
+.player-hud-p2 {
+    text-align: right;
+    align-items: flex-end;
+}
+
+.player-title {
+    font-size: clamp(12px, 1.25vw, 15px);
+    font-weight: bold;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+
+.p1-color {
+    color: #2ec4b6;
+    text-shadow: 0 0 8px rgba(46, 196, 182, 0.65);
+}
+
+.p2-color {
+    color: #ff9f1c;
+    text-shadow: 0 0 8px rgba(255, 159, 28, 0.65);
+}
+
+/* Contenedor de Vidas (Corazones) */
+.lives-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    margin: 2px 0;
+}
+
+.lives-icons {
+    display: inline-flex;
+    gap: 4px;
+    font-size: 16px;
+}
+
+.heart-full {
+    color: #ff2a4b;
+    text-shadow: 0 0 6px rgba(255, 42, 75, 0.85);
+}
+
+.heart-empty {
+    color: #475569;
+    opacity: 0.45;
+}
+
+/* Fila de Telemetría (BPM y Persecución) */
+.telemetry-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+.pursuit-bar-track {
+    width: 100px;
+    height: 7px;
+    background: #1e293b;
+    border: 1px solid #334155;
+    position: relative;
+    overflow: hidden;
+}
+
+.pursuit-bar-fill {
+    height: 100%;
+    width: 100%;
+    background: #ff2a4b;
+    transition: width 0.1s linear;
+}
+
+.controls-hint {
+    font-size: 10px;
+    color: #64748b;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+}
+
+/* Centro: Distancia y Título del Modo */
+#mp-center-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    text-align: center;
+    pointer-events: auto;
+}
+
+.mp-mode-badge {
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: #cbd5e1;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 2px 8px;
+    border-radius: 2px;
+}
+
+.distance-display {
+    font-size: clamp(14px, 1.6vw, 19px);
+    font-weight: bold;
+    color: #ffffff;
+    letter-spacing: 1.5px;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+.nav-link-btn {
+    font-size: 10.5px;
+    letter-spacing: 1.2px;
+    color: #94a3b8;
+    text-decoration: none;
+    background: transparent;
+    border: 1px dashed rgba(148, 163, 184, 0.35);
+    padding: 3px 8px;
+    transition: color 0.15s, border-color 0.15s, transform 0.15s;
+    cursor: pointer;
+    margin-top: 3px;
+}
+
+.nav-link-btn:hover {
+    color: #ffffff;
+    border-color: #2ec4b6;
+    transform: scale(1.04);
+}
+
+/* Banner de Alerta / Eliminación en Vivo */
+.elimination-banner {
+    position: fixed;
+    bottom: 25px;
+    z-index: 25;
+    font-size: clamp(13px, 1.4vw, 16px);
+    font-weight: bold;
+    letter-spacing: 2px;
+    padding: 6px 14px;
+    background: rgba(10, 10, 15, 0.88);
+    border: 1px solid;
+    pointer-events: none;
+    animation: pulseAlert 1.2s infinite alternate;
+}
+
+.elimination-p1 {
+    left: 20px;
+    color: #ff4d6d;
+    border-color: #ff4d6d;
+    box-shadow: 0 0 18px rgba(255, 77, 109, 0.4);
+}
+
+.elimination-p2 {
+    right: 20px;
+    color: #ff4d6d;
+    border-color: #ff4d6d;
+    box-shadow: 0 0 18px rgba(255, 77, 109, 0.4);
+}
+
+@keyframes pulseAlert {
+    from { opacity: 0.75; transform: scale(0.98); }
+    to { opacity: 1.0; transform: scale(1.02); }
+}
+
+/* Pantalla de Fin de Partida / Game Over (Puro texto retro vertical) */
+#mp-gameover-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    background: rgba(4, 6, 8, 0.88);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    text-align: center;
+}
+
+.mp-modal-title {
+    font-size: clamp(20px, 2.8vw, 32px);
+    font-weight: bold;
+    letter-spacing: 3px;
+    color: #ff2a3a;
+    text-shadow: 0 0 16px rgba(255, 42, 58, 0.8);
+    margin-bottom: 8px;
+}
+
+.mp-winner-announcement {
+    font-size: clamp(15px, 1.8vw, 22px);
+    letter-spacing: 2px;
+    margin-bottom: 12px;
+    font-weight: bold;
+}
+
+.mp-stats-summary {
+    font-size: 13px;
+    color: #cbd5e1;
+    letter-spacing: 1px;
+    margin-bottom: 24px;
+    line-height: 1.6;
+}
+
+.mp-actions-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+.mp-action-btn {
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    font-family: inherit;
+    font-size: clamp(13px, 1.4vw, 16px);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: color 0.15s, transform 0.15s, text-shadow 0.15s;
+}
+
+.mp-btn-restart {
+    color: #ff9f1c;
+    text-shadow: 0 0 6px rgba(255, 159, 28, 0.5);
+}
+
+.mp-btn-restart:hover {
+    color: #ffffff;
+    text-shadow: 0 0 12px rgba(255, 159, 28, 0.95), 0 0 20px #ffffff;
+    transform: scale(1.06);
+}
+
+.mp-btn-exit {
+    color: #94a3b8;
+    text-shadow: 0 0 4px rgba(148, 163, 184, 0.4);
+    text-decoration: none;
+}
+
+.mp-btn-exit:hover {
+    color: #2ec4b6;
+    text-shadow: 0 0 10px rgba(46, 196, 182, 0.9);
+    transform: scale(1.06);
+}
+
+.hidden {
+    display: none !important;
+}
