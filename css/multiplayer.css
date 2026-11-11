@@ -29,22 +29,6 @@ html, body {
     background: #040406;
 }
 
-/* Capa CRT scanlines sutil */
-.crt-overlay {
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 10;
-    background: repeating-linear-gradient(
-        to bottom,
-        rgba(0, 0, 0, 0) 0px,
-        rgba(0, 0, 0, 0) 2px,
-        rgba(0, 10, 6, 0.18) 3px,
-        rgba(0, 0, 0, 0.22) 4px
-    );
-    box-shadow: inset 0 0 70px rgba(0, 0, 0, 0.85);
-}
-
 /* Header superior con dos monitores CONTEC compactos y bien escalados */
 #mp-top-bar {
     position: fixed;

@@ -4,22 +4,22 @@
  * ============================================================================
  * Módulo 100% independiente y desacoplado del juego individual.
  *
- * Mejoras aplicadas:
- *  - Velocidad vertiginosa exacta del juego base (860 u/s) desde el inicio.
- *  - Menor densidad y espaciado ampliado de obstáculos (560-640u) para permitir
- *    carreras rápidas y fluidas con rutas limpias y ritmo constante.
- *  - Ítems de Vidas Extra aleatorios en la pista con el corazón oficial (img/corazon.png)
- *    que curan hasta 3 vidas con aureola brillante, partículas y chime positivo.
- *  - Efectos visuales completos del juego principal:
- *      * Fondo abismal y grieta solar roja palpitante en el horizonte.
- *      * Viñeta psicológica de persecución y ansiedad en los bordes de la pantalla.
- *      * Líneas transversales de asfalto a alta velocidad que dan el frenetismo real.
+ * Implementa TODOS los efectos de video, estética y renderizado 2.5D del juego principal:
+ *  - Pipeline gráfico idéntico a Renderer.js:
+ *      * Sprites de torres y tótems (izq/der/raro/5000m) con recortes (crop sx, sy, sw, sh) exactos.
+ *      * Barricadas frágiles y montones de cuerpos (05.png / 06.png) con crop y aspect ratios idénticos.
+ *      * Sombras elípticas proyectadas en el asfalto bajo cada obstáculo y corredor.
+ *      * Resplandor y halo de impacto en obstáculos (ctx.shadowBlur + ctx.shadowColor).
+ *      * Partículas de impacto 2.5D en espacio del mundo (lane, z, yOffset, gravedad, caracteres ▓ y ▪).
+ *      * Fondo de pesadilla con sol rojo palpitante y grieta en el horizonte.
+ *      * Viñeta de persecución psicológica completa con oscuridad que asciende desde el borde inferior.
+ *      * Silueta del corredor estilizada con aura, abrigo desgarrado, capucha y núcleo ASCII en la espalda (⚡ / ◊).
+ *      * Corazones flotantes de Vida Extra (img/corazon.png) con halo de neón y efecto de recolección.
+ *      * Asfalto fracturado con líneas transversales de velocidad que transmiten frenetismo real (860 u/s).
  *      * Zonas de alcance contextual [B] proyectadas en el suelo (210u).
- *      * Ondas de choque en arco físico al golpear con [F] o [L].
- *      * Partículas de impacto ASCII (▓, ▪, ■) con gravedad y dispersión lateral.
- *      * Flash de pantalla reactivo (daño rojo, destrucción dorada, corazón rosa).
- *      * Vibración de cámara (screen shake) sutil y limpia, sin sacudidas bruscas.
- *      * Música de fondo oficial (Deejay SaeRo - Thud Weight.mp3) y audio procedimental.
+ *      * Ondas de choque en arco frontal expansivo al golpear.
+ *      * Vibración de cámara (screen shake) suave y calibrada sin marear.
+ *      * Pista de audio oficial y síntesis procedimental por Web Audio API.
  *  - Doble Monitor Médico CONTEC con osciloscopio ECG en tiempo real y HUD responsivo.
  *  - Modo Automático Inicial para ambos corredores con transición instantánea a manual
  *    al pulsar cualquier tecla de su esquema ([A]/[F] para P1; [H]/[L] para P2).
@@ -42,7 +42,7 @@
             SWITCH_LERP_SPEED: 21.0
         },
         SPEED: {
-            INITIAL: 760,        // Comienza con velocidad alta de carrera
+            INITIAL: 780,        // Comienza con velocidad alta de carrera
             MAX: 860,            // Idéntico a MAX_RUN_SPEED en GameConfig.js
             ACCEL_RATE: 850      // Aceleración rápida hacia velocidad punta
         },
@@ -197,7 +197,6 @@
             if (!this.ctx) return;
             const now = this.ctx.currentTime;
 
-            // Doble campana armónica brillante
             [880, 1320].forEach((freq, idx) => {
                 const osc = this.ctx.createOscillator();
                 const gain = this.ctx.createGain();
@@ -249,14 +248,11 @@
 
             const pressDuration = now - this.pressTime;
 
-            // Idéntico a InputManager.js:
-            // Respuesta instantánea al soltar el toque (< 260ms) si ya estaba habilitado el cambio
             if (this.laneSwitchReady && pressDuration <= this.TAP_MAX_DURATION_MS) {
                 const relative = this.currentLane - this.minLane;
                 const nextRel = (relative + 1) % this.laneCount;
                 this.currentLane = this.minLane + nextRel;
             } else {
-                // Al soltar tras mantener, desbloquea el cambio para el siguiente toque
                 this.laneSwitchReady = true;
             }
         }
@@ -383,52 +379,82 @@
         }
 
         _loadAssets() {
-            this.sprites = {
-                rightTowers: ['img/obstacle_yellow_right.png', 'img/obstacle_yellow_right_2.png', 'img/obstacle_yellow_right_3.png'],
-                leftTowers: [
-                    'img/obstacle_yellow_left.png',
-                    'img/obstacle_yellow_left_2.png',
-                    'img/obstacle_yellow_left_3.png',
-                    'img/obstacle_yellow_left_4.png'
-                ],
-                barricades: ['img/barricade_intact.png', 'img/05.png'],
-                barricadesDestroyed: ['img/barricade_destroyed.png', 'img/06.png'],
-                heart: 'img/corazon.png'
-            };
-
-            this.images = {};
-            const all = [
-                ...this.sprites.rightTowers,
-                ...this.sprites.leftTowers,
-                ...this.sprites.barricades,
-                ...this.sprites.barricadesDestroyed,
-                this.sprites.heart
+            // 1. Sprites para caída a la derecha (con recortes exactos de Renderer.js)
+            const rightPaths = [
+                'img/obstacle_yellow_right.png',
+                'img/obstacle_yellow_right_2.png',
+                'img/obstacle_yellow_right_3.png',
+                'img/obstacle_yellow_right_4.png'
             ];
-
-            all.forEach(p => {
+            this.yellowRightSprites = rightPaths.map(p => {
                 const img = new Image();
                 img.src = p;
-                this.images[p] = img;
+                return img;
             });
+
+            this.yellowRightRareImg = new Image();
+            this.yellowRightRareImg.src = 'img/obstacle_yellow_right_rare.png';
+
+            this.yellowRight5000Img = new Image();
+            this.yellowRight5000Img.src = 'img/obstacle_yellow_right_5000.png';
+
+            // 2. Sprites para caída a la izquierda (con recortes exactos de Renderer.js)
+            const leftPaths = [
+                'img/obstacle_yellow_left.png',
+                'img/obstacle_yellow_left_2.png',
+                'img/obstacle_yellow_left_3.png',
+                'img/obstacle_yellow_left_4.png'
+            ];
+            this.yellowLeftSprites = leftPaths.map(p => {
+                const img = new Image();
+                img.src = p;
+                return img;
+            });
+
+            // 3. Variantes de barricadas con recortes exactos y aspect ratios idénticos al principal
+            const variantsCfg = [
+                {
+                    intact: 'img/barricade_intact.png',
+                    destroyed: 'img/barricade_destroyed.png',
+                    crop: { sx: 45, sy: 105, sw: 498, sh: 235 },
+                    aspect: 228 / 492
+                },
+                {
+                    intact: 'img/05.png',
+                    destroyed: 'img/06.png',
+                    crop: { sx: 20, sy: 65, sw: 545, sh: 330 },
+                    aspect: 317 / 535
+                }
+            ];
+
+            this.barricadeVariants = variantsCfg.map(cfg => {
+                const intactImg = new Image();
+                intactImg.src = cfg.intact;
+                const destroyedImg = new Image();
+                destroyedImg.src = cfg.destroyed;
+                return {
+                    intactImg,
+                    destroyedImg,
+                    crop: cfg.crop,
+                    aspect: cfg.aspect
+                };
+            });
+
+            // 4. Icono oficial de corazón
+            this.heartImg = new Image();
+            this.heartImg.src = 'img/corazon.png';
         }
 
         _generateAsciiRoadside() {
-            const glyphs = ['▓', '█', '▒', '░', '╪', '╬', '║', '¥', '§'];
+            const glyphs = ['░', '▒', '▓', '█', '†', '‡', '§', 'Ø', '∆', '◊', '¶', '#', '/', '\\', '|'];
             const nodes = [];
-            for (let z = 0; z < MP_CONFIG.VISUALS.HORIZON_Z; z += 85) {
+            for (let i = 0; i < 48; i++) {
                 nodes.push({
-                    z,
-                    side: -1,
+                    z: (i * 60) % MP_CONFIG.VISUALS.HORIZON_Z,
+                    side: (i % 2 === 0) ? -1 : 1,
                     glyph: glyphs[Math.floor(Math.random() * glyphs.length)],
-                    heightFactor: 0.75 + Math.random() * 0.55,
-                    offsetFactor: 1.15 + Math.random() * 0.35
-                });
-                nodes.push({
-                    z,
-                    side: 1,
-                    glyph: glyphs[Math.floor(Math.random() * glyphs.length)],
-                    heightFactor: 0.75 + Math.random() * 0.55,
-                    offsetFactor: 1.15 + Math.random() * 0.35
+                    heightFactor: 0.45 + Math.random() * 1.35,
+                    offsetFactor: 1.25 + Math.random() * 1.6
                 });
             }
             return nodes;
@@ -451,7 +477,6 @@
         }
 
         addShake(amount) {
-            // Vibración sutil pedida por el usuario: límite controlado para impacto agradable
             const scaled = amount * MP_CONFIG.VISUALS.SCREEN_SHAKE_FACTOR;
             this.shakeIntensity = Math.min(6.5, this.shakeIntensity + scaled);
         }
@@ -469,7 +494,6 @@
 
                 this.sound.startMusic();
 
-                // Controles Jugador 1
                 if (key === 'a') {
                     if (this.p1.isAuto) this.takeControlP1();
                     this.p1Ctrl.onKeyDown(now);
@@ -478,7 +502,6 @@
                     this._triggerActionP1();
                 }
 
-                // Controles Jugador 2
                 if (key === 'h') {
                     if (this.p2.isAuto) this.takeControlP2();
                     this.p2Ctrl.onKeyDown(now);
@@ -487,7 +510,6 @@
                     this._triggerActionP2();
                 }
 
-                // Reiniciar partida con [R]
                 if (key === 'r') {
                     this.rematch();
                 }
@@ -594,10 +616,7 @@
 
             if (!target) return;
 
-            const targetRelZ = target.z - this.worldZ;
-            const targetP = this.project(target.lane, targetRelZ);
-            const partX = target.screenX || targetP.x;
-            const partY = target.screenY || targetP.y;
+            target.hitFlashTimer = 0.22;
 
             if (target.type === 'TOWER') {
                 target.state = 'TOPPLING';
@@ -606,19 +625,19 @@
                 this.addShake(3.8);
                 this._triggerFlash('#ffbf69', 0.16);
                 this.sound.playSmash();
-                this._spawnAsciiParticles(partX, partY, '#ffbe0b', 22);
+                this._spawnImpactParticles(target.lane, target.z, '#ff9f1c', 28, target.tiltDir * 1.5);
             } else if (target.type === 'BARRICADE') {
                 target.state = 'SHATTERED';
                 target.shatterProgress = 0;
                 this.addShake(4.2);
                 this._triggerFlash('#ffbf69', 0.18);
                 this.sound.playSmash();
-                this._spawnAsciiParticles(partX, partY, '#cbd5e1', 24);
+                this._spawnImpactParticles(target.lane, target.z, '#cbd5e1', 28, 0);
             } else if (target.type === 'MONOLITH') {
-                target.flashTimer = 0.16;
+                target.flashTimer = 0.18;
                 this.addShake(2.5);
                 this.sound.playDamage();
-                this._spawnAsciiParticles(partX, partY, '#ef4444', 12);
+                this._spawnImpactParticles(target.lane, target.z, '#ef4444', 16, 0);
             }
         }
 
@@ -640,7 +659,6 @@
                 player.botCooldown -= dt;
             }
 
-            // Si hay un corazón adelante en su carril o cercano, busca recogerlo
             const nearbyHeart = this.extraLives.find(h => {
                 if (h.collected) return false;
                 if (!validLanes.includes(h.lane)) return false;
@@ -694,14 +712,12 @@
 
             const y = horizonY + (playerScreenY - horizonY) * perspective;
 
-            // Curvatura orgánica dinámica idéntica al juego original:
             const warpX = Math.sin((relZ + this.worldZ) * 0.0032) * (20 * (1 - perspective));
 
             const trackWidthAtPlayer = Math.min(this.width * 0.94, MP_CONFIG.VISUALS.TRACK_MAX_WIDTH);
             const currentTrackWidth = trackWidthAtPlayer * perspective;
             const laneWidth = currentTrackWidth / 6;
 
-            // Centro exacto = 2.5 (entre Carril 3 y Carril 4)
             const centeredOffset = (laneFloat - 2.5) * laneWidth;
             const centerX = this.width * 0.5 + warpX;
             const x = centerX + centeredOffset;
@@ -721,17 +737,14 @@
         // ====================================================================
 
         _spawnWorldEntities() {
-            // 1. Generación de obstáculos con espaciado amplio para mayor velocidad
             while (this.nextSpawnZ < this.worldZ + 1800) {
                 const z = this.nextSpawnZ;
 
-                // Lado P1 (Carriles 0, 1, 2)
                 if (Math.random() < MP_CONFIG.SPAWN.OBSTACLE_CHANCE) {
                     const lP1 = Math.floor(Math.random() * 3);
                     this._createObstacle(lP1, z, MP_CONFIG.LANES.P1_LANES);
                 }
 
-                // Lado P2 (Carriles 3, 4, 5)
                 if (Math.random() < MP_CONFIG.SPAWN.OBSTACLE_CHANCE) {
                     const lP2 = 3 + Math.floor(Math.random() * 3);
                     this._createObstacle(lP2, z, MP_CONFIG.LANES.P2_LANES);
@@ -740,13 +753,11 @@
                 this.nextSpawnZ += MP_CONFIG.SPAWN.STEP;
             }
 
-            // 2. Generación de Vidas Extra aleatorias en el camino
             while (this.nextHeartZ < this.worldZ + 1800) {
                 if (Math.random() < MP_CONFIG.SPAWN.EXTRA_LIFE_CHANCE) {
                     const side = Math.random() < 0.5 ? 0 : 3;
                     const lane = side + Math.floor(Math.random() * 3);
 
-                    // Asegurar que no solape directamente en el mismo Z con un obstáculo existente
                     const hasConflict = this.obstacles.some(o => o.lane === lane && Math.abs(o.z - this.nextHeartZ) < 140);
                     if (!hasConflict) {
                         this.extraLives.push({
@@ -794,7 +805,10 @@
                 toppleProgress: 0,
                 shatterProgress: 0,
                 flashTimer: 0,
-                spriteIdx: Math.floor(Math.random() * 6)
+                hitFlashTimer: 0,
+                isRareRightVariant: (tiltDir > 0 && Math.random() < 0.22),
+                is5000RightVariant: (tiltDir > 0 && this.worldZ > 45000 && Math.random() < 0.35),
+                spriteVariantIndex: Math.floor(Math.random() * 4)
             });
         }
 
@@ -818,7 +832,6 @@
         }
 
         _update(dt, now) {
-            // Aceleración rápida hacia velocidad máxima
             if (this.currentSpeed < MP_CONFIG.SPEED.MAX) {
                 this.currentSpeed = Math.min(MP_CONFIG.SPEED.MAX, this.currentSpeed + MP_CONFIG.SPEED.ACCEL_RATE * dt);
             }
@@ -827,7 +840,6 @@
             this.worldZ += activeSpeed * dt;
             this.distanceMeters = Math.floor(this.worldZ / 10);
 
-            // Decaimiento de vibración y flash
             if (this.shakeIntensity > 0) {
                 this.shakeIntensity = Math.max(0, this.shakeIntensity - MP_CONFIG.VISUALS.SCREEN_SHAKE_DECAY * dt);
             }
@@ -837,14 +849,11 @@
 
             this._spawnWorldEntities();
 
-            // Actualizar controladores de entrada
             this.p1Ctrl.update(now);
             this.p2Ctrl.update(now);
 
-            // Actualizar pilotos automáticos
             this._updateAutoPilots(dt);
 
-            // Sincronizar carril de jugadores
             if (!this.p1.isAuto) this.p1.lane = this.p1Ctrl.currentLane;
             if (!this.p2.isAuto) this.p2.lane = this.p2Ctrl.currentLane;
 
@@ -888,6 +897,7 @@
                 const obs = this.obstacles[i];
 
                 if (obs.flashTimer > 0) obs.flashTimer -= dt;
+                if (obs.hitFlashTimer > 0) obs.hitFlashTimer -= dt;
 
                 if (obs.state === 'TOPPLING') {
                     obs.toppleProgress = Math.min(1.0, obs.toppleProgress + dt * 4.8);
@@ -928,8 +938,7 @@
                     this.sound.playHeart();
                     this.addShake(2.0);
                     this._triggerFlash('#ff2a6d', 0.22);
-                    const p = this.project(item.lane, relZ);
-                    this._spawnHeartParticles(item.screenX || p.x, item.screenY || p.y, 24);
+                    this._spawnImpactParticles(item.lane, item.z, '#ff2a6d', 20, 0);
                 }
             }
 
@@ -950,8 +959,7 @@
                     this.sound.playDamage();
                     this.addShake(4.5);
                     this._triggerFlash('#ff1e38', 0.30);
-                    const p = this.project(obs.lane, relZ);
-                    this._spawnAsciiParticles(obs.screenX || p.x, obs.screenY || p.y, '#ff1e38', 26);
+                    this._spawnImpactParticles(obs.lane, obs.z, '#ff1e38', 28, 0);
 
                     if (player.lives <= 0) {
                         player.lives = 0;
@@ -1107,7 +1115,6 @@
                     let c = ((x / wavelengthPx) - phaseCycles) % 1;
                     if (c < 0) c += 1;
 
-                    // Complejo médico P-Q-R-S-T
                     if (c >= 0.12 && c < 0.22) {
                         const t = (c - 0.12) / 0.10;
                         y -= Math.sin(t * Math.PI) * 3.5;
@@ -1148,15 +1155,15 @@
 
             ctx.save();
 
-            // Vibración sutil de pantalla (sin marear al usuario)
+            // Vibración sutil de pantalla (firme, sin jitter mareante)
             if (this.shakeIntensity > 0.05) {
                 const sx = (Math.random() - 0.5) * this.shakeIntensity * 0.75;
                 const sy = (Math.random() - 0.5) * this.shakeIntensity * 0.75;
                 ctx.translate(sx, sy);
             }
 
-            // 1. Fondo abismal y horizonte opresivo
-            this._drawSky(ctx, now);
+            // 1. Fondo abismal y horizonte opresivo con sol rojo
+            this._drawNightmareBackground(ctx, now);
 
             // 2. Pilares ASCII respirantes a los bordes
             this._drawAsciiRoadside(ctx, now);
@@ -1164,7 +1171,7 @@
             // 3. Pista de 6 carriles con líneas transversales de velocidad alta
             this._drawTrack(ctx);
 
-            // 4. Muro central de separación física negra
+            // 4. Muro central de separación física negra sólida
             this._drawBlackDivider(ctx);
 
             // 5. Zonas de alcance contextual [B] proyectadas en el suelo
@@ -1178,10 +1185,10 @@
             if (this.p1.isAlive) this._drawRunner(ctx, this.p1, now);
             if (this.p2.isAlive) this._drawRunner(ctx, this.p2, now);
 
-            // 8. Partículas de impacto / corazones
-            this._drawParticles(ctx);
+            // 8. Partículas 2.5D en espacio del mundo
+            this._updateAndDrawParticles(ctx, dt);
 
-            // 9. Viñeta psicológica de persecución y bordes oscuros
+            // 9. Viñeta psicológica de persecución y oscuridad ascendente
             this._drawPursuitVignette(ctx, now);
 
             // 10. Flash reactivo de pantalla (daño / destrucción / vidas)
@@ -1195,7 +1202,7 @@
             ctx.restore();
         }
 
-        _drawSky(ctx, now) {
+        _drawNightmareBackground(ctx, now) {
             const grad = ctx.createLinearGradient(0, 0, 0, this.height);
             grad.addColorStop(0, '#040406');
             grad.addColorStop(0.28, '#0d0914');
@@ -1252,7 +1259,7 @@
             const nearP = this.project(2.5, -120);
             const farP = this.project(2.5, MP_CONFIG.VISUALS.HORIZON_Z);
 
-            // Asfalto oscuro
+            // Asfalto fracturado oscuro
             ctx.fillStyle = '#0b0b10';
             ctx.beginPath();
             ctx.moveTo(farP.centerX - farP.currentTrackWidth * 0.5, farP.y);
@@ -1297,7 +1304,6 @@
         _drawBlackDivider(ctx) {
             ctx.save();
 
-            // Sombra base gruesa negra
             ctx.strokeStyle = '#000000';
             ctx.lineWidth = 16;
             ctx.beginPath();
@@ -1308,7 +1314,6 @@
             }
             ctx.stroke();
 
-            // Muro 3D de concreto negro en relieve continuo
             for (let z = MP_CONFIG.VISUALS.HORIZON_Z; z >= -120; z -= 70) {
                 const pNear = this.project(2.5 + 0.0, z);
                 const pFar = this.project(2.5 + 0.0, z + 70);
@@ -1422,7 +1427,7 @@
             ctx.fill();
 
             // Icono del Corazón oficial
-            const img = this.images[this.sprites.heart];
+            const img = this.heartImg;
             const size = Math.max(16, 42 * p.scale);
 
             if (img && img.complete && img.naturalWidth > 0) {
@@ -1435,7 +1440,6 @@
                 ctx.fillText('♥', p.x, drawY);
             }
 
-            // Brillo místico adicional
             if (p.scale > 0.30) {
                 ctx.fillStyle = '#ffffff';
                 ctx.font = `bold ${Math.max(9, Math.floor(13 * p.scale))}px monospace`;
@@ -1447,77 +1451,153 @@
         }
 
         _drawTower(ctx, obs, p) {
+            const tiltDir = obs.tiltDir;
+            const isHitFlash = (obs.hitFlashTimer > 0);
+            const variantSeed = typeof obs.spriteVariantIndex === 'number' ? obs.spriteVariantIndex : (obs.id || 0);
+
+            // Selección de imagen y recorte idénticos a Renderer.js
+            let chosenImg = null;
+            let sx = tiltDir > 0 ? 105 : 45;
+            let sy = 20;
+            let sw = tiltDir > 0 ? 324 : 348;
+            let sh = 448;
+
+            if (tiltDir > 0 && obs.is5000RightVariant && this.yellowRight5000Img && this.yellowRight5000Img.complete) {
+                chosenImg = this.yellowRight5000Img;
+                sx = 20;
+                sy = 45;
+                sw = 410;
+                sh = 435;
+            } else if (tiltDir > 0 && obs.isRareRightVariant && this.yellowRightRareImg && this.yellowRightRareImg.complete) {
+                chosenImg = this.yellowRightRareImg;
+                sx = 80;
+                sy = 30;
+                sw = 350;
+                sh = 440;
+            } else {
+                const list = (tiltDir > 0) ? this.yellowRightSprites : this.yellowLeftSprites;
+                chosenImg = list[variantSeed % list.length];
+            }
+
+            let spriteAngle = 0;
+            if (obs.state === 'TOPPLING') {
+                spriteAngle = tiltDir * obs.toppleProgress * 1.18;
+            } else if (obs.state === 'COLLAPSED') {
+                spriteAngle = tiltDir * 1.25;
+            }
+
+            const spriteH = 245 * p.scale;
+            const spriteW = spriteH * (sw / sh);
+            const drawX = tiltDir > 0 ? (-spriteW * 0.43) : (-spriteW * 0.57);
+            const drawY = -spriteH;
+
             ctx.save();
             ctx.translate(p.x, p.y);
 
-            let angle = 0;
-            if (obs.state === 'TOPPLING') {
-                angle = obs.tiltDir * obs.toppleProgress * 1.25;
-            } else if (obs.state === 'COLLAPSED') {
-                angle = obs.tiltDir * 1.30;
+            // Sombra elíptica idéntica al juego principal
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.58)';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, p.laneWidth * 0.48, Math.max(3, 10 * p.scale), 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.rotate(spriteAngle);
+
+            if (isHitFlash) {
+                ctx.shadowColor = '#ffffff';
+                ctx.shadowBlur = Math.max(6, 16 * p.scale);
             }
-            ctx.rotate(angle);
 
-            const list = obs.tiltDir > 0 ? this.sprites.rightTowers : this.sprites.leftTowers;
-            const chosenPath = list[obs.spriteIdx % list.length];
-            const img = this.images[chosenPath];
-
-            const spriteH = 220 * p.scale;
-            const spriteW = spriteH * 0.72;
-
-            if (img && img.complete && img.naturalWidth > 0) {
-                ctx.drawImage(img, -spriteW * 0.5, -spriteH, spriteW, spriteH);
+            if (chosenImg && chosenImg.complete && chosenImg.naturalWidth > 0) {
+                ctx.drawImage(chosenImg, sx, sy, sw, sh, drawX, drawY, spriteW, spriteH);
             } else {
                 ctx.fillStyle = '#ffbe0b';
-                ctx.fillRect(-spriteW * 0.5, -spriteH, spriteW, spriteH);
+                ctx.fillRect(drawX, drawY, spriteW, spriteH);
             }
+
+            if (isHitFlash) {
+                ctx.shadowBlur = 0;
+            }
+
             ctx.restore();
         }
 
         _drawMonolith(ctx, obs, p) {
-            const h = 150 * p.scale;
-            const w = p.laneWidth * 0.90;
+            const h = 155 * p.scale;
+            const w = p.laneWidth * 0.92;
+            const isFlashing = (obs.flashTimer > 0);
 
             ctx.save();
-            ctx.fillStyle = (obs.flashTimer > 0) ? '#551a24' : '#08080c';
-            ctx.strokeStyle = (obs.flashTimer > 0) ? '#ffffff' : '#d90429';
+            ctx.translate(p.x, p.y);
+
+            // Sombra en el suelo
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.58)';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, w * 0.50, Math.max(3, 9 * p.scale), 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = isFlashing ? '#551a24' : '#09090d';
+            ctx.strokeStyle = isFlashing ? '#ffffff' : '#d90429';
             ctx.lineWidth = Math.max(1.5, 3.0 * p.scale);
 
-            ctx.fillRect(p.x - w * 0.5, p.y - h, w, h);
-            ctx.strokeRect(p.x - w * 0.5, p.y - h, w, h);
+            ctx.fillRect(-w * 0.48, -h, w * 0.96, h);
+            ctx.strokeRect(-w * 0.48, -h, w * 0.96, h);
 
             if (p.scale > 0.28) {
-                ctx.fillStyle = '#d90429';
-                ctx.font = `bold ${Math.max(10, Math.floor(20 * p.scale))}px monospace`;
+                ctx.fillStyle = isFlashing ? '#ffffff' : '#d90429';
+                ctx.font = `bold ${Math.max(10, Math.floor(22 * p.scale))}px monospace`;
                 ctx.textAlign = 'center';
-                ctx.fillText('███', p.x, p.y - h * 0.5);
+                ctx.fillText('███', 0, -h * 0.55);
+                ctx.fillText('▓▓▓', 0, -h * 0.25);
             }
+
             ctx.restore();
         }
 
         _drawBarricade(ctx, obs, p) {
-            if (obs.state === 'SHATTERED' && obs.shatterProgress >= 1.0) return;
-
+            const isHitFlash = (obs.hitFlashTimer > 0);
             const isDestroyed = (obs.state === 'SHATTERED');
-            const path = isDestroyed
-                ? this.sprites.barricadesDestroyed[obs.spriteIdx % this.sprites.barricadesDestroyed.length]
-                : this.sprites.barricades[obs.spriteIdx % this.sprites.barricades.length];
-            const img = this.images[path];
+            const fadeAlpha = isDestroyed ? Math.max(0, 1.0 - (obs.shatterProgress || 0)) : 1.0;
 
-            const spriteW = p.laneWidth * 1.15;
-            const spriteH = spriteW * 0.56;
+            if (fadeAlpha <= 0.01) return;
+
+            const variantSeed = typeof obs.spriteVariantIndex === 'number' ? obs.spriteVariantIndex : (obs.id || 0);
+            const activeVariant = this.barricadeVariants[variantSeed % this.barricadeVariants.length];
+
+            const w = p.laneWidth * 0.88;
+            const spriteW = w * 1.15;
+            const spriteH = spriteW * activeVariant.aspect;
+            const drawX = -spriteW * 0.5;
+            const drawY = -spriteH * 0.88;
 
             ctx.save();
-            if (isDestroyed) {
-                ctx.globalAlpha = Math.max(0, 1.0 - obs.shatterProgress);
+            ctx.translate(p.x, p.y);
+            ctx.globalAlpha = fadeAlpha;
+
+            // Sombra en el suelo bajo el montón
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.52)';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, w * 0.58, Math.max(3, 9 * p.scale), 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            if (isHitFlash) {
+                ctx.shadowColor = '#ffea79';
+                ctx.shadowBlur = Math.max(8, 20 * p.scale);
             }
 
-            if (img && img.complete && img.naturalWidth > 0) {
-                ctx.drawImage(img, p.x - spriteW * 0.5, p.y - spriteH * 0.88, spriteW, spriteH);
+            const currentImg = isDestroyed ? activeVariant.destroyedImg : activeVariant.intactImg;
+            const crop = activeVariant.crop;
+
+            if (currentImg && currentImg.complete && currentImg.naturalWidth > 0) {
+                ctx.drawImage(currentImg, crop.sx, crop.sy, crop.sw, crop.sh, drawX, drawY, spriteW, spriteH);
             } else {
                 ctx.fillStyle = '#8b5cf6';
-                ctx.fillRect(p.x - spriteW * 0.5, p.y - spriteH * 0.88, spriteW, spriteH);
+                ctx.fillRect(drawX, drawY, spriteW, spriteH);
             }
+
+            if (isHitFlash) {
+                ctx.shadowBlur = 0;
+            }
+
             ctx.restore();
         }
 
@@ -1540,13 +1620,13 @@
             ctx.translate(p.x, p.y - bobY);
             ctx.rotate(tiltX);
 
-            // Sombra en el suelo
+            // Sombra proyectada en el carril
             ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
             ctx.beginPath();
             ctx.ellipse(0, bobY, 26, 8, 0, 0, Math.PI * 2);
             ctx.fill();
 
-            // Onda de choque física en arco expansivo al golpear
+            // Onda de choque física cuando ejecuta la acción contextual B
             if (player.bActionTimer > 0) {
                 const progress = 1 - (player.bActionTimer / (MP_CONFIG.COMBAT.ACTION_DURATION_MS / 1000));
                 const radius = 34 + progress * 65;
@@ -1557,65 +1637,51 @@
                 ctx.stroke();
             }
 
+            // Silueta estilizada y oscura del Corredor
             const bodyH = 74;
-            const bodyW = 32;
+            const bodyW = 30;
 
-            // Piernas en movimiento de carrera
-            const legSwing = Math.sin(player.stridePhase) * 14 * speedRatio;
-            ctx.fillStyle = '#07080b';
-            ctx.strokeStyle = player.color;
-            ctx.lineWidth = 1.8;
-
-            // Pierna izquierda
-            ctx.beginPath();
-            ctx.moveTo(-7, -10);
-            ctx.lineTo(-9 + legSwing, 4);
-            ctx.stroke();
-
-            // Pierna derecha
-            ctx.beginPath();
-            ctx.moveTo(7, -10);
-            ctx.lineTo(9 - legSwing, 4);
-            ctx.stroke();
-
-            // Torso / Abrigo largo desgarrado
             ctx.strokeStyle = player.color;
             ctx.fillStyle = '#0b0c10';
-            ctx.lineWidth = 2.4;
+            ctx.lineWidth = 2.5;
 
+            // Torso / abrigo desgarrado
             ctx.beginPath();
-            ctx.moveTo(-bodyW * 0.5, -6);
+            ctx.moveTo(-bodyW * 0.5, 0);
             ctx.lineTo(-bodyW * 0.36, -bodyH * 0.72);
             ctx.lineTo(bodyW * 0.36, -bodyH * 0.72);
-            ctx.lineTo(bodyW * 0.5, -6);
+            ctx.lineTo(bodyW * 0.5, 0);
             ctx.closePath();
             ctx.fill();
             ctx.stroke();
 
-            // Capucha / Cabeza
+            // Cabeza / capucha
             ctx.beginPath();
-            ctx.arc(0, -bodyH * 0.88, 12, 0, Math.PI * 2);
+            ctx.arc(0, -bodyH * 0.88, 11, 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
 
-            // Visor / Símbolo de pulso en la capucha
+            // Núcleo ASCII en la espalda del corredor (⚡ al golpear / ◊ en carrera)
             ctx.fillStyle = player.color;
-            ctx.font = 'bold 11px monospace';
+            ctx.font = 'bold 14px monospace';
             ctx.textAlign = 'center';
-            ctx.fillText(player.id === 1 ? 'P1' : (player.isAuto ? 'AUTO' : 'P2'), 0, -bodyH * 0.38);
+            ctx.fillText(player.bActionTimer > 0 ? '⚡' : '◊', 0, -bodyH * 0.38);
 
-            // Indicador flotante diegético de BPM junto al corredor
-            const heartImg = this.images[this.sprites.heart];
+            // Guía visual diegética de BPM junto al corredor con icono corazon.png que palpita
+            const bpm = player.bpm || 110;
+            const pulseScale = 1 + Math.max(0, Math.sin(player.heartPulsePhase || 0)) * 0.14;
+
             ctx.save();
             ctx.translate(bodyW * 1.15, -bodyH * 0.58);
+            ctx.scale(pulseScale, pulseScale);
             ctx.textAlign = 'left';
             ctx.font = 'bold 12px monospace';
             ctx.fillStyle = player.color;
-            if (heartImg && heartImg.complete && heartImg.naturalWidth > 0) {
-                ctx.drawImage(heartImg, 0, -11, 13, 13);
-                ctx.fillText(`${player.bpm}`, 16, 0);
+            if (this.heartImg && this.heartImg.complete && this.heartImg.naturalWidth > 0) {
+                ctx.drawImage(this.heartImg, 0, -11, 13, 13);
+                ctx.fillText(`${bpm}`, 16, 0);
             } else {
-                ctx.fillText(`♥ ${player.bpm}`, 0, 0);
+                ctx.fillText(`♥ ${bpm}`, 0, 0);
             }
             ctx.restore();
 
@@ -1623,56 +1689,49 @@
         }
 
         // ====================================================================
-        // EFECTO VIÑETA PSICOLÓGICA DE PERSECUCIÓN
+        // EFECTO VIÑETA PSICOLÓGICA DE PERSECUCIÓN Y OSCURIDAD ASCENDENTE
         // ====================================================================
 
         _drawPursuitVignette(ctx, now) {
+            const threat = 0.55;
+            const baseVignette = 0.45 + threat * 0.45;
+
             const rad = ctx.createRadialGradient(
-                this.width * 0.5, this.height * 0.5, this.height * 0.35,
-                this.width * 0.5, this.height * 0.5, this.height * 0.88
+                this.width * 0.5, this.height * 0.55, this.height * (0.38 - threat * 0.22),
+                this.width * 0.5, this.height * 0.55, this.height * 0.85
             );
             rad.addColorStop(0, 'rgba(0, 0, 0, 0)');
-            rad.addColorStop(0.7, 'rgba(15, 2, 5, 0.42)');
-            rad.addColorStop(1, 'rgba(140, 8, 24, 0.52)');
+            rad.addColorStop(0.7, `rgba(15, 2, 5, ${baseVignette * 0.7})`);
+            rad.addColorStop(1, `rgba(140, 8, 24, ${baseVignette})`);
 
             ctx.fillStyle = rad;
             ctx.fillRect(0, 0, this.width, this.height);
+
+            // Oscuridad y humo carmesí que asciende desde el borde inferior
+            const creepH = this.height * 0.32 * threat;
+            const bottomGrad = ctx.createLinearGradient(0, this.height, 0, this.height - creepH);
+            bottomGrad.addColorStop(0, `rgba(180, 10, 30, ${0.52 * threat})`);
+            bottomGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = bottomGrad;
+            ctx.fillRect(0, this.height - creepH, this.width, creepH);
         }
 
         // ====================================================================
-        // PARTÍCULAS
+        // PARTÍCULAS 2.5D EN ESPACIO DEL MUNDO (IDÉNTICO A RENDERER.JS)
         // ====================================================================
 
-        _spawnAsciiParticles(x, y, color, count) {
-            const chars = ['▓', '▪', '■', '╪', '╬'];
+        _spawnImpactParticles(lane, worldZ, color, count, lateralBias = 0) {
             for (let i = 0; i < count; i++) {
                 this.particles.push({
-                    x,
-                    y,
-                    vx: (Math.random() - 0.5) * 380,
-                    vy: -Math.random() * 260 - 80,
-                    char: chars[Math.floor(Math.random() * chars.length)],
+                    lane: lane + (Math.random() - 0.5) * 0.35,
+                    z: worldZ + (Math.random() - 0.5) * 20,
+                    yOffset: Math.random() * 90,
+                    vLane: (Math.random() - 0.5) * 2.2 + lateralBias * (1.5 + Math.random() * 2.0),
+                    vY: (Math.random() - 0.3) * 180,
+                    life: 0.35 + Math.random() * 0.35,
+                    maxLife: 0.70,
                     color,
-                    life: 0.65,
-                    maxLife: 0.65,
-                    isAscii: true
-                });
-            }
-        }
-
-        _spawnHeartParticles(x, y, count) {
-            const chars = ['♥', '★', '♦', '+'];
-            for (let i = 0; i < count; i++) {
-                this.particles.push({
-                    x,
-                    y,
-                    vx: (Math.random() - 0.5) * 320,
-                    vy: -Math.random() * 320 - 90,
-                    char: chars[Math.floor(Math.random() * chars.length)],
-                    color: Math.random() < 0.5 ? '#ff2a6d' : '#ffea79',
-                    life: 0.85,
-                    maxLife: 0.85,
-                    isAscii: true
+                    char: Math.random() < 0.5 ? '▓' : '▪'
                 });
             }
         }
@@ -1680,28 +1739,29 @@
         _updateParticles(dt) {
             for (let i = this.particles.length - 1; i >= 0; i--) {
                 const pt = this.particles[i];
-                pt.x += pt.vx * dt;
-                pt.y += pt.vy * dt;
-                pt.vy += 650 * dt; // Gravedad
                 pt.life -= dt;
                 if (pt.life <= 0) {
                     this.particles.splice(i, 1);
+                    continue;
                 }
+                pt.lane += pt.vLane * dt;
+                pt.yOffset += pt.vY * dt;
+                pt.vY -= 420 * dt; // Gravedad idéntica
             }
         }
 
-        _drawParticles(ctx) {
+        _updateAndDrawParticles(ctx, dt) {
             ctx.textAlign = 'center';
             for (const pt of this.particles) {
+                const relZ = pt.z - this.worldZ;
+                if (relZ < -80 || relZ > MP_CONFIG.VISUALS.HORIZON_Z) continue;
+
+                const proj = this.project(pt.lane, relZ);
                 const alpha = Math.max(0, pt.life / pt.maxLife);
                 ctx.fillStyle = pt.color;
                 ctx.globalAlpha = alpha;
-                if (pt.isAscii) {
-                    ctx.font = 'bold 15px monospace';
-                    ctx.fillText(pt.char, pt.x, pt.y);
-                } else {
-                    ctx.fillRect(pt.x - 2, pt.y - 2, 4, 4);
-                }
+                ctx.font = `bold ${Math.max(9, Math.floor(18 * proj.scale))}px monospace`;
+                ctx.fillText(pt.char, proj.x, proj.y - pt.yOffset * proj.scale);
             }
             ctx.globalAlpha = 1.0;
         }
