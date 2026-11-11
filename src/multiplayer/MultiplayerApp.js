@@ -60,8 +60,8 @@
         SPAWN: {
             STEP: 560,               // Espaciado más amplio: menos congestión, más fluidez
             OBSTACLE_CHANCE: 0.44,   // Probabilidad moderada para asegurar carriles libres
-            EXTRA_LIFE_STEP: 980,    // Intervalo de vidas extra
-            EXTRA_LIFE_CHANCE: 0.38
+            EXTRA_LIFE_STEP: 3400,   // Aparición muy ocasional (cada ~3.5 a 4.5 km)
+            EXTRA_LIFE_CHANCE: 0.20  // Probabilidad baja para que sea un premio raro
         },
         VISUALS: {
             HORIZON_Z: 2800,
@@ -129,68 +129,10 @@
             }
         }
 
-        playWhoosh() {
-            this._ensureCtx();
-            if (!this.ctx) return;
-            const now = this.ctx.currentTime;
-            const osc = this.ctx.createOscillator();
-            const gain = this.ctx.createGain();
-
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(260, now);
-            osc.frequency.exponentialRampToValueAtTime(70, now + 0.14);
-
-            gain.gain.setValueAtTime(0.18, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
-
-            osc.connect(gain);
-            gain.connect(this.ctx.destination);
-
-            osc.start(now);
-            osc.stop(now + 0.15);
-        }
-
-        playSmash() {
-            this._ensureCtx();
-            if (!this.ctx) return;
-            const now = this.ctx.currentTime;
-            const osc = this.ctx.createOscillator();
-            const gain = this.ctx.createGain();
-
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(140, now);
-            osc.frequency.exponentialRampToValueAtTime(32, now + 0.22);
-
-            gain.gain.setValueAtTime(0.25, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
-
-            osc.connect(gain);
-            gain.connect(this.ctx.destination);
-
-            osc.start(now);
-            osc.stop(now + 0.23);
-        }
-
-        playDamage() {
-            this._ensureCtx();
-            if (!this.ctx) return;
-            const now = this.ctx.currentTime;
-            const osc = this.ctx.createOscillator();
-            const gain = this.ctx.createGain();
-
-            osc.type = 'square';
-            osc.frequency.setValueAtTime(95, now);
-            osc.frequency.exponentialRampToValueAtTime(25, now + 0.32);
-
-            gain.gain.setValueAtTime(0.28, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
-
-            osc.connect(gain);
-            gain.connect(this.ctx.destination);
-
-            osc.start(now);
-            osc.stop(now + 0.33);
-        }
+        // Sonidos de golpes, barridos y daño silenciados a petición del usuario para modo multijugador
+        playWhoosh() {}
+        playSmash() {}
+        playDamage() {}
 
         playHeart() {
             this._ensureCtx();
@@ -336,7 +278,7 @@
             this.particles = [];
             this.nextObsId = 1;
             this.nextSpawnZ = 460;
-            this.nextHeartZ = 900;
+            this.nextHeartZ = 2800; // Primer corazón a buena distancia para que sea muy ocasional
 
             this.asciiBackgroundNodes = this._generateAsciiRoadside();
 
@@ -594,14 +536,12 @@
         _triggerActionP1() {
             if (!this.p1.isAlive) return;
             this.p1.bActionTimer = MP_CONFIG.COMBAT.ACTION_DURATION_MS / 1000;
-            this.sound.playWhoosh();
             this._executeStrike(this.p1);
         }
 
         _triggerActionP2() {
             if (!this.p2.isAlive) return;
             this.p2.bActionTimer = MP_CONFIG.COMBAT.ACTION_DURATION_MS / 1000;
-            this.sound.playWhoosh();
             this._executeStrike(this.p2);
         }
 
@@ -609,9 +549,16 @@
             const range = MP_CONFIG.COMBAT.INTERACTION_RANGE;
             const target = this.obstacles.find(obs => {
                 if (obs.state === 'SHATTERED' || obs.state === 'COLLAPSED') return false;
-                if (obs.lane !== player.lane) return false;
+                if (obs.state === 'TOPPLING') return false;
+
+                // Tolerancia fluida de carril (comprueba carril destino y carril visual en transición)
+                const distToTargetLane = Math.abs(obs.lane - player.lane);
+                const distToVisualLane = Math.abs(obs.lane - player.visualLane);
+                const laneDist = Math.min(distToTargetLane, distToVisualLane);
+                if (laneDist > 0.65) return false;
+
                 const relZ = obs.z - this.worldZ;
-                return relZ >= -20 && relZ <= range;
+                return relZ >= -42 && relZ <= range;
             });
 
             if (!target) return;
@@ -621,22 +568,20 @@
             if (target.type === 'TOWER') {
                 target.state = 'TOPPLING';
                 target.toppleProgress = 0;
-                target.lane = target.fallTargetLane;
+                // NOTA: No alteramos target.lane aquí; la base permanece en su carril original
+                // y rota visualmente hacia fallTargetLane. El carril original queda libre al instante.
                 this.addShake(4.5);
                 this._triggerFlash('#ffbf69', 0.22);
-                this.sound.playSmash();
                 this._spawnImpactParticles(target.lane, target.z, '#ff9f1c', 28, (target.fallTargetLane - target.lane) * 1.8);
             } else if (target.type === 'BARRICADE') {
                 target.state = 'SHATTERED';
                 target.shatterProgress = 0;
                 this.addShake(4.8);
                 this._triggerFlash('#ff9f1c', 0.24);
-                this.sound.playSmash();
                 this._spawnImpactParticles(target.lane, target.z, '#e71d36', 28, 0);
             } else if (target.type === 'MONOLITH') {
                 target.flashTimer = 0.20;
                 this.addShake(2.8);
-                this.sound.playDamage();
                 this._spawnImpactParticles(target.lane, target.z, '#ffffff', 16, 0);
             }
         }
@@ -674,8 +619,9 @@
             }
 
             const upcoming = this.obstacles.find(obs => {
-                if (obs.state === 'SHATTERED' || obs.state === 'COLLAPSED') return false;
-                if (obs.lane !== player.lane) return false;
+                if (obs.state === 'SHATTERED' || obs.state === 'COLLAPSED' || obs.state === 'TOPPLING') return false;
+                const laneDist = Math.abs(obs.lane - player.lane);
+                if (laneDist > 0.45) return false;
                 const relZ = obs.z - this.worldZ;
                 return relZ >= 30 && relZ <= 230;
             });
@@ -768,7 +714,7 @@
                         });
                     }
                 }
-                this.nextHeartZ += MP_CONFIG.SPAWN.EXTRA_LIFE_STEP + Math.floor(Math.random() * 300);
+                this.nextHeartZ += MP_CONFIG.SPAWN.EXTRA_LIFE_STEP + Math.floor(Math.random() * 1200);
             }
         }
 
@@ -927,10 +873,10 @@
             // 1. Recolección de Vida Extra (Corazón)
             for (const item of this.extraLives) {
                 if (item.collected) continue;
-                const sameLane = Math.abs(player.visualLane - item.lane) < 0.48;
+                const laneDist = Math.abs(player.visualLane - item.lane);
                 const relZ = item.z - this.worldZ;
 
-                if (sameLane && Math.abs(relZ) <= 38) {
+                if (laneDist <= 0.40 && Math.abs(relZ) <= 38) {
                     item.collected = true;
                     if (player.lives < MP_CONFIG.COMBAT.MAX_LIVES) {
                         player.lives++;
@@ -948,18 +894,29 @@
             for (const obs of this.obstacles) {
                 if (obs.state === 'SHATTERED') continue;
 
-                const sameLane = Math.abs(player.visualLane - obs.lane) < 0.44;
-                const relZ = obs.z - this.worldZ;
+                // Si la estructura fue golpeada con [B] y está cayendo (TOPPLING),
+                // el carril original ya quedó 100% despejado y aún no termina de aplastar el destino
+                if (obs.state === 'TOPPLING' && obs.toppleProgress < 0.78) {
+                    continue;
+                }
 
-                if (sameLane && Math.abs(relZ) <= 34) {
+                // Una estructura derrumbada solo es letal en su carril de caída final (fallTargetLane)
+                const effectiveObsLane = (obs.state === 'ACTIVE' || (obs.state === 'TOPPLING' && obs.toppleProgress < 0.78))
+                    ? obs.lane
+                    : (obs.fallTargetLane !== null && obs.fallTargetLane !== undefined ? obs.fallTargetLane : obs.lane);
+
+                const laneDist = Math.abs(player.visualLane - effectiveObsLane);
+                if (laneDist > 0.35) continue; // Tolerancia estricta y calibrada (0.35) para evitar choques falsos
+
+                const relZ = obs.z - this.worldZ;
+                if (relZ >= -24 && relZ <= 38) {
                     player.lives--;
                     player.invulnerableTimer = MP_CONFIG.COMBAT.INVULNERABLE_DURATION;
 
                     obs.state = 'SHATTERED';
-                    this.sound.playDamage();
                     this.addShake(5.5);
                     this._triggerFlash('#ff2a4b', 0.38);
-                    this._spawnImpactParticles(obs.lane, obs.z, '#ff5964', 28, 0);
+                    this._spawnImpactParticles(effectiveObsLane, obs.z, '#ff5964', 28, 0);
 
                     if (player.lives <= 0) {
                         player.lives = 0;
@@ -1040,7 +997,7 @@
             this.particles = [];
             this.nextObsId = 1;
             this.nextSpawnZ = 460;
-            this.nextHeartZ = 900;
+            this.nextHeartZ = 2800; // Primer corazón a buena distancia para que sea muy ocasional
 
             this._updateStatusHints();
 
