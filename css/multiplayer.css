@@ -1,6 +1,6 @@
 /* ==========================================================================
-   PSYCHOLOGICAL SURVIVAL RUNNER — MULTIJUGADOR LOCAL (2 JUGADORES)
-   Hereda la estética auténtica CONTEC y añade layout dual de 6 carriles.
+   PSYCHOLOGICAL SURVIVAL RUNNER — MULTIJUGADOR LOCAL (2 JUGADORES / 6 CARRILES)
+   Diseño de cámara elevada, monitores compactos responsive y HUD dual.
    ========================================================================== */
 
 @import url('style.css');
@@ -29,7 +29,23 @@ html, body {
     background: #040406;
 }
 
-/* Header superior con dos monitores CONTEC completos */
+/* Capa CRT scanlines sutil */
+.crt-overlay {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 10;
+    background: repeating-linear-gradient(
+        to bottom,
+        rgba(0, 0, 0, 0) 0px,
+        rgba(0, 0, 0, 0) 2px,
+        rgba(0, 10, 6, 0.18) 3px,
+        rgba(0, 0, 0, 0.22) 4px
+    );
+    box-shadow: inset 0 0 70px rgba(0, 0, 0, 0.85);
+}
+
+/* Header superior con dos monitores CONTEC compactos y bien escalados */
 #mp-top-bar {
     position: fixed;
     top: 6px;
@@ -43,23 +59,23 @@ html, body {
     gap: 8px;
 }
 
-/* Monitor individual CONTEC escalado para caber a ambos lados */
+/* Monitor individual CONTEC escalado compacto para no tapar la vista del juego */
 .mp-monitor-shell {
     position: relative;
-    width: clamp(340px, 38vw, 480px);
-    height: calc(clamp(340px, 38vw, 480px) * 184 / 500);
-    max-width: 48vw;
+    width: clamp(260px, 29vw, 390px);
+    height: calc(clamp(260px, 29vw, 390px) * 184 / 500);
+    max-width: 38vw;
     pointer-events: auto;
     filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.95));
 }
 
 .mp-player-badge {
     display: inline-block;
-    font-size: 10px;
+    font-size: 9.5px;
     font-weight: bold;
     padding: 1px 5px;
     border-radius: 2px;
-    margin-right: 4px;
+    margin-right: 3px;
 }
 
 .p1-badge {
@@ -74,96 +90,28 @@ html, body {
     border: 1px solid #ff9f1c;
 }
 
-/* Columna de controles bajo cada monitor */
-.mp-controls-guide {
-    position: fixed;
-    bottom: 12px;
-    z-index: 20;
-    font-size: clamp(10px, 1.05vw, 12px);
-    letter-spacing: 1px;
-    background: rgba(6, 8, 12, 0.85);
-    padding: 6px 12px;
-    border: 1px solid #1e293b;
-    pointer-events: auto;
-}
-
-.guide-p1 {
-    left: 14px;
-    border-left: 3px solid #2ec4b6;
-    color: #cbd5e1;
-}
-
-.guide-p2 {
-    right: 14px;
-    border-right: 3px solid #ff9f1c;
-    color: #cbd5e1;
-    text-align: right;
-}
-
-/* Botón interactivo para cambiar a control manual de P2 */
-.mp-p2-toggle-wrap {
-    position: fixed;
-    top: calc(clamp(340px, 38vw, 480px) * 184 / 500 + 12px);
-    right: 14px;
-    z-index: 22;
-    pointer-events: auto;
-}
-
-.mp-bot-toggle-btn {
-    background: rgba(255, 159, 28, 0.12);
-    border: 1px solid #ff9f1c;
-    color: #ff9f1c;
-    font-family: inherit;
-    font-size: 11px;
-    font-weight: bold;
-    letter-spacing: 1px;
-    padding: 5px 12px;
-    border-radius: 3px;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s, transform 0.15s;
-    text-shadow: 0 0 5px rgba(255, 159, 28, 0.4);
-}
-
-.mp-bot-toggle-btn:hover {
-    background: #ff9f1c;
-    color: #040406;
-    transform: scale(1.04);
-}
-
-.mp-bot-toggle-btn.manual-active {
-    background: rgba(46, 196, 182, 0.18);
-    border-color: #2ec4b6;
-    color: #2ec4b6;
-    text-shadow: 0 0 5px rgba(46, 196, 182, 0.4);
-}
-
-.mp-bot-toggle-btn.manual-active:hover {
-    background: #2ec4b6;
-    color: #040406;
-}
-
-/* Centro superior con odómetro y botón de retorno */
+/* Centro superior con odómetro y retorno */
 #mp-center-dock {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
-    margin-top: 4px;
+    gap: 3px;
+    margin-top: 2px;
     pointer-events: auto;
 }
 
 .mp-center-badge {
-    font-size: 10px;
+    font-size: 9.5px;
     letter-spacing: 1.5px;
     color: #94a3b8;
     background: rgba(15, 23, 42, 0.85);
     border: 1px solid #334155;
-    padding: 2px 8px;
+    padding: 2px 7px;
     border-radius: 2px;
 }
 
 .mp-odometer {
-    font-size: clamp(14px, 1.5vw, 18px);
+    font-size: clamp(13px, 1.4vw, 17px);
     font-weight: bold;
     color: #ffffff;
     letter-spacing: 1.5px;
@@ -171,7 +119,7 @@ html, body {
 }
 
 .mp-return-link {
-    font-size: 10px;
+    font-size: 9.5px;
     letter-spacing: 1px;
     color: #94a3b8;
     text-decoration: none;
@@ -186,6 +134,32 @@ html, body {
     border-color: #2ec4b6;
 }
 
+/* Banners de estado de controles (Manual vs Auto) */
+.mp-mode-hint {
+    position: fixed;
+    bottom: 12px;
+    z-index: 20;
+    font-size: clamp(10px, 1.05vw, 12px);
+    letter-spacing: 1px;
+    background: rgba(6, 8, 12, 0.88);
+    padding: 6px 14px;
+    border: 1px solid #1e293b;
+    pointer-events: none;
+}
+
+.hint-p1 {
+    left: 14px;
+    border-left: 3px solid #2ec4b6;
+    color: #cbd5e1;
+}
+
+.hint-p2 {
+    right: 14px;
+    border-right: 3px solid #ff9f1c;
+    color: #cbd5e1;
+    text-align: right;
+}
+
 /* Alertas de eliminación en pantalla */
 .mp-elimination-tag {
     position: fixed;
@@ -195,7 +169,7 @@ html, body {
     font-weight: bold;
     letter-spacing: 3px;
     padding: 10px 20px;
-    background: rgba(6, 6, 10, 0.92);
+    background: rgba(6, 6, 10, 0.94);
     border: 2px solid #ff2a3a;
     box-shadow: 0 0 24px rgba(255, 42, 58, 0.65);
     color: #ff4d6d;
@@ -294,4 +268,8 @@ html, body {
     color: #2ec4b6;
     text-shadow: 0 0 10px rgba(46, 196, 182, 0.9);
     transform: scale(1.06);
+}
+
+.hidden {
+    display: none !important;
 }

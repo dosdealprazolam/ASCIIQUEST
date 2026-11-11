@@ -14,7 +14,7 @@
     <!-- Capa de Líneas de Escaneo CRT -->
     <div class="crt-overlay"></div>
 
-    <!-- HUD SUPERIOR: 2 MONITORES MÉDICOS CONTEC (P1 Izquierda / P2 Derecha) -->
+    <!-- HUD SUPERIOR: 2 MONITORES MÉDICOS CONTEC COMPACTOS (P1 Izquierda / P2 Derecha) -->
     <header id="mp-top-bar">
         <!-- 1. MONITOR MÉDICO CONTEC — JUGADOR 1 -->
         <div id="p1-monitor-shell" class="monitor-shell-container mp-monitor-shell">
@@ -25,13 +25,13 @@
                         <span class="mp-player-badge p1-badge">P1</span>
                         <div class="player-name-mini-box monitor-crt-name-box">
                             <span class="monitor-lbl">ID:</span>
-                            <span style="color:#2ec4b6; font-size:10px; font-weight:bold;">JUGADOR 1</span>
+                            <span id="p1-mode-tag" style="color:#2ec4b6; font-size:10px; font-weight:bold;">P1 (AUTO)</span>
                         </div>
                     </div>
                     <div class="monitor-top-stats">
                         <div class="monitor-stat-item">
                             <span class="monitor-lbl">VIDAS:</span>
-                            <span id="p1-lives-display" class="monitor-val" style="color:#ff2a4b; font-size:12px; font-weight:bold;">♥ ♥ ♥</span>
+                            <span id="p1-lives-display" class="monitor-val" style="color:#ff2a4b; font-size:11px; font-weight:bold;">♥ ♥ ♥</span>
                         </div>
                     </div>
                 </div>
@@ -91,13 +91,13 @@
                         <span class="mp-player-badge p2-badge">P2</span>
                         <div class="player-name-mini-box monitor-crt-name-box">
                             <span class="monitor-lbl">ID:</span>
-                            <span style="color:#ff9f1c; font-size:10px; font-weight:bold;">JUGADOR 2</span>
+                            <span id="p2-mode-tag" style="color:#ff9f1c; font-size:10px; font-weight:bold;">P2 (AUTO)</span>
                         </div>
                     </div>
                     <div class="monitor-top-stats">
                         <div class="monitor-stat-item">
                             <span class="monitor-lbl">VIDAS:</span>
-                            <span id="p2-lives-display" class="monitor-val" style="color:#ff2a4b; font-size:12px; font-weight:bold;">♥ ♥ ♥</span>
+                            <span id="p2-lives-display" class="monitor-val" style="color:#ff2a4b; font-size:11px; font-weight:bold;">♥ ♥ ♥</span>
                         </div>
                     </div>
                 </div>
@@ -142,19 +142,12 @@
         </div>
     </header>
 
-    <!-- Botón interactivo en el lado de P2 para tomar control manual -->
-    <div class="mp-p2-toggle-wrap">
-        <button id="btn-toggle-p2-control" type="button" class="mp-bot-toggle-btn">
-            🤖 P2: MODO AUTOMÁTICO (CLIC PARA USAR P2)
-        </button>
+    <!-- Indicadores de control inferior (Al tocar cualquier tecla se toma el control) -->
+    <div id="p1-hint" class="mp-mode-hint hint-p1">
+        <strong style="color:#2ec4b6;">P1 [CARRILES 1-3]:</strong> <span id="p1-control-status">AUTO (PULSA [A] O [F] PARA CONTROLAR)</span>
     </div>
-
-    <!-- Guías discretas de control en la base de la pantalla -->
-    <div class="mp-controls-guide guide-p1">
-        <strong style="color:#2ec4b6;">P1 [CARRILES 1-3]:</strong> [A] Micro-soltado (&lt;0.25s) cambia carril &nbsp;|&nbsp; [F] Golpear
-    </div>
-    <div class="mp-controls-guide guide-p2">
-        <strong style="color:#ff9f1c;">P2 [CARRILES 4-6]:</strong> [H] Micro-soltado (&lt;0.25s) cambia carril &nbsp;|&nbsp; [L] Golpear
+    <div id="p2-hint" class="mp-mode-hint hint-p2">
+        <strong style="color:#ff9f1c;">P2 [CARRILES 4-6]:</strong> <span id="p2-control-status">AUTO (PULSA [H] O [L] PARA CONTROLAR)</span>
     </div>
 
     <!-- Alertas en vivo de eliminación -->
