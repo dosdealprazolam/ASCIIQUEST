@@ -66,8 +66,8 @@
         VISUALS: {
             HORIZON_Z: 2800,
             TRACK_MAX_WIDTH: 1180,
-            SCREEN_SHAKE_FACTOR: 0.65, // Vibración sutil pedida por el usuario
-            SCREEN_SHAKE_DECAY: 13.5
+            SCREEN_SHAKE_FACTOR: 1.0, // Vibración nítida y calibrada
+            SCREEN_SHAKE_DECAY: 14.0
         },
         AUDIO: {
             MUSIC_TRACK: 'music/Deejay SaeRo - Thud Weight.mp3',
@@ -277,8 +277,10 @@
             this.extraLives = [];
             this.particles = [];
             this.nextObsId = 1;
-            this.nextSpawnZ = 460;
+            this.nextSpawnZ = 1400;
             this.nextHeartZ = 2800; // Primer corazón a buena distancia para que sea muy ocasional
+            this.matchElapsed = 0;
+            this.WARMUP_DURATION = 11.0; // 10-12 segundos de calentamiento inicial
 
             this.asciiBackgroundNodes = this._generateAsciiRoadside();
 
@@ -420,7 +422,7 @@
 
         addShake(amount) {
             const scaled = amount * MP_CONFIG.VISUALS.SCREEN_SHAKE_FACTOR;
-            this.shakeIntensity = Math.min(6.5, this.shakeIntensity + scaled);
+            this.shakeIntensity = Math.min(10.0, this.shakeIntensity + scaled);
         }
 
         _triggerFlash(color, alpha = 0.22) {
@@ -546,7 +548,11 @@
         }
 
         _executeStrike(player) {
-            const range = MP_CONFIG.COMBAT.INTERACTION_RANGE;
+            // Rango dinámico generoso calibrado para velocidad alta (920-1080 u/s)
+            // A 1000 u/s, otorga aprox. 390ms de tiempo de reacción justo para reflejos humanos
+            const speedFactor = Math.max(1.0, this.currentSpeed / 520);
+            const range = Math.max(380, Math.round(MP_CONFIG.COMBAT.INTERACTION_RANGE * speedFactor));
+
             const target = this.obstacles.find(obs => {
                 if (obs.state === 'SHATTERED' || obs.state === 'COLLAPSED') return false;
                 if (obs.state === 'TOPPLING') return false;
@@ -563,26 +569,25 @@
 
             if (!target) return;
 
-            target.hitFlashTimer = 0.25;
+            target.hitFlashTimer = 0.35;
+            target.clearedByPlayer = player.id;
+            target.clearedLane = target.lane;
 
             if (target.type === 'TOWER') {
                 target.state = 'TOPPLING';
                 target.toppleProgress = 0;
-                // NOTA: No alteramos target.lane aquí; la base permanece en su carril original
-                // y rota visualmente hacia fallTargetLane. El carril original queda libre al instante.
-                this.addShake(4.5);
-                this._triggerFlash('#ffbf69', 0.22);
-                this._spawnImpactParticles(target.lane, target.z, '#ff9f1c', 28, (target.fallTargetLane - target.lane) * 1.8);
+                // Vibración sutil de pantalla en todo el viewport al derribar
+                this.addShake(4.2);
+                this._triggerFlash('#ffbf69', 0.20);
             } else if (target.type === 'BARRICADE') {
                 target.state = 'SHATTERED';
                 target.shatterProgress = 0;
-                this.addShake(4.8);
-                this._triggerFlash('#ff9f1c', 0.24);
-                this._spawnImpactParticles(target.lane, target.z, '#e71d36', 28, 0);
+                // Vibración sutil de pantalla en todo el viewport al romper
+                this.addShake(3.6);
+                this._triggerFlash('#ff9f1c', 0.22);
             } else if (target.type === 'MONOLITH') {
-                target.flashTimer = 0.20;
-                this.addShake(2.8);
-                this._spawnImpactParticles(target.lane, target.z, '#ffffff', 16, 0);
+                target.flashTimer = 0.25;
+                this.addShake(2.0);
             }
         }
 
@@ -679,13 +684,33 @@
         }
 
         // ====================================================================
-        // GENERACIÓN DE OBSTÁCULOS Y VIDAS EXTRA (ESPACIADO FLUIDO)
+        // GENERACIÓN DE OBSTÁCULOS CON CALENTAMIENTO (10-12 SEGUNDOS)
         // ====================================================================
 
         _spawnWorldEntities() {
+            const inWarmup = this.matchElapsed < this.WARMUP_DURATION;
+
             while (this.nextSpawnZ < this.worldZ + 1800) {
                 const z = this.nextSpawnZ;
 
+                if (inWarmup) {
+                    // Primeros 4.5 segundos: pista 100% libre para adaptarse al frenetismo y postura
+                    // De 4.5 a 11.0 segundos: calentamiento con barricadas individuales suaves para probar [F] y [L]
+                    if (this.matchElapsed >= 4.5) {
+                        if (Math.random() < 0.45) {
+                            const lP1 = Math.floor(Math.random() * 3);
+                            this._createWarmupBarricade(lP1, z);
+                        }
+                        if (Math.random() < 0.45) {
+                            const lP2 = 3 + Math.floor(Math.random() * 3);
+                            this._createWarmupBarricade(lP2, z);
+                        }
+                    }
+                    this.nextSpawnZ += 1150; // Espaciado holgado durante calentamiento
+                    continue;
+                }
+
+                // Generación regular completa tras el calentamiento
                 if (Math.random() < MP_CONFIG.SPAWN.OBSTACLE_CHANCE) {
                     const lP1 = Math.floor(Math.random() * 3);
                     this._createObstacle(lP1, z, MP_CONFIG.LANES.P1_LANES);
@@ -716,6 +741,25 @@
                 }
                 this.nextHeartZ += MP_CONFIG.SPAWN.EXTRA_LIFE_STEP + Math.floor(Math.random() * 1200);
             }
+        }
+
+        _createWarmupBarricade(lane, z) {
+            this.obstacles.push({
+                id: this.nextObsId++,
+                lane,
+                z,
+                type: 'BARRICADE',
+                fallTargetLane: null,
+                tiltDir: 1,
+                state: 'ACTIVE',
+                toppleProgress: 0,
+                shatterProgress: 0,
+                flashTimer: 0,
+                hitFlashTimer: 0,
+                isRareRightVariant: false,
+                is5000RightVariant: false,
+                spriteVariantIndex: Math.floor(Math.random() * 4)
+            });
         }
 
         _createObstacle(lane, z, validLanes) {
@@ -785,6 +829,7 @@
             const activeSpeed = (this.p1.isAlive || this.p2.isAlive) ? this.currentSpeed : 0;
             this.worldZ += activeSpeed * dt;
             this.distanceMeters = Math.floor(this.worldZ / 10);
+            this.matchElapsed += dt;
 
             if (this.shakeIntensity > 0) {
                 this.shakeIntensity = Math.max(0, this.shakeIntensity - MP_CONFIG.VISUALS.SCREEN_SHAKE_DECAY * dt);
@@ -884,7 +929,6 @@
                     this.sound.playHeart();
                     this.addShake(2.0);
                     this._triggerFlash('#ff2a6d', 0.22);
-                    this._spawnImpactParticles(item.lane, item.z, '#ff2a6d', 20, 0);
                 }
             }
 
@@ -900,23 +944,27 @@
                     continue;
                 }
 
+                // Si este jugador ya derribó/despejó esta estructura en su carril, no puede morir en su propio carril
+                if (obs.clearedByPlayer === player.id && Math.abs(player.visualLane - obs.clearedLane) <= 0.45) {
+                    continue;
+                }
+
                 // Una estructura derrumbada solo es letal en su carril de caída final (fallTargetLane)
                 const effectiveObsLane = (obs.state === 'ACTIVE' || (obs.state === 'TOPPLING' && obs.toppleProgress < 0.78))
                     ? obs.lane
                     : (obs.fallTargetLane !== null && obs.fallTargetLane !== undefined ? obs.fallTargetLane : obs.lane);
 
                 const laneDist = Math.abs(player.visualLane - effectiveObsLane);
-                if (laneDist > 0.35) continue; // Tolerancia estricta y calibrada (0.35) para evitar choques falsos
+                if (laneDist > 0.34) continue; // Tolerancia estricta y calibrada para evitar choques falsos
 
                 const relZ = obs.z - this.worldZ;
-                if (relZ >= -24 && relZ <= 38) {
+                if (relZ >= -18 && relZ <= 34) {
                     player.lives--;
                     player.invulnerableTimer = MP_CONFIG.COMBAT.INVULNERABLE_DURATION;
 
                     obs.state = 'SHATTERED';
-                    this.addShake(5.5);
-                    this._triggerFlash('#ff2a4b', 0.38);
-                    this._spawnImpactParticles(effectiveObsLane, obs.z, '#ff5964', 28, 0);
+                    this.addShake(6.5);
+                    this._triggerFlash('#ff2a4b', 0.35);
 
                     if (player.lives <= 0) {
                         player.lives = 0;
@@ -996,8 +1044,10 @@
             this.extraLives = [];
             this.particles = [];
             this.nextObsId = 1;
-            this.nextSpawnZ = 460;
+            this.nextSpawnZ = 1400;
             this.nextHeartZ = 2800; // Primer corazón a buena distancia para que sea muy ocasional
+            this.matchElapsed = 0;
+            this.WARMUP_DURATION = 11.0; // 10-12 segundos de calentamiento inicial
 
             this._updateStatusHints();
 
@@ -1112,10 +1162,10 @@
 
             ctx.save();
 
-            // Vibración sutil de pantalla (firme, sin jitter mareante)
+            // Vibración sutil de pantalla (firme, perceptible pero ligera en todo el viewport)
             if (this.shakeIntensity > 0.05) {
-                const sx = (Math.random() - 0.5) * this.shakeIntensity * 0.75;
-                const sy = (Math.random() - 0.5) * this.shakeIntensity * 0.75;
+                const sx = (Math.random() - 0.5) * this.shakeIntensity * 1.5;
+                const sy = (Math.random() - 0.5) * this.shakeIntensity * 1.5;
                 ctx.translate(sx, sy);
             }
 
@@ -1154,6 +1204,56 @@
                 ctx.globalAlpha = this.flashAlpha;
                 ctx.fillRect(0, 0, this.width, this.height);
                 ctx.globalAlpha = 1.0;
+            }
+
+            // 11. Banner de calentamiento y apertura competitiva
+            this._drawWarmupBanner(ctx);
+
+            ctx.restore();
+        }
+
+        _drawWarmupBanner(ctx) {
+            if (this.matchElapsed >= this.WARMUP_DURATION + 2.2) return;
+
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const cx = this.width * 0.5;
+            const bannerY = Math.max(90, this.height * 0.16);
+
+            if (this.matchElapsed < this.WARMUP_DURATION) {
+                const remaining = Math.max(0, this.WARMUP_DURATION - this.matchElapsed).toFixed(1);
+                ctx.font = 'bold 14px monospace';
+                const text = `⚡ CALENTAMIENTO: ${remaining}s (PREPARA TUS CONTROLES) ⚡`;
+                const textW = ctx.measureText(text).width + 32;
+
+                ctx.fillStyle = 'rgba(8, 8, 14, 0.85)';
+                ctx.strokeStyle = '#ff9f1c';
+                ctx.lineWidth = 1.6;
+                ctx.fillRect(cx - textW * 0.5, bannerY - 15, textW, 30);
+                ctx.strokeRect(cx - textW * 0.5, bannerY - 15, textW, 30);
+
+                ctx.fillStyle = '#ffbe0b';
+                ctx.shadowColor = '#ff9f1c';
+                ctx.shadowBlur = 10;
+                ctx.fillText(text, cx, bannerY);
+            } else {
+                const fade = Math.max(0, 1.0 - (this.matchElapsed - this.WARMUP_DURATION) / 2.2);
+                ctx.globalAlpha = fade;
+                ctx.font = 'bold 15px monospace';
+                const text = `🏁 ¡CARRERA ACTIVA - A TODO RITMO! 🏁`;
+                const textW = ctx.measureText(text).width + 36;
+
+                ctx.fillStyle = 'rgba(6, 18, 14, 0.90)';
+                ctx.strokeStyle = '#06d6a0';
+                ctx.lineWidth = 2.0;
+                ctx.fillRect(cx - textW * 0.5, bannerY - 15, textW, 30);
+                ctx.strokeRect(cx - textW * 0.5, bannerY - 15, textW, 30);
+
+                ctx.fillStyle = '#06d6a0';
+                ctx.shadowColor = '#06d6a0';
+                ctx.shadowBlur = 14;
+                ctx.fillText(text, cx, bannerY);
             }
 
             ctx.restore();
@@ -1305,8 +1405,10 @@
         }
 
         _drawContextualReachZone(ctx, player) {
+            const speedFactor = Math.max(1.0, this.currentSpeed / 520);
+            const reachRange = Math.max(380, Math.round(MP_CONFIG.COMBAT.INTERACTION_RANGE * speedFactor));
             const nearP = this.project(player.visualLane, 12);
-            const farP = this.project(player.visualLane, MP_CONFIG.COMBAT.INTERACTION_RANGE);
+            const farP = this.project(player.visualLane, reachRange);
 
             const isUsingB = player.bActionTimer > 0;
             const alpha = isUsingB ? 0.38 : 0.09;
@@ -1674,54 +1776,17 @@
         }
 
         // ====================================================================
-        // PARTÍCULAS 2.5D EN ESPACIO DEL MUNDO (IDÉNTICO A RENDERER.JS)
+        // GESTIÓN DE IMPACTOS Y BRILLO (SIN PARTÍCULAS DE TEXTO ASCII)
         // ====================================================================
 
         _spawnImpactParticles(lane, worldZ, color, count, lateralBias = 0) {
-            for (let i = 0; i < count; i++) {
-                this.particles.push({
-                    lane: lane + (Math.random() - 0.5) * 0.35,
-                    z: worldZ + (Math.random() - 0.5) * 20,
-                    yOffset: Math.random() * 90,
-                    vLane: (Math.random() - 0.5) * 2.2 + lateralBias * (1.5 + Math.random() * 2.0),
-                    vY: (Math.random() - 0.3) * 180,
-                    life: 0.35 + Math.random() * 0.35,
-                    maxLife: 0.70,
-                    color,
-                    char: Math.random() < 0.5 ? '▓' : '▪'
-                });
-            }
+            // Eliminadas las expresiones / partículas de bloques ASCII (▓ y ▪) a petición del usuario.
+            // Los obstáculos conservan el brillo y halo limpio original de Renderer.js.
         }
 
-        _updateParticles(dt) {
-            for (let i = this.particles.length - 1; i >= 0; i--) {
-                const pt = this.particles[i];
-                pt.life -= dt;
-                if (pt.life <= 0) {
-                    this.particles.splice(i, 1);
-                    continue;
-                }
-                pt.lane += pt.vLane * dt;
-                pt.yOffset += pt.vY * dt;
-                pt.vY -= 420 * dt; // Gravedad idéntica
-            }
-        }
+        _updateParticles(dt) {}
 
-        _updateAndDrawParticles(ctx, dt) {
-            ctx.textAlign = 'center';
-            for (const pt of this.particles) {
-                const relZ = pt.z - this.worldZ;
-                if (relZ < -80 || relZ > MP_CONFIG.VISUALS.HORIZON_Z) continue;
-
-                const proj = this.project(pt.lane, relZ);
-                const alpha = Math.max(0, pt.life / pt.maxLife);
-                ctx.fillStyle = pt.color;
-                ctx.globalAlpha = alpha;
-                ctx.font = `bold ${Math.max(9, Math.floor(18 * proj.scale))}px monospace`;
-                ctx.fillText(pt.char, proj.x, proj.y - pt.yOffset * proj.scale);
-            }
-            ctx.globalAlpha = 1.0;
-        }
+        _updateAndDrawParticles(ctx, dt) {}
     }
 
     window.addEventListener('DOMContentLoaded', () => {
