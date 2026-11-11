@@ -1,7 +1,9 @@
 /* ==========================================================================
-   PSYCHOLOGICAL SURVIVAL RUNNER — MODO MULTIJUGADOR LOCAL (2 JUGADORES)
-   Estilo retro CRT, 6 carriles, HUD dual y división central aislada.
+   PSYCHOLOGICAL SURVIVAL RUNNER — MULTIJUGADOR LOCAL (2 JUGADORES)
+   Hereda la estética auténtica CONTEC y añade layout dual de 6 carriles.
    ========================================================================== */
+
+@import url('style.css');
 
 * {
     margin: 0;
@@ -10,8 +12,8 @@
 }
 
 html, body {
-    width: 100%;
-    height: 100%;
+    width: 100vw;
+    height: 100vh;
     overflow: hidden;
     background: #040406;
     font-family: 'Courier New', 'MS Gothic', 'Consolas', monospace;
@@ -27,260 +29,243 @@ html, body {
     background: #040406;
 }
 
-/* Capa CRT scanlines y grano */
-.crt-overlay {
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 10;
-    background: repeating-linear-gradient(
-        to bottom,
-        rgba(0, 0, 0, 0) 0px,
-        rgba(0, 0, 0, 0) 2px,
-        rgba(0, 10, 6, 0.22) 3px,
-        rgba(0, 0, 0, 0.28) 4px
-    );
-    box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.85);
-}
-
-/* HUD Superior Unificado para 2 Jugadores */
+/* Header superior con dos monitores CONTEC completos */
 #mp-top-bar {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
+    top: 6px;
+    left: 8px;
+    right: 8px;
     z-index: 20;
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    padding: 10px 18px;
-    background: linear-gradient(to bottom, rgba(4, 6, 8, 0.92) 0%, rgba(4, 6, 8, 0.65) 75%, transparent 100%);
     pointer-events: none;
-}
-
-/* Columnas de los Jugadores en el HUD */
-.player-hud-card {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    min-width: 270px;
-    pointer-events: auto;
-}
-
-.player-hud-p1 {
-    text-align: left;
-}
-
-.player-hud-p2 {
-    text-align: right;
-    align-items: flex-end;
-}
-
-.player-title {
-    font-size: clamp(12px, 1.25vw, 15px);
-    font-weight: bold;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-}
-
-.p1-color {
-    color: #2ec4b6;
-    text-shadow: 0 0 8px rgba(46, 196, 182, 0.65);
-}
-
-.p2-color {
-    color: #ff9f1c;
-    text-shadow: 0 0 8px rgba(255, 159, 28, 0.65);
-}
-
-/* Contenedor de Vidas (Corazones) */
-.lives-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 13px;
-    margin: 2px 0;
-}
-
-.lives-icons {
-    display: inline-flex;
-    gap: 4px;
-    font-size: 16px;
-}
-
-.heart-full {
-    color: #ff2a4b;
-    text-shadow: 0 0 6px rgba(255, 42, 75, 0.85);
-}
-
-.heart-empty {
-    color: #475569;
-    opacity: 0.45;
-}
-
-/* Fila de Telemetría (BPM y Persecución) */
-.telemetry-row {
-    display: flex;
-    align-items: center;
     gap: 8px;
-    font-size: 11px;
-    color: #94a3b8;
 }
 
-.pursuit-bar-track {
-    width: 100px;
-    height: 7px;
-    background: #1e293b;
-    border: 1px solid #334155;
+/* Monitor individual CONTEC escalado para caber a ambos lados */
+.mp-monitor-shell {
     position: relative;
-    overflow: hidden;
+    width: clamp(340px, 38vw, 480px);
+    height: calc(clamp(340px, 38vw, 480px) * 184 / 500);
+    max-width: 48vw;
+    pointer-events: auto;
+    filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.95));
 }
 
-.pursuit-bar-fill {
-    height: 100%;
-    width: 100%;
-    background: #ff2a4b;
-    transition: width 0.1s linear;
-}
-
-.controls-hint {
+.mp-player-badge {
+    display: inline-block;
     font-size: 10px;
-    color: #64748b;
-    letter-spacing: 0.5px;
-    margin-top: 2px;
+    font-weight: bold;
+    padding: 1px 5px;
+    border-radius: 2px;
+    margin-right: 4px;
 }
 
-/* Centro: Distancia y Título del Modo */
-#mp-center-info {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 3px;
-    text-align: center;
+.p1-badge {
+    background: rgba(46, 196, 182, 0.25);
+    color: #2ec4b6;
+    border: 1px solid #2ec4b6;
+}
+
+.p2-badge {
+    background: rgba(255, 159, 28, 0.25);
+    color: #ff9f1c;
+    border: 1px solid #ff9f1c;
+}
+
+/* Columna de controles bajo cada monitor */
+.mp-controls-guide {
+    position: fixed;
+    bottom: 12px;
+    z-index: 20;
+    font-size: clamp(10px, 1.05vw, 12px);
+    letter-spacing: 1px;
+    background: rgba(6, 8, 12, 0.85);
+    padding: 6px 12px;
+    border: 1px solid #1e293b;
     pointer-events: auto;
 }
 
-.mp-mode-badge {
-    font-size: 10px;
-    letter-spacing: 2px;
+.guide-p1 {
+    left: 14px;
+    border-left: 3px solid #2ec4b6;
     color: #cbd5e1;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.guide-p2 {
+    right: 14px;
+    border-right: 3px solid #ff9f1c;
+    color: #cbd5e1;
+    text-align: right;
+}
+
+/* Botón interactivo para cambiar a control manual de P2 */
+.mp-p2-toggle-wrap {
+    position: fixed;
+    top: calc(clamp(340px, 38vw, 480px) * 184 / 500 + 12px);
+    right: 14px;
+    z-index: 22;
+    pointer-events: auto;
+}
+
+.mp-bot-toggle-btn {
+    background: rgba(255, 159, 28, 0.12);
+    border: 1px solid #ff9f1c;
+    color: #ff9f1c;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    padding: 5px 12px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, transform 0.15s;
+    text-shadow: 0 0 5px rgba(255, 159, 28, 0.4);
+}
+
+.mp-bot-toggle-btn:hover {
+    background: #ff9f1c;
+    color: #040406;
+    transform: scale(1.04);
+}
+
+.mp-bot-toggle-btn.manual-active {
+    background: rgba(46, 196, 182, 0.18);
+    border-color: #2ec4b6;
+    color: #2ec4b6;
+    text-shadow: 0 0 5px rgba(46, 196, 182, 0.4);
+}
+
+.mp-bot-toggle-btn.manual-active:hover {
+    background: #2ec4b6;
+    color: #040406;
+}
+
+/* Centro superior con odómetro y botón de retorno */
+#mp-center-dock {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+    pointer-events: auto;
+}
+
+.mp-center-badge {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    color: #94a3b8;
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid #334155;
     padding: 2px 8px;
     border-radius: 2px;
 }
 
-.distance-display {
-    font-size: clamp(14px, 1.6vw, 19px);
+.mp-odometer {
+    font-size: clamp(14px, 1.5vw, 18px);
     font-weight: bold;
     color: #ffffff;
     letter-spacing: 1.5px;
-    text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
 }
 
-.nav-link-btn {
-    font-size: 10.5px;
-    letter-spacing: 1.2px;
+.mp-return-link {
+    font-size: 10px;
+    letter-spacing: 1px;
     color: #94a3b8;
     text-decoration: none;
-    background: transparent;
-    border: 1px dashed rgba(148, 163, 184, 0.35);
-    padding: 3px 8px;
-    transition: color 0.15s, border-color 0.15s, transform 0.15s;
-    cursor: pointer;
-    margin-top: 3px;
+    border: 1px dashed rgba(148, 163, 184, 0.4);
+    padding: 2px 6px;
+    border-radius: 2px;
+    transition: color 0.15s, border-color 0.15s;
 }
 
-.nav-link-btn:hover {
-    color: #ffffff;
+.mp-return-link:hover {
+    color: #2ec4b6;
     border-color: #2ec4b6;
-    transform: scale(1.04);
 }
 
-/* Banner de Alerta / Eliminación en Vivo */
-.elimination-banner {
+/* Alertas de eliminación en pantalla */
+.mp-elimination-tag {
     position: fixed;
-    bottom: 25px;
-    z-index: 25;
-    font-size: clamp(13px, 1.4vw, 16px);
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: clamp(16px, 2vw, 24px);
     font-weight: bold;
-    letter-spacing: 2px;
-    padding: 6px 14px;
-    background: rgba(10, 10, 15, 0.88);
-    border: 1px solid;
+    letter-spacing: 3px;
+    padding: 10px 20px;
+    background: rgba(6, 6, 10, 0.92);
+    border: 2px solid #ff2a3a;
+    box-shadow: 0 0 24px rgba(255, 42, 58, 0.65);
+    color: #ff4d6d;
+    z-index: 25;
     pointer-events: none;
-    animation: pulseAlert 1.2s infinite alternate;
+    animation: alertPulse 1.2s infinite alternate;
 }
 
-.elimination-p1 {
-    left: 20px;
-    color: #ff4d6d;
-    border-color: #ff4d6d;
-    box-shadow: 0 0 18px rgba(255, 77, 109, 0.4);
+.p1-elim-tag {
+    left: 8%;
 }
 
-.elimination-p2 {
-    right: 20px;
-    color: #ff4d6d;
-    border-color: #ff4d6d;
-    box-shadow: 0 0 18px rgba(255, 77, 109, 0.4);
+.p2-elim-tag {
+    right: 8%;
 }
 
-@keyframes pulseAlert {
-    from { opacity: 0.75; transform: scale(0.98); }
-    to { opacity: 1.0; transform: scale(1.02); }
+@keyframes alertPulse {
+    from { opacity: 0.8; transform: translateY(-50%) scale(0.97); }
+    to { opacity: 1.0; transform: translateY(-50%) scale(1.03); }
 }
 
-/* Pantalla de Fin de Partida / Game Over (Puro texto retro vertical) */
-#mp-gameover-overlay {
+/* Modal de Resultados / Fin de Carrera */
+#mp-results-overlay {
     position: fixed;
     inset: 0;
-    z-index: 30;
-    background: rgba(4, 6, 8, 0.88);
+    z-index: 40;
+    background: rgba(3, 5, 7, 0.92);
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    padding: 20px;
     text-align: center;
+    padding: 24px;
 }
 
-.mp-modal-title {
-    font-size: clamp(20px, 2.8vw, 32px);
+.mp-result-title {
+    font-size: clamp(22px, 2.6vw, 32px);
     font-weight: bold;
-    letter-spacing: 3px;
     color: #ff2a3a;
-    text-shadow: 0 0 16px rgba(255, 42, 58, 0.8);
+    letter-spacing: 3px;
+    text-shadow: 0 0 16px rgba(255, 42, 58, 0.7);
     margin-bottom: 8px;
 }
 
-.mp-winner-announcement {
-    font-size: clamp(15px, 1.8vw, 22px);
+.mp-result-winner {
+    font-size: clamp(16px, 1.8vw, 24px);
+    font-weight: bold;
     letter-spacing: 2px;
     margin-bottom: 12px;
-    font-weight: bold;
 }
 
-.mp-stats-summary {
+.mp-result-details {
     font-size: 13px;
     color: #cbd5e1;
     letter-spacing: 1px;
-    margin-bottom: 24px;
     line-height: 1.6;
+    margin-bottom: 24px;
 }
 
-.mp-actions-column {
+.mp-results-menu {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
     gap: 12px;
 }
 
-.mp-action-btn {
+.mp-menu-btn {
     background: transparent !important;
     border: none !important;
-    outline: none !important;
+    box-shadow: none !important;
     font-family: inherit;
     font-size: clamp(13px, 1.4vw, 16px);
     letter-spacing: 2px;
@@ -289,29 +274,24 @@ html, body {
     transition: color 0.15s, transform 0.15s, text-shadow 0.15s;
 }
 
-.mp-btn-restart {
+.btn-rematch {
     color: #ff9f1c;
     text-shadow: 0 0 6px rgba(255, 159, 28, 0.5);
 }
 
-.mp-btn-restart:hover {
+.btn-rematch:hover {
     color: #ffffff;
     text-shadow: 0 0 12px rgba(255, 159, 28, 0.95), 0 0 20px #ffffff;
     transform: scale(1.06);
 }
 
-.mp-btn-exit {
+.btn-back-single {
     color: #94a3b8;
-    text-shadow: 0 0 4px rgba(148, 163, 184, 0.4);
     text-decoration: none;
 }
 
-.mp-btn-exit:hover {
+.btn-back-single:hover {
     color: #2ec4b6;
     text-shadow: 0 0 10px rgba(46, 196, 182, 0.9);
     transform: scale(1.06);
-}
-
-.hidden {
-    display: none !important;
 }

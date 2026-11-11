@@ -1,27 +1,24 @@
 /**
  * ============================================================================
- * PSYCHOLOGICAL SURVIVAL RUNNER — MÓDULO MULTIJUGADOR LOCAL (2 JUGADORES)
+ * PSYCHOLOGICAL SURVIVAL RUNNER — MULTIJUGADOR LOCAL (6 CARRILES / P1 vs P2)
  * ============================================================================
- * Módulo 100% independiente y desacoplado del modo individual/sandbox.
+ * Módulo 100% independiente y desacoplado del juego individual.
  *
  * Características:
- *  - 2 Jugadores en el mismo teclado con controles simultáneos de CERO DELAY:
- *      * Jugador 1: Tecla [A] (Mantener corre / Micro-soltado <0.25s cambia carril)
- *                   Tecla [F] (Acción B / Golpe)
- *      * Jugador 2: Tecla [H] (Mantener corre / Micro-soltado <0.25s cambia carril)
- *                   Tecla [L] (Acción B / Golpe)
- *  - 6 Carriles en total:
- *      * Carriles 1 al 3 (índices 0, 1, 2): Zona exclusiva del Jugador 1.
- *      * Carriles 4 al 6 (índices 3, 4, 5): Zona exclusiva del Jugador 2.
- *  - Línea Central Divisoria: Línea negra sólida y gruesa que divide la pista
- *    física y visualmente, impidiendo invadir el lado del rival.
- *  - Sistema de 3 Vidas independientes con HUD dual y eliminación individual.
+ *  - Doble Monitor Médico CONTEC con ECG animado en tiempo real para P1 y P2.
+ *  - Carrera continua a velocidad constante (inicia suave y acelera a velocidad de crucero).
+ *  - P2 con MODO AUTOMÁTICO (BOT) por defecto para pruebas individuales,
+ *    conmutable a CONTROL MANUAL mediante botón visible en pantalla.
+ *  - Controles cero-delay de micro-soltado (< 0.25s) y golpe:
+ *      * P1: [A] (micro-soltado cambia carril) / [F] (golpe)
+ *      * P2: [H] (micro-soltado cambia carril) / [L] (golpe)
+ *  - 6 Carriles con Línea Central Divisoria Negra Sólida (Barrera física infranqueable).
+ *  - Sistema independiente de 3 vidas con eliminación individual.
  */
 
 (function () {
     'use strict';
 
-    // Constantes del Modo Multijugador
     const MP_CONFIG = {
         LANES: {
             COUNT: 6,
@@ -33,35 +30,28 @@
                 'C1 (P1-IZQ)', 'C2 (P1-CEN)', 'C3 (P1-DER)',
                 'C4 (P2-IZQ)', 'C5 (P2-CEN)', 'C6 (P2-DER)'
             ],
-            LERP_SPEED: 24.0
+            LERP_SPEED: 22.0
         },
-        MOVEMENT: {
-            MAX_SPEED: 820,
-            ACCELERATION: 2800,
-            DECELERATION: 1600,
-            MICRO_RELEASE_MAX_MS: 250 // < 0.25s para detectar micro-soltado y cambio de carril instantáneo
+        SPEED: {
+            INITIAL: 320,
+            MAX: 740,
+            ACCEL_RATE: 140 // Aceleración suave hasta velocidad constante
         },
         COMBAT: {
             INITIAL_LIVES: 3,
-            INVULNERABLE_DURATION: 1.25, // Segundos de gracia tras perder vida
-            INTERACTION_RANGE: 215,      // Rango de golpe [F] y [L]
-            HIT_COOLDOWN_MS: 160
+            INVULNERABLE_DURATION: 1.3,
+            INTERACTION_RANGE: 220
         },
-        OBSTACLES: {
-            SPAWN_INTERVAL_METERS: 28,
-            TYPES: {
-                TOWER: 'TOWER',         // Se derrumba hacia un carril de su misma zona
-                BARRICADE: 'BARRICADE', // Destructible
-                MONOLITH: 'MONOLITH'    // Indestructible (solo esquivar)
-            }
+        CONTROLS: {
+            MICRO_RELEASE_MAX_MS: 250 // < 0.25s para cambio instantáneo de carril
         },
         VISUALS: {
             HORIZON_Z: 2800,
-            TRACK_MAX_WIDTH: 1180
+            TRACK_MAX_WIDTH: 1160
         }
     };
 
-    class MultiplayerGame {
+    class MultiplayerApp {
         constructor() {
             this.canvas = document.getElementById('multiplayer-canvas');
             this.ctx = this.canvas.getContext('2d');
@@ -70,85 +60,97 @@
             this.height = window.innerHeight;
             this.dpr = Math.min(window.devicePixelRatio || 1, 2);
 
-            // Estado de Jugador 1
+            // Estado de la velocidad constante compartida de la carrera
+            this.currentSpeed = MP_CONFIG.SPEED.INITIAL;
+            this.worldZ = 0;
+            this.distanceMeters = 0;
+            this.isMatchOver = false;
+
+            // Estado Jugador 1
             this.p1 = {
                 id: 1,
                 name: 'JUGADOR 1',
                 lane: MP_CONFIG.LANES.P1_DEFAULT,
                 visualLane: MP_CONFIG.LANES.P1_DEFAULT,
-                speed: 0,
-                z: 0,
                 lives: MP_CONFIG.COMBAT.INITIAL_LIVES,
                 isAlive: true,
-                isHoldingRun: false,
+                isHoldingKey: true, // Corre de forma continua
                 lastReleaseTime: 0,
                 invulnerableTimer: 0,
                 bActionTimer: 0,
                 bpm: 110,
+                heartPulsePhase: 0,
+                stridePhase: 0,
                 pursuitDistance: 1000,
-                color: '#2ec4b6',
-                accentColor: '#5eead4',
-                stridePhase: 0
+                color: '#2ec4b6'
             };
 
-            // Estado de Jugador 2
+            // Estado Jugador 2 (Con Modo Bot Automático por defecto)
             this.p2 = {
                 id: 2,
                 name: 'JUGADOR 2',
                 lane: MP_CONFIG.LANES.P2_DEFAULT,
                 visualLane: MP_CONFIG.LANES.P2_DEFAULT,
-                speed: 0,
-                z: 0,
                 lives: MP_CONFIG.COMBAT.INITIAL_LIVES,
                 isAlive: true,
-                isHoldingRun: false,
+                isHoldingKey: true,
+                isBot: true, // Por defecto se mueve automático para pruebas
+                botCooldown: 0,
                 lastReleaseTime: 0,
                 invulnerableTimer: 0,
                 bActionTimer: 0,
                 bpm: 110,
+                heartPulsePhase: 0,
+                stridePhase: 0,
                 pursuitDistance: 1000,
-                color: '#ff9f1c',
-                accentColor: '#fde68a',
-                stridePhase: 0
+                color: '#ff9f1c'
             };
 
             this.obstacles = [];
             this.particles = [];
             this.nextObsId = 1;
-            this.nextSpawnZ = 450;
-            this.totalDistanceMeters = 0;
-            this.isMatchOver = false;
+            this.nextSpawnZ = 480;
 
-            this.lastFrameTime = performance.now();
-            this.running = false;
+            this.asciiBackgroundNodes = this._generateAsciiBuildings();
 
-            // Elementos del DOM HUD
+            // Referencias a los lienzos ECG osciloscopio
+            this.p1EcgCanvas = document.getElementById('p1-ecg-canvas');
+            this.p1EcgCtx = this.p1EcgCanvas ? this.p1EcgCanvas.getContext('2d') : null;
+
+            this.p2EcgCanvas = document.getElementById('p2-ecg-canvas');
+            this.p2EcgCtx = this.p2EcgCanvas ? this.p2EcgCanvas.getContext('2d') : null;
+
             this.dom = {
-                p1Lives: document.getElementById('p1-lives-icons'),
-                p2Lives: document.getElementById('p2-lives-icons'),
+                p1Lives: document.getElementById('p1-lives-display'),
+                p2Lives: document.getElementById('p2-lives-display'),
                 p1Bpm: document.getElementById('p1-bpm-val'),
                 p2Bpm: document.getElementById('p2-bpm-val'),
-                p1PursuitBar: document.getElementById('p1-pursuit-bar'),
-                p2PursuitBar: document.getElementById('p2-pursuit-bar'),
-                p1StatusText: document.getElementById('p1-status-text'),
-                p2StatusText: document.getElementById('p2-status-text'),
-                p1Banner: document.getElementById('p1-elimination-banner'),
-                p2Banner: document.getElementById('p2-elimination-banner'),
-                distanceText: document.getElementById('mp-distance-val'),
-                gameoverOverlay: document.getElementById('mp-gameover-overlay'),
-                winnerAnnouncement: document.getElementById('mp-winner-announcement'),
-                statsSummary: document.getElementById('mp-stats-summary'),
-                btnRestart: document.getElementById('mp-btn-restart')
+                p1Lane: document.getElementById('p1-lane-val'),
+                p2Lane: document.getElementById('p2-lane-val'),
+                p1ProgressLbl: document.getElementById('p1-progress-lbl'),
+                p2ProgressLbl: document.getElementById('p2-progress-lbl'),
+                p1ProgressFill: document.getElementById('p1-progress-fill'),
+                p2ProgressFill: document.getElementById('p2-progress-fill'),
+                p1PursuitFill: document.getElementById('p1-pursuit-fill'),
+                p2PursuitFill: document.getElementById('p2-pursuit-fill'),
+                odometer: document.getElementById('mp-odometer'),
+                btnToggleP2: document.getElementById('btn-toggle-p2-control'),
+                p1ElimTag: document.getElementById('p1-elimination-tag'),
+                p2ElimTag: document.getElementById('p2-elimination-tag'),
+                resultsOverlay: document.getElementById('mp-results-overlay'),
+                resultWinner: document.getElementById('mp-result-winner'),
+                resultDetails: document.getElementById('mp-result-details'),
+                btnRematch: document.getElementById('btn-rematch')
             };
 
-            this._loadAssets();
-            this._setupCanvas();
-            this._bindKeyboardEvents();
-            this._bindUIEvents();
+            this._loadSprites();
+            this._setupResize();
+            this._bindControls();
+            this._bindUI();
         }
 
-        _loadAssets() {
-            this.sprites = {
+        _loadSprites() {
+            this.spriteImages = {
                 rightTowers: ['img/obstacle_yellow_right.png', 'img/obstacle_yellow_right_2.png'],
                 leftTowers: [
                     'img/obstacle_yellow_left.png',
@@ -157,38 +159,61 @@
                     'img/obstacle_yellow_left_4.png'
                 ],
                 barricades: ['img/barricade_intact.png', 'img/05.png'],
-                barricadeDestroyed: ['img/barricade_destroyed.png', 'img/06.png']
+                barricadesDestroyed: ['img/barricade_destroyed.png', 'img/06.png'],
+                heart: 'img/corazon.png'
             };
 
-            this.loadedImages = {};
-            const allPaths = [
-                ...this.sprites.rightTowers,
-                ...this.sprites.leftTowers,
-                ...this.sprites.barricades,
-                ...this.sprites.barricadeDestroyed,
-                'img/corazon.png'
+            this.images = {};
+            const list = [
+                ...this.spriteImages.rightTowers,
+                ...this.spriteImages.leftTowers,
+                ...this.spriteImages.barricades,
+                ...this.spriteImages.barricadesDestroyed,
+                this.spriteImages.heart
             ];
 
-            allPaths.forEach(path => {
+            list.forEach(p => {
                 const img = new Image();
-                img.src = path;
-                this.loadedImages[path] = img;
+                img.src = p;
+                this.images[p] = img;
             });
         }
 
-        _setupCanvas() {
-            const resize = () => {
+        _generateAsciiBuildings() {
+            const glyphs = ['▓', '█', '▒', '░', '╪', '╬', '║', '¥', '§'];
+            const nodes = [];
+            for (let z = 0; z < MP_CONFIG.VISUALS.HORIZON_Z; z += 90) {
+                nodes.push({
+                    z,
+                    side: -1,
+                    glyph: glyphs[Math.floor(Math.random() * glyphs.length)],
+                    heightFactor: 0.6 + Math.random() * 0.9,
+                    offsetFactor: 1.25 + Math.random() * 0.35
+                });
+                nodes.push({
+                    z,
+                    side: 1,
+                    glyph: glyphs[Math.floor(Math.random() * glyphs.length)],
+                    heightFactor: 0.6 + Math.random() * 0.9,
+                    offsetFactor: 1.25 + Math.random() * 0.35
+                });
+            }
+            return nodes;
+        }
+
+        _setupResize() {
+            const handleResize = () => {
                 this.width = window.innerWidth;
                 this.height = window.innerHeight;
                 this.canvas.width = this.width * this.dpr;
                 this.canvas.height = this.height * this.dpr;
                 this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
             };
-            window.addEventListener('resize', resize);
-            resize();
+            window.addEventListener('resize', handleResize);
+            handleResize();
         }
 
-        _bindKeyboardEvents() {
+        _bindControls() {
             window.addEventListener('keydown', (e) => {
                 if (e.repeat) return;
                 const now = performance.now();
@@ -196,25 +221,29 @@
                 // === JUGADOR 1: TECLAS [A] Y [F] ===
                 if (e.code === 'KeyA') {
                     e.preventDefault();
-                    this._handleP1KeyDownA(now);
+                    this._onP1KeyDownA(now);
                 } else if (e.code === 'KeyF') {
                     e.preventDefault();
-                    this._handleP1KeyDownF(now);
+                    this._onP1KeyDownF();
                 }
 
                 // === JUGADOR 2: TECLAS [H] Y [L] ===
                 else if (e.code === 'KeyH') {
                     e.preventDefault();
-                    this._handleP2KeyDownH(now);
+                    if (!this.p2.isBot) {
+                        this._onP2KeyDownH(now);
+                    }
                 } else if (e.code === 'KeyL') {
                     e.preventDefault();
-                    this._handleP2KeyDownL(now);
+                    if (!this.p2.isBot) {
+                        this._onP2KeyDownL();
+                    }
                 }
 
-                // Reinicio global con tecla [R]
+                // Reinicio global
                 else if (e.code === 'KeyR') {
                     if (this.isMatchOver) {
-                        this.restartMatch();
+                        this.rematch();
                     }
                 }
             });
@@ -223,195 +252,160 @@
                 const now = performance.now();
                 if (e.code === 'KeyA') {
                     e.preventDefault();
-                    this._handleP1KeyUpA(now);
+                    this._onP1KeyUpA(now);
                 } else if (e.code === 'KeyH') {
                     e.preventDefault();
-                    this._handleP2KeyUpH(now);
+                    if (!this.p2.isBot) {
+                        this._onP2KeyUpH(now);
+                    }
                 }
             });
         }
 
-        _bindUIEvents() {
-            if (this.dom.btnRestart) {
-                this.dom.btnRestart.addEventListener('click', () => {
-                    this.restartMatch();
+        _bindUI() {
+            if (this.dom.btnToggleP2) {
+                this.dom.btnToggleP2.addEventListener('click', () => {
+                    this.p2.isBot = !this.p2.isBot;
+                    this._updateP2BotButtonUI();
+                });
+            }
+
+            if (this.dom.btnRematch) {
+                this.dom.btnRematch.addEventListener('click', () => {
+                    this.rematch();
                 });
             }
         }
 
+        _updateP2BotButtonUI() {
+            if (!this.dom.btnToggleP2) return;
+            if (this.p2.isBot) {
+                this.dom.btnToggleP2.classList.remove('manual-active');
+                this.dom.btnToggleP2.textContent = '🤖 P2: MODO AUTOMÁTICO (CLIC PARA USAR P2)';
+            } else {
+                this.dom.btnToggleP2.classList.add('manual-active');
+                this.dom.btnToggleP2.textContent = '🎮 P2: CONTROL MANUAL ACTIVO [H / L]';
+            }
+        }
+
         // ====================================================================
-        // TAREA 1: CONTROLES SIMULTÁNEOS CERO DELAY (Micro-soltado < 0.25s)
+        // CONTROLES DE CERO DELAY (Micro-soltado < 0.25s)
         // ====================================================================
 
-        _handleP1KeyDownA(now) {
+        _onP1KeyDownA(now) {
             if (!this.p1.isAlive) return;
 
             const timeSinceRelease = now - this.p1.lastReleaseTime;
-            // Si fue soltada por un instante menor a 0.25s (micro-soltado), cambia instantáneamente de carril
-            if (this.p1.lastReleaseTime > 0 && timeSinceRelease <= MP_CONFIG.MOVEMENT.MICRO_RELEASE_MAX_MS) {
-                // Ciclo instantáneo dentro de su zona (Carril 1 [0] -> Carril 2 [1] -> Carril 3 [2])
+            // Si fue soltada por un instante menor a 0.25s (micro-soltado):
+            if (this.p1.lastReleaseTime > 0 && timeSinceRelease <= MP_CONFIG.CONTROLS.MICRO_RELEASE_MAX_MS) {
+                // Cambio instantáneo de carril (ciclo 0 -> 1 -> 2 -> 0)
                 this.p1.lane = (this.p1.lane + 1) % 3;
             }
-
-            this.p1.isHoldingRun = true;
+            this.p1.isHoldingKey = true;
         }
 
-        _handleP1KeyUpA(now) {
+        _onP1KeyUpA(now) {
             if (!this.p1.isAlive) return;
             this.p1.lastReleaseTime = now;
-            this.p1.isHoldingRun = false;
+            this.p1.isHoldingKey = false;
         }
 
-        _handleP1KeyDownF(now) {
+        _onP1KeyDownF() {
             if (!this.p1.isAlive) return;
             this.p1.bActionTimer = 0.16;
-            this._processPlayerHit(this.p1);
+            this._executeStrike(this.p1);
         }
 
-        _handleP2KeyDownH(now) {
+        _onP2KeyDownH(now) {
             if (!this.p2.isAlive) return;
 
             const timeSinceRelease = now - this.p2.lastReleaseTime;
-            // Si fue soltada por un instante menor a 0.25s (micro-soltado), cambia instantáneamente de carril
-            if (this.p2.lastReleaseTime > 0 && timeSinceRelease <= MP_CONFIG.MOVEMENT.MICRO_RELEASE_MAX_MS) {
-                // Ciclo instantáneo dentro de su zona (Carril 4 [3] -> Carril 5 [4] -> Carril 6 [5])
+            if (this.p2.lastReleaseTime > 0 && timeSinceRelease <= MP_CONFIG.CONTROLS.MICRO_RELEASE_MAX_MS) {
+                // Cambio instantáneo de carril en zona P2 (ciclo 3 -> 4 -> 5 -> 3)
                 this.p2.lane = 3 + ((this.p2.lane - 3 + 1) % 3);
             }
-
-            this.p2.isHoldingRun = true;
+            this.p2.isHoldingKey = true;
         }
 
-        _handleP2KeyUpH(now) {
+        _onP2KeyUpH(now) {
             if (!this.p2.isAlive) return;
             this.p2.lastReleaseTime = now;
-            this.p2.isHoldingRun = false;
+            this.p2.isHoldingKey = false;
         }
 
-        _handleP2KeyDownL(now) {
+        _onP2KeyDownL() {
             if (!this.p2.isAlive) return;
             this.p2.bActionTimer = 0.16;
-            this._processPlayerHit(this.p2);
+            this._executeStrike(this.p2);
         }
 
-        // ====================================================================
-        // SISTEMA DE ACCIÓN / GOLPE B (F para P1, L para P2)
-        // ====================================================================
-
-        _processPlayerHit(player) {
+        _executeStrike(player) {
             const range = MP_CONFIG.COMBAT.INTERACTION_RANGE;
-            // Buscar obstáculos en el carril exacto del jugador dentro del alcance frontal
             const target = this.obstacles.find(obs => {
                 if (obs.state === 'SHATTERED' || obs.state === 'COLLAPSED') return false;
                 if (obs.lane !== player.lane) return false;
-                const relZ = obs.z - player.z;
+                const relZ = obs.z - this.worldZ;
                 return relZ >= -20 && relZ <= range;
             });
 
             if (!target) return;
 
-            if (target.type === MP_CONFIG.OBSTACLES.TYPES.TOWER) {
-                // Derrumbar la estructura hacia su carril de inclinación (siempre dentro de su zona)
+            if (target.type === 'TOWER') {
                 target.state = 'TOPPLING';
                 target.toppleProgress = 0;
                 target.lane = target.fallTargetLane;
-                this._spawnParticles(target.visualX || 0, target.y || 0, '#ffbe0b', 16);
-            } else if (target.type === MP_CONFIG.OBSTACLES.TYPES.BARRICADE) {
-                // Romper barricada frágil
+                this._spawnParticles(target.screenX || 0, target.screenY || 0, '#ffbe0b', 16);
+            } else if (target.type === 'BARRICADE') {
                 target.state = 'SHATTERED';
                 target.shatterProgress = 0;
-                this._spawnParticles(target.visualX || 0, target.y || 0, '#cbd5e1', 20);
-            } else if (target.type === MP_CONFIG.OBSTACLES.TYPES.MONOLITH) {
-                // Monolito indestructible resiste el golpe
-                target.hitFlash = 0.18;
-                this._spawnParticles(target.visualX || 0, target.y || 0, '#ef4444', 8);
+                this._spawnParticles(target.screenX || 0, target.screenY || 0, '#cbd5e1', 18);
+            } else if (target.type === 'MONOLITH') {
+                target.flashTimer = 0.16;
+                this._spawnParticles(target.screenX || 0, target.screenY || 0, '#ef4444', 8);
             }
         }
 
         // ====================================================================
-        // GENERACIÓN DE OBSTÁCULOS AISLADOS (6 CARRILES)
+        // IA DEL BOT (P2 AUTOMÁTICO EN MODO PRUEBA)
         // ====================================================================
 
-        _spawnObstaclesAhead(maxZ) {
-            const step = MP_CONFIG.OBSTACLES.SPAWN_INTERVAL_METERS * 10;
-            while (this.nextSpawnZ < maxZ + 1400) {
-                const z = this.nextSpawnZ;
+        _updateP2Bot(dt) {
+            if (!this.p2.isBot || !this.p2.isAlive) return;
 
-                // Generar obstáculo en lado P1 (Carriles 0, 1, 2)
-                if (Math.random() < 0.68) {
-                    const laneP1 = Math.floor(Math.random() * 3);
-                    this._createObstacle(laneP1, z, MP_CONFIG.LANES.P1_LANES);
-                }
-
-                // Generar obstáculo en lado P2 (Carriles 3, 4, 5)
-                if (Math.random() < 0.68) {
-                    const laneP2 = 3 + Math.floor(Math.random() * 3);
-                    this._createObstacle(laneP2, z, MP_CONFIG.LANES.P2_LANES);
-                }
-
-                this.nextSpawnZ += step;
-            }
-        }
-
-        _createObstacle(lane, z, validLanes) {
-            const typeRoll = Math.random();
-            let type = MP_CONFIG.OBSTACLES.TYPES.BARRICADE;
-            let fallTargetLane = null;
-            let tiltDir = 1;
-
-            if (typeRoll < 0.38) {
-                // Estructura inestable / Torre inclinada
-                type = MP_CONFIG.OBSTACLES.TYPES.TOWER;
-                // Escoger carril adyacente dentro de la MISMA ZONA (nunca cruza la línea negra)
-                const isLeftEdge = (lane === validLanes[0]);
-                const isRightEdge = (lane === validLanes[validLanes.length - 1]);
-
-                if (isLeftEdge) {
-                    fallTargetLane = validLanes[1];
-                    tiltDir = 1; // Cae a la derecha
-                } else if (isRightEdge) {
-                    fallTargetLane = validLanes[1];
-                    tiltDir = -1; // Cae a la izquierda
-                } else {
-                    // Centro de la zona: puede caer a la izquierda o derecha de su sector
-                    tiltDir = Math.random() < 0.5 ? -1 : 1;
-                    fallTargetLane = (tiltDir === 1) ? validLanes[2] : validLanes[0];
-                }
-            } else if (typeRoll < 0.60) {
-                // Monolito indestructible
-                type = MP_CONFIG.OBSTACLES.TYPES.MONOLITH;
+            if (this.p2.botCooldown > 0) {
+                this.p2.botCooldown -= dt;
             }
 
-            this.obstacles.push({
-                id: this.nextObsId++,
-                lane,
-                z,
-                type,
-                fallTargetLane,
-                tiltDir,
-                state: 'ACTIVE',
-                toppleProgress: 0,
-                shatterProgress: 0,
-                hitFlash: 0,
-                spriteIdx: Math.floor(Math.random() * 8)
+            // Buscar obstáculo frontal próximo en el carril actual de P2
+            const approachingObs = this.obstacles.find(obs => {
+                if (obs.state === 'SHATTERED' || obs.state === 'COLLAPSED') return false;
+                if (obs.lane !== this.p2.lane) return false;
+                const relZ = obs.z - this.worldZ;
+                return relZ >= 30 && relZ <= 240;
             });
+
+            if (approachingObs) {
+                const relZ = approachingObs.z - this.worldZ;
+
+                if (approachingObs.type === 'MONOLITH') {
+                    // Indestructible: esquivar a otro carril dentro de [3, 4, 5]
+                    if (this.p2.botCooldown <= 0) {
+                        const nextLane = this.p2.lane === 4 ? (Math.random() < 0.5 ? 3 : 5) : 4;
+                        this.p2.lane = nextLane;
+                        this.p2.botCooldown = 0.5;
+                    }
+                } else if (relZ <= 170) {
+                    // Romper o derrumbar con golpe automático
+                    this.p2.bActionTimer = 0.16;
+                    this._executeStrike(this.p2);
+                }
+            }
         }
 
         // ====================================================================
-        // PROYECCIÓN 2.5D CON LÍNEA CENTRAL NEGRA GRUESA (6 CARRILES)
+        // PROYECCIÓN 2.5D (6 CARRILES CON DIVISIÓN CENTRAL NEGRA)
         // ====================================================================
 
-        /**
-         * Proyecta coordenadas del mundo a pantalla.
-         * En 6 carriles:
-         *  - Dividir central negro = 0.0
-         *  - Carril 1 (P1-IZQ)  = -2.5
-         *  - Carril 2 (P1-CEN)  = -1.5
-         *  - Carril 3 (P1-DER)  = -0.5
-         *  - [LÍNEA NEGRA DIVISORIA SÓLIDA] = 0.0
-         *  - Carril 4 (P2-IZQ)  = +0.5
-         *  - Carril 5 (P2-CEN)  = +1.5
-         *  - Carril 6 (P2-DER)  = +2.5
-         */
         project(laneFloat, relZ) {
             const horizonY = this.height * 0.32;
             const playerScreenY = this.height * 0.86;
@@ -426,7 +420,7 @@
             const currentTrackWidth = trackWidthAtPlayer * perspective;
             const laneWidth = currentTrackWidth / 6;
 
-            // Convertir carril 0..5 a posición centrada respecto a la línea central
+            // Centro exacto = 2.5 (entre Carril 3 y Carril 4)
             const centeredOffset = (laneFloat - 2.5) * laneWidth;
             const centerX = this.width * 0.5;
             const x = centerX + centeredOffset;
@@ -442,18 +436,77 @@
         }
 
         // ====================================================================
-        // BUCLE PRINCIPAL DE ACTUALIZACIÓN (UPDATE)
+        // GENERACIÓN DE OBSTÁCULOS AISLADOS (6 CARRILES)
+        // ====================================================================
+
+        _spawnObstacles() {
+            const step = 280;
+            while (this.nextSpawnZ < this.worldZ + 1400) {
+                const z = this.nextSpawnZ;
+
+                // Lado P1 (Carriles 0, 1, 2)
+                if (Math.random() < 0.70) {
+                    const lP1 = Math.floor(Math.random() * 3);
+                    this._createObstacle(lP1, z, MP_CONFIG.LANES.P1_LANES);
+                }
+
+                // Lado P2 (Carriles 3, 4, 5)
+                if (Math.random() < 0.70) {
+                    const lP2 = 3 + Math.floor(Math.random() * 3);
+                    this._createObstacle(lP2, z, MP_CONFIG.LANES.P2_LANES);
+                }
+
+                this.nextSpawnZ += step;
+            }
+        }
+
+        _createObstacle(lane, z, validLanes) {
+            const r = Math.random();
+            let type = 'BARRICADE';
+            let fallTarget = null;
+            let tiltDir = 1;
+
+            if (r < 0.40) {
+                type = 'TOWER';
+                if (lane === validLanes[0]) {
+                    fallTarget = validLanes[1];
+                    tiltDir = 1; // Inclinado a la derecha
+                } else if (lane === validLanes[2]) {
+                    fallTarget = validLanes[1];
+                    tiltDir = -1; // Inclinado a la izquierda
+                } else {
+                    tiltDir = Math.random() < 0.5 ? -1 : 1;
+                    fallTarget = (tiltDir === 1) ? validLanes[2] : validLanes[0];
+                }
+            } else if (r < 0.62) {
+                type = 'MONOLITH';
+            }
+
+            this.obstacles.push({
+                id: this.nextObsId++,
+                lane,
+                z,
+                type,
+                fallTargetLane: fallTarget,
+                tiltDir,
+                state: 'ACTIVE',
+                toppleProgress: 0,
+                shatterProgress: 0,
+                flashTimer: 0,
+                spriteIdx: Math.floor(Math.random() * 6)
+            });
+        }
+
+        // ====================================================================
+        // BUCLE PRINCIPAL
         // ====================================================================
 
         start() {
-            this.running = true;
             this.lastFrameTime = performance.now();
             requestAnimationFrame((t) => this._loop(t));
         }
 
         _loop(now) {
-            if (!this.running) return;
-
             const dt = Math.min((now - this.lastFrameTime) / 1000, 0.06);
             this.lastFrameTime = now;
 
@@ -464,249 +517,284 @@
         }
 
         _update(dt, now) {
-            // Actualizar ambos jugadores de forma independiente
-            this._updatePlayer(this.p1, dt);
-            this._updatePlayer(this.p2, dt);
+            // Acelerar suavemente al inicio hasta velocidad de crucero constante
+            if (this.currentSpeed < MP_CONFIG.SPEED.MAX) {
+                this.currentSpeed = Math.min(MP_CONFIG.SPEED.MAX, this.currentSpeed + MP_CONFIG.SPEED.ACCEL_RATE * dt);
+            }
 
-            // La distancia general de la carrera avanza con el corredor líder o promedio
-            const leaderZ = Math.max(this.p1.z, this.p2.z);
-            this.totalDistanceMeters = Math.floor(leaderZ / 10);
+            // Ambos corredores avanzan juntos con la pista a la misma velocidad constante
+            const activeSpeed = (this.p1.isAlive || this.p2.isAlive) ? this.currentSpeed : 0;
+            this.worldZ += activeSpeed * dt;
+            this.distanceMeters = Math.floor(this.worldZ / 10);
 
-            // Generar nuevos obstáculos por delante
-            this._spawnObstaclesAhead(leaderZ);
+            // Generar obstáculos por delante
+            this._spawnObstacles();
 
-            // Actualizar físicas de obstáculos (derrumbe, desvanecimiento)
+            // Actualizar P1
+            this._updatePlayerPhysics(this.p1, dt, now);
+
+            // Actualizar P2 (con IA automática de bot si está activa)
+            this._updateP2Bot(dt);
+            this._updatePlayerPhysics(this.p2, dt, now);
+
+            // Actualizar obstáculos
             this._updateObstacles(dt);
 
             // Actualizar partículas
             this._updateParticles(dt);
 
-            // Chequeo de colisiones y vidas (TAREA 3)
-            this._checkPlayerCollisions(this.p1);
-            this._checkPlayerCollisions(this.p2);
+            // Colisiones y 3 vidas
+            this._checkCollisions(this.p1);
+            this._checkCollisions(this.p2);
 
-            // Actualizar HUD de ambos jugadores
-            this._updateHUD();
+            // Actualizar HUD CONTEC y osciloscopios ECG
+            this._updateHudText();
+            this._drawEcgOscilloscope(this.p1EcgCtx, this.p1, this.p1EcgCanvas);
+            this._drawEcgOscilloscope(this.p2EcgCtx, this.p2, this.p2EcgCanvas);
 
-            // Verificar condición de fin de partida
+            // Fin de partida si ambos caen
             if (!this.isMatchOver && (!this.p1.isAlive && !this.p2.isAlive)) {
-                this._finishMatch();
+                this._triggerGameOver();
             }
         }
 
-        _updatePlayer(player, dt) {
-            if (!player.isAlive) {
-                player.speed = Math.max(0, player.speed - MP_CONFIG.MOVEMENT.DECELERATION * dt);
-                return;
-            }
+        _updatePlayerPhysics(player, dt, now) {
+            if (!player.isAlive) return;
 
-            // Aceleración suave y continua al mantener la tecla
-            if (player.isHoldingRun) {
-                player.speed = Math.min(MP_CONFIG.MOVEMENT.MAX_SPEED, player.speed + MP_CONFIG.MOVEMENT.ACCELERATION * dt);
-            } else {
-                player.speed = Math.max(0, player.speed - MP_CONFIG.MOVEMENT.DECELERATION * dt);
-            }
+            // Suavizado lerp horizontal de carril
+            const diff = player.lane - player.visualLane;
+            player.visualLane += diff * Math.min(1, MP_CONFIG.LANES.LERP_SPEED * dt);
 
-            player.z += player.speed * dt;
+            // Animación de carrera
+            player.stridePhase += dt * (this.currentSpeed * 0.016);
 
-            // Suavizado lerp del movimiento horizontal entre carriles
-            const laneDiff = player.lane - player.visualLane;
-            player.visualLane += laneDiff * Math.min(1, MP_CONFIG.LANES.LERP_SPEED * dt);
-
-            // Ciclo de pasos / animaciones
-            if (player.speed > 20) {
-                player.stridePhase += dt * (player.speed * 0.016);
-            }
-
-            // Temporizadores de golpe e invulnerabilidad
+            // Temporizadores
             if (player.bActionTimer > 0) player.bActionTimer -= dt;
             if (player.invulnerableTimer > 0) player.invulnerableTimer -= dt;
 
-            // Margen de persecución: si se detiene, la barra se agota
-            if (player.isHoldingRun) {
-                player.pursuitDistance = Math.min(1000, player.pursuitDistance + 450 * dt);
-            } else {
-                player.pursuitDistance = Math.max(0, player.pursuitDistance - 380 * dt);
-            }
-
-            // BPM progresivo con la velocidad
-            const targetBpm = 110 + Math.floor((player.speed / MP_CONFIG.MOVEMENT.MAX_SPEED) * 70);
-            player.bpm = Math.round(player.bpm + (targetBpm - player.bpm) * Math.min(1, dt * 2));
+            // Pulso cardíaco dinámico
+            player.heartPulsePhase += dt * (player.bpm / 60) * Math.PI * 2;
+            const targetBpm = 110 + Math.floor((this.currentSpeed / MP_CONFIG.SPEED.MAX) * 70);
+            player.bpm = Math.round(player.bpm + (targetBpm - player.bpm) * Math.min(1, dt * 1.5));
         }
 
         _updateObstacles(dt) {
             for (let i = this.obstacles.length - 1; i >= 0; i--) {
                 const obs = this.obstacles[i];
 
-                if (obs.hitFlash > 0) obs.hitFlash -= dt;
+                if (obs.flashTimer > 0) obs.flashTimer -= dt;
 
                 if (obs.state === 'TOPPLING') {
-                    obs.toppleProgress = Math.min(1.0, obs.toppleProgress + dt * 4.2);
-                    if (obs.toppleProgress >= 1.0) {
-                        obs.state = 'COLLAPSED';
-                    }
+                    obs.toppleProgress = Math.min(1.0, obs.toppleProgress + dt * 4.6);
+                    if (obs.toppleProgress >= 1.0) obs.state = 'COLLAPSED';
                 } else if (obs.state === 'SHATTERED') {
-                    obs.shatterProgress = Math.min(1.0, obs.shatterProgress + dt * 3.5);
+                    obs.shatterProgress = Math.min(1.0, obs.shatterProgress + dt * 3.8);
                 }
 
-                // Despawn de obstáculos que quedaron muy atrás de ambos jugadores
-                const minZ = Math.min(this.p1.z, this.p2.z);
-                if (obs.z < minZ - 300) {
+                // Despawn cuando quede atrás
+                if (obs.z < this.worldZ - 200) {
                     this.obstacles.splice(i, 1);
                 }
             }
         }
 
-        // ====================================================================
-        // TAREA 3: SISTEMA DE 3 VIDAS Y COLISIONES AISLADAS
-        // ====================================================================
-
-        _checkPlayerCollisions(player) {
+        _checkCollisions(player) {
             if (!player.isAlive || player.invulnerableTimer > 0) return;
 
-            const hitboxDepth = 36;
             for (const obs of this.obstacles) {
                 if (obs.state === 'SHATTERED') continue;
 
-                // Debe estar exactamente en el carril donde se encuentra el obstáculo
-                const inSameLane = Math.abs(player.visualLane - obs.lane) < 0.45;
-                const relZ = obs.z - player.z;
-                const inCollisionZ = (relZ >= -hitboxDepth && relZ <= hitboxDepth);
+                const sameLane = Math.abs(player.visualLane - obs.lane) < 0.44;
+                const relZ = obs.z - this.worldZ;
 
-                if (inSameLane && inCollisionZ) {
-                    // Colisión frontal directa: pierde 1 vida
+                if (sameLane && Math.abs(relZ) <= 34) {
                     player.lives--;
                     player.invulnerableTimer = MP_CONFIG.COMBAT.INVULNERABLE_DURATION;
 
-                    // Efectos de impacto
                     obs.state = 'SHATTERED';
-                    this._spawnParticles(obs.visualX || 0, obs.y || 0, '#ff1e38', 24);
+                    this._spawnParticles(obs.screenX || 0, obs.screenY || 0, '#ff1e38', 24);
 
-                    // Si llega a 0 vidas: ELIMINACIÓN INDIVIDUAL
                     if (player.lives <= 0) {
                         player.lives = 0;
                         player.isAlive = false;
-                        this._showEliminationAlert(player);
+                        this._showPlayerEliminated(player);
                     }
                     break;
                 }
             }
         }
 
-        _showEliminationAlert(player) {
-            if (player.id === 1 && this.dom.p1Banner) {
-                this.dom.p1Banner.classList.remove('hidden');
-                this.dom.p1Banner.textContent = '💀 JUGADOR 1 ELIMINADO';
-            } else if (player.id === 2 && this.dom.p2Banner) {
-                this.dom.p2Banner.classList.remove('hidden');
-                this.dom.p2Banner.textContent = '💀 JUGADOR 2 ELIMINADO';
+        _showPlayerEliminated(player) {
+            if (player.id === 1 && this.dom.p1ElimTag) {
+                this.dom.p1ElimTag.classList.remove('hidden');
+            } else if (player.id === 2 && this.dom.p2ElimTag) {
+                this.dom.p2ElimTag.classList.remove('hidden');
             }
         }
 
-        _finishMatch() {
+        _triggerGameOver() {
             this.isMatchOver = true;
 
-            let winnerText = '¡EMPATE TÉCNICO!';
+            let winnerText = '¡EMPATE!';
             let winnerColor = '#ffffff';
 
-            if (this.p1.z > this.p2.z) {
+            if (this.p1.lives > this.p2.lives) {
                 winnerText = '¡VICTORIA DEL JUGADOR 1!';
                 winnerColor = '#2ec4b6';
-            } else if (this.p2.z > this.p1.z) {
+            } else if (this.p2.lives > this.p1.lives) {
                 winnerText = '¡VICTORIA DEL JUGADOR 2!';
                 winnerColor = '#ff9f1c';
             }
 
-            if (this.dom.winnerAnnouncement) {
-                this.dom.winnerAnnouncement.textContent = winnerText;
-                this.dom.winnerAnnouncement.style.color = winnerColor;
+            if (this.dom.resultWinner) {
+                this.dom.resultWinner.textContent = winnerText;
+                this.dom.resultWinner.style.color = winnerColor;
             }
 
-            if (this.dom.statsSummary) {
-                const km = (this.totalDistanceMeters / 1000).toFixed(2);
-                this.dom.statsSummary.innerHTML = `
-                    DISTANCIA TOTAL: <strong style="color:#ffffff;">${km} km</strong> (${this.totalDistanceMeters} m)<br/>
-                    P1: ${(this.p1.z / 10).toFixed(0)}m (${this.p1.lives} vidas) &nbsp;|&nbsp; 
-                    P2: ${(this.p2.z / 10).toFixed(0)}m (${this.p2.lives} vidas)
+            if (this.dom.resultDetails) {
+                const km = (this.distanceMeters / 1000).toFixed(2);
+                this.dom.resultDetails.innerHTML = `
+                    DISTANCIA TOTAL: <strong style="color:#ffffff;">${km} km</strong> (${this.distanceMeters} m)<br/>
+                    P1: ${this.p1.lives} VIDAS &nbsp;|&nbsp; P2: ${this.p2.lives} VIDAS
                 `;
             }
 
-            if (this.dom.gameoverOverlay) {
-                this.dom.gameoverOverlay.classList.remove('hidden');
+            if (this.dom.resultsOverlay) {
+                this.dom.resultsOverlay.classList.remove('hidden');
             }
         }
 
-        restartMatch() {
+        rematch() {
+            this.currentSpeed = MP_CONFIG.SPEED.INITIAL;
+            this.worldZ = 0;
+            this.distanceMeters = 0;
+            this.isMatchOver = false;
+
             this.p1.lane = MP_CONFIG.LANES.P1_DEFAULT;
             this.p1.visualLane = MP_CONFIG.LANES.P1_DEFAULT;
-            this.p1.speed = 0;
-            this.p1.z = 0;
             this.p1.lives = MP_CONFIG.COMBAT.INITIAL_LIVES;
             this.p1.isAlive = true;
-            this.p1.isHoldingRun = false;
-            this.p1.lastReleaseTime = 0;
             this.p1.invulnerableTimer = 0;
 
             this.p2.lane = MP_CONFIG.LANES.P2_DEFAULT;
             this.p2.visualLane = MP_CONFIG.LANES.P2_DEFAULT;
-            this.p2.speed = 0;
-            this.p2.z = 0;
             this.p2.lives = MP_CONFIG.COMBAT.INITIAL_LIVES;
             this.p2.isAlive = true;
-            this.p2.isHoldingRun = false;
-            this.p2.lastReleaseTime = 0;
             this.p2.invulnerableTimer = 0;
 
             this.obstacles = [];
             this.particles = [];
             this.nextObsId = 1;
-            this.nextSpawnZ = 450;
-            this.totalDistanceMeters = 0;
-            this.isMatchOver = false;
+            this.nextSpawnZ = 480;
 
-            if (this.dom.p1Banner) this.dom.p1Banner.classList.add('hidden');
-            if (this.dom.p2Banner) this.dom.p2Banner.classList.add('hidden');
-            if (this.dom.gameoverOverlay) this.dom.gameoverOverlay.classList.add('hidden');
+            if (this.dom.p1ElimTag) this.dom.p1ElimTag.classList.add('hidden');
+            if (this.dom.p2ElimTag) this.dom.p2ElimTag.classList.add('hidden');
+            if (this.dom.resultsOverlay) this.dom.resultsOverlay.classList.add('hidden');
         }
 
-        _updateHUD() {
-            // Actualizar corazones P1
+        _updateHudText() {
+            const kmStr = (this.distanceMeters / 1000).toFixed(2);
+
+            if (this.dom.odometer) this.dom.odometer.textContent = `${kmStr} km`;
+
+            // Vidas P1
             if (this.dom.p1Lives) {
-                let heartsHtml = '';
-                for (let i = 0; i < 3; i++) {
-                    heartsHtml += (i < this.p1.lives)
-                        ? '<span class="heart-full">♥</span>'
-                        : '<span class="heart-empty">♥</span>';
-                }
-                this.dom.p1Lives.innerHTML = heartsHtml;
+                this.dom.p1Lives.innerHTML = '♥ '.repeat(this.p1.lives).trim() || '💀 0';
             }
-
-            // Actualizar corazones P2
+            // Vidas P2
             if (this.dom.p2Lives) {
-                let heartsHtml = '';
-                for (let i = 0; i < 3; i++) {
-                    heartsHtml += (i < this.p2.lives)
-                        ? '<span class="heart-full">♥</span>'
-                        : '<span class="heart-empty">♥</span>';
+                this.dom.p2Lives.innerHTML = '♥ '.repeat(this.p2.lives).trim() || '💀 0';
+            }
+
+            // BPM
+            if (this.dom.p1Bpm) this.dom.p1Bpm.textContent = `${this.p1.bpm}`;
+            if (this.dom.p2Bpm) this.dom.p2Bpm.textContent = `${this.p2.bpm}`;
+
+            // Carriles
+            if (this.dom.p1Lane) {
+                this.dom.p1Lane.textContent = MP_CONFIG.LANES.NAMES[this.p1.lane];
+            }
+            if (this.dom.p2Lane) {
+                this.dom.p2Lane.textContent = MP_CONFIG.LANES.NAMES[this.p2.lane];
+            }
+
+            // Barra de progreso y recorrido
+            if (this.dom.p1ProgressLbl) this.dom.p1ProgressLbl.textContent = `RECORRIDO: ${kmStr} KM`;
+            if (this.dom.p2ProgressLbl) this.dom.p2ProgressLbl.textContent = `RECORRIDO: ${kmStr} KM`;
+
+            const progPct = Math.min(100, (this.distanceMeters / 10000) * 100).toFixed(1);
+            if (this.dom.p1ProgressFill) this.dom.p1ProgressFill.style.width = `${progPct}%`;
+            if (this.dom.p2ProgressFill) this.dom.p2ProgressFill.style.width = `${progPct}%`;
+
+            if (this.dom.p1PursuitFill) {
+                this.dom.p1PursuitFill.style.width = this.p1.isAlive ? '100%' : '0%';
+            }
+            if (this.dom.p2PursuitFill) {
+                this.dom.p2PursuitFill.style.width = this.p2.isAlive ? '100%' : '0%';
+            }
+        }
+
+        // ====================================================================
+        // OSCILOSCOPIO ECG ANIMADO CON ONDA P-Q-R-S-T
+        // ====================================================================
+
+        _drawEcgOscilloscope(ctx, player, canvas) {
+            if (!ctx || !canvas) return;
+
+            const w = canvas.width || 220;
+            const h = canvas.height || 36;
+            const midY = h * 0.56;
+
+            ctx.clearRect(0, 0, w, h);
+
+            const isDead = !player.isAlive || player.bpm <= 0;
+            const strokeColor = isDead ? '#ff3300' : (player.bpm >= 170 ? '#00ffcc' : '#33ff99');
+
+            ctx.save();
+            ctx.strokeStyle = strokeColor;
+            ctx.lineWidth = 1.7;
+            ctx.beginPath();
+
+            const phaseCycles = (player.heartPulsePhase || 0) / (Math.PI * 2);
+            const wavelengthPx = 64;
+            let lastY = midY;
+
+            for (let x = 0; x < w; x += 2) {
+                let y = midY;
+                if (!isDead) {
+                    let c = ((x / wavelengthPx) - phaseCycles) % 1;
+                    if (c < 0) c += 1;
+
+                    // Complejo médico P-Q-R-S-T
+                    if (c >= 0.12 && c < 0.22) {
+                        const t = (c - 0.12) / 0.10;
+                        y -= Math.sin(t * Math.PI) * 3.5;
+                    } else if (c >= 0.27 && c < 0.31) {
+                        const t = (c - 0.27) / 0.04;
+                        y += Math.sin(t * Math.PI) * 3.5;
+                    } else if (c >= 0.31 && c < 0.37) {
+                        const t = (c - 0.31) / 0.06;
+                        y -= Math.sin(t * Math.PI) * 14.0;
+                    } else if (c >= 0.37 && c < 0.43) {
+                        const t = (c - 0.37) / 0.06;
+                        y += Math.sin(t * Math.PI) * 7.0;
+                    } else if (c >= 0.50 && c < 0.66) {
+                        const t = (c - 0.50) / 0.16;
+                        y -= Math.sin(t * Math.PI) * 4.8;
+                    }
                 }
-                this.dom.p2Lives.innerHTML = heartsHtml;
+                if (x === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+                lastY = y;
             }
+            ctx.stroke();
 
-            // BPM y Barras de persecución
-            if (this.dom.p1Bpm) this.dom.p1Bpm.textContent = `${this.p1.bpm} BPM`;
-            if (this.dom.p2Bpm) this.dom.p2Bpm.textContent = `${this.p2.bpm} BPM`;
-
-            if (this.dom.p1PursuitBar) {
-                this.dom.p1PursuitBar.style.width = `${Math.round((this.p1.pursuitDistance / 1000) * 100)}%`;
-            }
-            if (this.dom.p2PursuitBar) {
-                this.dom.p2PursuitBar.style.width = `${Math.round((this.p2.pursuitDistance / 1000) * 100)}%`;
-            }
-
-            if (this.dom.distanceText) {
-                const km = (this.totalDistanceMeters / 1000).toFixed(2);
-                this.dom.distanceText.textContent = `${km} km`;
-            }
+            // Punto de barrido fósforo
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(w - 3, lastY, 2.2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
         }
 
         // ====================================================================
@@ -717,27 +805,30 @@
             const ctx = this.ctx;
             ctx.clearRect(0, 0, this.width, this.height);
 
-            // 1. Cielo opresivo y sol negro en el horizonte
-            this._drawAtmosphere(ctx, now);
+            // 1. Cielo opresivo y grieta del horizonte
+            this._drawSky(ctx, now);
 
-            // 2. Pista de 6 Carriles con asfalto fracturado
-            this._drawTrackAndLanes(ctx, now);
+            // 2. Edificios y siluetas ASCII a los lados
+            this._drawAsciiRoadside(ctx, now);
 
-            // 3. TAREA 2: Línea Central Divisoria Negra Sólida y Gruesa
-            this._drawSolidBlackCentralDivider(ctx);
+            // 3. Pista de 6 Carriles con asfalto y líneas de velocidad
+            this._drawTrack(ctx);
 
-            // 4. Obstáculos proyectados y ordenados por profundidad Z
-            this._drawObstacles(ctx, now);
+            // 4. LÍNEA CENTRAL NEGRA SÓLIDA Y GRUESA (Divisoria infranqueable)
+            this._drawBlackDivider(ctx);
 
-            // 5. Corredores (Jugador 1 y Jugador 2)
-            this._drawPlayerSprite(ctx, this.p1, now);
-            this._drawPlayerSprite(ctx, this.p2, now);
+            // 5. Obstáculos proyectados
+            this._drawObstacles(ctx);
 
-            // 6. Partículas de impacto
+            // 6. Corredores estilizados con silueta auténtica
+            if (this.p1.isAlive) this._drawRunnerSilhouette(ctx, this.p1, now);
+            if (this.p2.isAlive) this._drawRunnerSilhouette(ctx, this.p2, now);
+
+            // 7. Partículas
             this._drawParticles(ctx);
         }
 
-        _drawAtmosphere(ctx, now) {
+        _drawSky(ctx, now) {
             const grad = ctx.createLinearGradient(0, 0, 0, this.height);
             grad.addColorStop(0, '#040406');
             grad.addColorStop(0.32, '#0c0a12');
@@ -745,7 +836,6 @@
             ctx.fillStyle = grad;
             ctx.fillRect(0, 0, this.width, this.height);
 
-            // Grieta espectral en el centro del horizonte
             const horizonY = this.height * 0.32;
             const pulse = Math.sin(now * 0.003) * 8;
             const rad = ctx.createRadialGradient(
@@ -759,12 +849,44 @@
             ctx.fillRect(0, 0, this.width, this.height * 0.55);
         }
 
-        _drawTrackAndLanes(ctx, now) {
-            const camZ = Math.min(this.p1.z, this.p2.z);
+        _drawAsciiRoadside(ctx, now) {
+            ctx.font = 'bold 14px monospace';
+            ctx.textAlign = 'center';
+
+            for (const node of this.asciiBackgroundNodes) {
+                let relZ = (node.z - (this.worldZ % MP_CONFIG.VISUALS.HORIZON_Z));
+                if (relZ < -120) relZ += MP_CONFIG.VISUALS.HORIZON_Z;
+
+                // Colocar fuera de los 6 carriles (a la izquierda de C1 o a la derecha de C6)
+                const lanePos = 2.5 + node.side * node.offsetFactor * 2.8;
+                const p = this.project(lanePos, relZ);
+                const pillarH = 190 * node.heightFactor * p.scale;
+                const pillarW = 24 * p.scale;
+
+                if (pillarH < 4) continue;
+
+                const bend = Math.sin(now * 0.002 + node.z) * 12 * p.scale * node.side;
+                ctx.fillStyle = `rgba(16, 14, 22, ${Math.min(0.85, p.scale * 1.4)})`;
+                ctx.beginPath();
+                ctx.moveTo(p.x - pillarW * 0.5, p.y);
+                ctx.lineTo(p.x + pillarW * 0.5, p.y);
+                ctx.lineTo(p.x + pillarW * 0.4 + bend, p.y - pillarH);
+                ctx.lineTo(p.x - pillarW * 0.4 + bend, p.y - pillarH);
+                ctx.closePath();
+                ctx.fill();
+
+                if (p.scale > 0.22) {
+                    ctx.fillStyle = `rgba(195, 40, 60, ${Math.min(0.45, p.scale * 0.6)})`;
+                    ctx.fillText(node.glyph, p.x + bend * 0.5, p.y - pillarH * 0.5);
+                }
+            }
+        }
+
+        _drawTrack(ctx) {
             const nearP = this.project(2.5, -120);
             const farP = this.project(2.5, MP_CONFIG.VISUALS.HORIZON_Z);
 
-            // Asfalto general de los 6 carriles
+            // Asfalto
             ctx.fillStyle = '#0a0a0f';
             ctx.beginPath();
             ctx.moveTo(farP.centerX - farP.currentTrackWidth * 0.5, farP.y);
@@ -774,9 +896,9 @@
             ctx.closePath();
             ctx.fill();
 
-            // Líneas de velocidad horizontales
+            // Líneas de velocidad transversales
             const stepZ = 90;
-            const offsetZ = stepZ - (camZ % stepZ) - stepZ * 2;
+            const offsetZ = stepZ - (this.worldZ % stepZ) - stepZ * 2;
             for (let z = offsetZ; z < MP_CONFIG.VISUALS.HORIZON_Z; z += stepZ) {
                 if (z < -120) continue;
                 const p = this.project(2.5, z);
@@ -788,8 +910,7 @@
                 ctx.stroke();
             }
 
-            // Líneas divisorias de carriles (excepto el centro X=0 que es la línea negra)
-            // Bordes externos y divisores internos
+            // Líneas divisoras de carriles
             const dividers = [-3.0, -2.0, -1.0, 1.0, 2.0, 3.0];
             for (const div of dividers) {
                 const isOuter = (div === -3.0 || div === 3.0);
@@ -807,31 +928,30 @@
         }
 
         // ====================================================================
-        // TAREA 2: LÍNEA CENTRAL DIVISORIA NEGRA SÓLIDA Y GRUESA
+        // LÍNEA CENTRAL DIVISORIA NEGRA SÓLIDA Y GRUESA (BARRERA FÍSICA)
         // ====================================================================
 
-        _drawSolidBlackCentralDivider(ctx) {
-            // Se dibuja exactamente en medio de ambos bloques (entre Carril 3 y Carril 4 -> X=0)
+        _drawBlackDivider(ctx) {
             ctx.save();
 
-            // Sombra / zanja negra profunda bajo la barrera
+            // Base negra profunda
             ctx.strokeStyle = '#000000';
-            ctx.lineWidth = 14;
+            ctx.lineWidth = 16;
             ctx.beginPath();
             for (let z = -120; z <= MP_CONFIG.VISUALS.HORIZON_Z; z += 80) {
-                const p = this.project(2.5 + 0.0, z); // Posición 0.0 = Centro exacto entre P1 y P2
+                const p = this.project(2.5 + 0.0, z);
                 if (z === -120) ctx.moveTo(p.x, p.y);
                 else ctx.lineTo(p.x, p.y);
             }
             ctx.stroke();
 
-            // Muro / Cordón negro sólido en relieve 3D
+            // Muro 3D de concreto negro en relieve continuo
             for (let z = MP_CONFIG.VISUALS.HORIZON_Z; z >= -120; z -= 70) {
                 const pNear = this.project(2.5 + 0.0, z);
                 const pFar = this.project(2.5 + 0.0, z + 70);
 
-                const barrierH = 26 * pNear.scale;
-                const barrierW = Math.max(6, 14 * pNear.scale);
+                const barrierH = 28 * pNear.scale;
+                const barrierW = Math.max(7, 16 * pNear.scale);
 
                 // Bloque negro sólido
                 ctx.fillStyle = '#050507';
@@ -847,7 +967,7 @@
                 ctx.fill();
                 ctx.stroke();
 
-                // Lomo superior de la barrera divisoria
+                // Lomo superior
                 ctx.fillStyle = '#0f0f14';
                 ctx.beginPath();
                 ctx.moveTo(pNear.x - barrierW * 0.5, pNear.y - barrierH);
@@ -865,31 +985,28 @@
         // RENDERIZADO DE OBSTÁCULOS
         // ====================================================================
 
-        _drawObstacles(ctx, now) {
-            const camZ = Math.min(this.p1.z, this.p2.z);
-
-            // Ordenar obstáculos del más lejano al más cercano
+        _drawObstacles(ctx) {
             const sorted = [...this.obstacles].sort((a, b) => b.z - a.z);
 
             for (const obs of sorted) {
-                const relZ = obs.z - camZ;
+                const relZ = obs.z - this.worldZ;
                 if (relZ < -100 || relZ > MP_CONFIG.VISUALS.HORIZON_Z) continue;
 
                 const p = this.project(obs.lane, relZ);
-                obs.visualX = p.x;
-                obs.y = p.y;
+                obs.screenX = p.x;
+                obs.screenY = p.y;
 
-                if (obs.type === MP_CONFIG.OBSTACLES.TYPES.TOWER) {
-                    this._drawTowerObstacle(ctx, obs, p);
-                } else if (obs.type === MP_CONFIG.OBSTACLES.TYPES.MONOLITH) {
-                    this._drawMonolithObstacle(ctx, obs, p);
+                if (obs.type === 'TOWER') {
+                    this._drawTower(ctx, obs, p);
+                } else if (obs.type === 'MONOLITH') {
+                    this._drawMonolith(ctx, obs, p);
                 } else {
-                    this._drawBarricadeObstacle(ctx, obs, p);
+                    this._drawBarricade(ctx, obs, p);
                 }
             }
         }
 
-        _drawTowerObstacle(ctx, obs, p) {
+        _drawTower(ctx, obs, p) {
             ctx.save();
             ctx.translate(p.x, p.y);
 
@@ -901,34 +1018,29 @@
             }
             ctx.rotate(angle);
 
-            // Escoger imagen según dirección de inclinación
-            const imgList = obs.tiltDir > 0 ? this.sprites.rightTowers : this.sprites.leftTowers;
-            const chosenPath = imgList[obs.spriteIdx % imgList.length];
-            const img = this.loadedImages[chosenPath];
+            const list = obs.tiltDir > 0 ? this.spriteImages.rightTowers : this.spriteImages.leftTowers;
+            const chosenPath = list[obs.spriteIdx % list.length];
+            const img = this.images[chosenPath];
 
             const spriteH = 220 * p.scale;
             const spriteW = spriteH * 0.72;
-            const drawX = -spriteW * 0.5;
-            const drawY = -spriteH;
 
             if (img && img.complete && img.naturalWidth > 0) {
-                ctx.drawImage(img, drawX, drawY, spriteW, spriteH);
+                ctx.drawImage(img, -spriteW * 0.5, -spriteH, spriteW, spriteH);
             } else {
-                // Fallback procedural retro
                 ctx.fillStyle = '#ffbe0b';
-                ctx.fillRect(drawX, drawY, spriteW, spriteH);
+                ctx.fillRect(-spriteW * 0.5, -spriteH, spriteW, spriteH);
             }
-
             ctx.restore();
         }
 
-        _drawMonolithObstacle(ctx, obs, p) {
+        _drawMonolith(ctx, obs, p) {
             const h = 150 * p.scale;
             const w = p.laneWidth * 0.90;
 
             ctx.save();
-            ctx.fillStyle = (obs.hitFlash > 0) ? '#551a24' : '#08080c';
-            ctx.strokeStyle = (obs.hitFlash > 0) ? '#ffffff' : '#d90429';
+            ctx.fillStyle = (obs.flashTimer > 0) ? '#551a24' : '#08080c';
+            ctx.strokeStyle = (obs.flashTimer > 0) ? '#ffffff' : '#d90429';
             ctx.lineWidth = Math.max(1.5, 3.0 * p.scale);
 
             ctx.fillRect(p.x - w * 0.5, p.y - h, w, h);
@@ -943,19 +1055,17 @@
             ctx.restore();
         }
 
-        _drawBarricadeObstacle(ctx, obs, p) {
+        _drawBarricade(ctx, obs, p) {
             if (obs.state === 'SHATTERED' && obs.shatterProgress >= 1.0) return;
 
             const isDestroyed = (obs.state === 'SHATTERED');
-            const imgPath = isDestroyed
-                ? this.sprites.barricadeDestroyed[obs.spriteIdx % this.sprites.barricadeDestroyed.length]
-                : this.sprites.barricades[obs.spriteIdx % this.sprites.barricades.length];
-            const img = this.loadedImages[imgPath];
+            const path = isDestroyed
+                ? this.spriteImages.barricadesDestroyed[obs.spriteIdx % this.spriteImages.barricadesDestroyed.length]
+                : this.spriteImages.barricades[obs.spriteIdx % this.spriteImages.barricades.length];
+            const img = this.images[path];
 
             const spriteW = p.laneWidth * 1.15;
             const spriteH = spriteW * 0.56;
-            const drawX = p.x - spriteW * 0.5;
-            const drawY = p.y - spriteH * 0.88;
 
             ctx.save();
             if (isDestroyed) {
@@ -963,30 +1073,28 @@
             }
 
             if (img && img.complete && img.naturalWidth > 0) {
-                ctx.drawImage(img, drawX, drawY, spriteW, spriteH);
+                ctx.drawImage(img, p.x - spriteW * 0.5, p.y - spriteH * 0.88, spriteW, spriteH);
             } else {
                 ctx.fillStyle = '#8b5cf6';
-                ctx.fillRect(drawX, drawY, spriteW, spriteH);
+                ctx.fillRect(p.x - spriteW * 0.5, p.y - spriteH * 0.88, spriteW, spriteH);
             }
             ctx.restore();
         }
 
         // ====================================================================
-        // RENDERIZADO DE JUGADORES (CORREDORES P1 Y P2)
+        // SILUETA AUTÉNTICA DEL CORREDOR (IDÉNTICA AL JUEGO PRINCIPAL)
         // ====================================================================
 
-        _drawPlayerSprite(ctx, player, now) {
-            if (!player.isAlive && player.speed <= 5) return;
-
-            // Parpadeo durante la invulnerabilidad tras recibir golpe
+        _drawRunnerSilhouette(ctx, player, now) {
+            // Parpadeo de invulnerabilidad
             if (player.invulnerableTimer > 0 && Math.floor(now * 0.015) % 2 === 0) {
                 return;
             }
 
-            const camZ = Math.min(this.p1.z, this.p2.z);
-            const p = this.project(player.visualLane, player.z - camZ);
+            const p = this.project(player.visualLane, 0);
 
-            const speedRatio = player.speed / MP_CONFIG.MOVEMENT.MAX_SPEED;
+            // Balanceo físico de carrera
+            const speedRatio = this.currentSpeed / MP_CONFIG.SPEED.MAX;
             const bobY = Math.abs(Math.sin(player.stridePhase)) * 10 * speedRatio;
             const tiltX = (player.lane - player.visualLane) * 0.28;
 
@@ -994,7 +1102,7 @@
             ctx.translate(p.x, p.y - bobY);
             ctx.rotate(tiltX);
 
-            // Sombra en el carril
+            // Sombra proyectada en el asfalto
             ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
             ctx.beginPath();
             ctx.ellipse(0, bobY, 26, 8, 0, 0, Math.PI * 2);
@@ -1009,15 +1117,16 @@
                 ctx.stroke();
             }
 
+            // Silueta estilizada y oscura del Corredor
             const bodyH = 74;
             const bodyW = 30;
 
-            // Silueta oscura con aura de su color respectivo (Cyan P1 / Ámbar P2)
-            ctx.strokeStyle = player.isHoldingRun ? '#ffffff' : player.color;
+            // Aura tensa con el color de su facción (Cyan P1 / Ámbar P2)
+            ctx.strokeStyle = player.color;
             ctx.fillStyle = '#0b0c10';
             ctx.lineWidth = 2.4;
 
-            // Torso
+            // Torso / abrigo desgarrado
             ctx.beginPath();
             ctx.moveTo(-bodyW * 0.5, 0);
             ctx.lineTo(-bodyW * 0.36, -bodyH * 0.72);
@@ -1027,17 +1136,32 @@
             ctx.fill();
             ctx.stroke();
 
-            // Cabeza
+            // Cabeza con capucha
             ctx.beginPath();
             ctx.arc(0, -bodyH * 0.88, 11, 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
 
-            // Identificador visual en la espalda (P1 o P2)
+            // Núcleo o símbolo de pulso en la espalda
             ctx.fillStyle = player.color;
             ctx.font = 'bold 12px monospace';
             ctx.textAlign = 'center';
-            ctx.fillText(player.id === 1 ? 'P1' : 'P2', 0, -bodyH * 0.38);
+            ctx.fillText(player.id === 1 ? 'P1' : (player.isBot ? '🤖' : 'P2'), 0, -bodyH * 0.38);
+
+            // Guía diegética flotante de pulso BPM junto al corredor
+            const heartImg = this.images[this.spriteImages.heart];
+            ctx.save();
+            ctx.translate(bodyW * 1.15, -bodyH * 0.58);
+            ctx.textAlign = 'left';
+            ctx.font = 'bold 12px monospace';
+            ctx.fillStyle = player.color;
+            if (heartImg && heartImg.complete && heartImg.naturalWidth > 0) {
+                ctx.drawImage(heartImg, 0, -11, 13, 13);
+                ctx.fillText(`${player.bpm}`, 16, 0);
+            } else {
+                ctx.fillText(`♥ ${player.bpm}`, 0, 0);
+            }
+            ctx.restore();
 
             ctx.restore();
         }
@@ -1066,7 +1190,7 @@
                 const pt = this.particles[i];
                 pt.x += pt.vx * dt;
                 pt.y += pt.vy * dt;
-                pt.vy += 650 * dt; // Gravedad
+                pt.vy += 650 * dt;
                 pt.life -= dt;
                 if (pt.life <= 0) {
                     this.particles.splice(i, 1);
@@ -1085,11 +1209,10 @@
         }
     }
 
-    // Inicialización automática cuando el DOM esté listo
     window.addEventListener('DOMContentLoaded', () => {
-        const game = new MultiplayerGame();
-        game.start();
-        window.MP_GAME = game;
+        const app = new MultiplayerApp();
+        app.start();
+        window.MP_APP = app;
     });
 
 })();

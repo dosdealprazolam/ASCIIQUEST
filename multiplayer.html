@@ -3,91 +3,177 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SURVIVAL RUNNER — MULTIJUGADOR LOCAL (2 JUGADORES / 6 CARRILES)</title>
+    <title>SURVIVAL RUNNER — MULTIJUGADOR LOCAL (6 CARRILES / P1 vs P2)</title>
+    <link rel="stylesheet" href="css/style.css" />
     <link rel="stylesheet" href="css/multiplayer.css" />
 </head>
 <body>
-    <!-- Lienzo Principal 2.5D para 6 Carriles -->
+    <!-- Lienzo Principal 2.5D con 6 Carriles -->
     <canvas id="multiplayer-canvas"></canvas>
 
-    <!-- Filtro CRT retro con scanlines y viñeta -->
+    <!-- Capa de Líneas de Escaneo CRT -->
     <div class="crt-overlay"></div>
 
-    <!-- HUD Superior Dual para 2 Jugadores -->
+    <!-- HUD SUPERIOR: 2 MONITORES MÉDICOS CONTEC (P1 Izquierda / P2 Derecha) -->
     <header id="mp-top-bar">
-        <!-- Lado Izquierdo: Telemetría de JUGADOR 1 -->
-        <div class="player-hud-card player-hud-p1">
-            <div class="player-title p1-color">JUGADOR 1 [CARRILES 1-3]</div>
-            <div class="lives-row">
-                <span style="color:#94a3b8;">VIDAS:</span>
-                <div id="p1-lives-icons" class="lives-icons">
-                    <span class="heart-full">♥</span>
-                    <span class="heart-full">♥</span>
-                    <span class="heart-full">♥</span>
+        <!-- 1. MONITOR MÉDICO CONTEC — JUGADOR 1 -->
+        <div id="p1-monitor-shell" class="monitor-shell-container mp-monitor-shell">
+            <img class="monitor-shell-bg" src="img/image_8.png" alt="Monitor Contec P1" />
+            <div class="monitor-glass-screen">
+                <div class="monitor-top-row">
+                    <div class="monitor-top-left-controls">
+                        <span class="mp-player-badge p1-badge">P1</span>
+                        <div class="player-name-mini-box monitor-crt-name-box">
+                            <span class="monitor-lbl">ID:</span>
+                            <span style="color:#2ec4b6; font-size:10px; font-weight:bold;">JUGADOR 1</span>
+                        </div>
+                    </div>
+                    <div class="monitor-top-stats">
+                        <div class="monitor-stat-item">
+                            <span class="monitor-lbl">VIDAS:</span>
+                            <span id="p1-lives-display" class="monitor-val" style="color:#ff2a4b; font-size:12px; font-weight:bold;">♥ ♥ ♥</span>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="telemetry-row">
-                <span id="p1-bpm-val" style="color:#2ec4b6; font-weight:bold;">110 BPM</span>
-                <span style="color:#64748b;">|</span>
-                <span>PERSECUCIÓN:</span>
-                <div class="pursuit-bar-track">
-                    <div id="p1-pursuit-bar" class="pursuit-bar-fill" style="background:#2ec4b6;"></div>
+
+                <div class="monitor-middle-row">
+                    <div class="bpm-readout-box bpm-steady">
+                        <div class="bpm-primary-line">
+                            <img class="bpm-heart-img" src="img/corazon.png" alt="♥" />
+                            <span class="monitor-bpm-lbl">BPM:</span>
+                            <span id="p1-bpm-val" class="bpm-number">110</span>
+                        </div>
+                        <div class="monitor-stat-lane-sub">
+                            <span class="monitor-lbl-dim">CARRIL:</span>
+                            <span id="p1-lane-val" class="monitor-val-lane">2 (CENTRO)</span>
+                        </div>
+                    </div>
+                    <div class="ecg-oscilloscope-wrap">
+                        <canvas id="p1-ecg-canvas" width="220" height="36"></canvas>
+                    </div>
                 </div>
-            </div>
-            <div class="controls-hint">
-                <strong style="color:#2ec4b6;">[A]</strong> Mantener: Correr | Micro-soltado (&lt;0.25s): Cambiar carril &nbsp;|&nbsp; <strong style="color:#2ec4b6;">[F]</strong> Golpear
+
+                <div class="monitor-bottom-bars">
+                    <div class="monitor-bar-group">
+                        <div class="monitor-bar-header">
+                            <span id="p1-progress-lbl" class="monitor-bar-title-cyan">RECORRIDO: 0.00 KM</span>
+                        </div>
+                        <div class="monitor-led-bar-bg led-bar-cyan">
+                            <div id="p1-progress-fill" class="monitor-led-fill-cyan" style="width:0%;"></div>
+                        </div>
+                    </div>
+                    <div class="monitor-bar-group">
+                        <div class="monitor-bar-header">
+                            <span class="monitor-bar-title-danger">MARGEN ANTE LA PERSECUCIÓN:</span>
+                        </div>
+                        <div class="monitor-led-bar-bg led-bar-danger">
+                            <div id="p1-pursuit-fill" class="monitor-led-fill-danger" style="width:100%;"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="monitor-crt-overlay"></div>
             </div>
         </div>
 
-        <!-- Centro: Distancia Total y Navegación -->
-        <div id="mp-center-info">
-            <div class="mp-mode-badge">PRUEBA MULTIJUGADOR 2P (6 CARRILES)</div>
-            <div id="mp-distance-val" class="distance-display">0.00 km</div>
-            <a href="index.html" class="nav-link-btn">◀ VOLVER AL MODO INDIVIDUAL</a>
+        <!-- 2. CENTRO SUPERIOR: ODÓMETRO Y RETORNO -->
+        <div id="mp-center-dock">
+            <div class="mp-center-badge">PRUEBA 2P (6 CARRILES)</div>
+            <div id="mp-odometer" class="mp-odometer">0.00 km</div>
+            <a href="index.html" class="mp-return-link">◀ MODO INDIVIDUAL</a>
         </div>
 
-        <!-- Lado Derecho: Telemetría de JUGADOR 2 -->
-        <div class="player-hud-card player-hud-p2">
-            <div class="player-title p2-color">JUGADOR 2 [CARRILES 4-6]</div>
-            <div class="lives-row">
-                <span style="color:#94a3b8;">VIDAS:</span>
-                <div id="p2-lives-icons" class="lives-icons">
-                    <span class="heart-full">♥</span>
-                    <span class="heart-full">♥</span>
-                    <span class="heart-full">♥</span>
+        <!-- 3. MONITOR MÉDICO CONTEC — JUGADOR 2 -->
+        <div id="p2-monitor-shell" class="monitor-shell-container mp-monitor-shell">
+            <img class="monitor-shell-bg" src="img/image_8.png" alt="Monitor Contec P2" />
+            <div class="monitor-glass-screen">
+                <div class="monitor-top-row">
+                    <div class="monitor-top-left-controls">
+                        <span class="mp-player-badge p2-badge">P2</span>
+                        <div class="player-name-mini-box monitor-crt-name-box">
+                            <span class="monitor-lbl">ID:</span>
+                            <span style="color:#ff9f1c; font-size:10px; font-weight:bold;">JUGADOR 2</span>
+                        </div>
+                    </div>
+                    <div class="monitor-top-stats">
+                        <div class="monitor-stat-item">
+                            <span class="monitor-lbl">VIDAS:</span>
+                            <span id="p2-lives-display" class="monitor-val" style="color:#ff2a4b; font-size:12px; font-weight:bold;">♥ ♥ ♥</span>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="telemetry-row">
-                <div class="pursuit-bar-track">
-                    <div id="p2-pursuit-bar" class="pursuit-bar-fill" style="background:#ff9f1c;"></div>
+
+                <div class="monitor-middle-row">
+                    <div class="bpm-readout-box bpm-steady">
+                        <div class="bpm-primary-line">
+                            <img class="bpm-heart-img" src="img/corazon.png" alt="♥" />
+                            <span class="monitor-bpm-lbl">BPM:</span>
+                            <span id="p2-bpm-val" class="bpm-number">110</span>
+                        </div>
+                        <div class="monitor-stat-lane-sub">
+                            <span class="monitor-lbl-dim">CARRIL:</span>
+                            <span id="p2-lane-val" class="monitor-val-lane">5 (CENTRO)</span>
+                        </div>
+                    </div>
+                    <div class="ecg-oscilloscope-wrap">
+                        <canvas id="p2-ecg-canvas" width="220" height="36"></canvas>
+                    </div>
                 </div>
-                <span>:PERSECUCIÓN</span>
-                <span style="color:#64748b;">|</span>
-                <span id="p2-bpm-val" style="color:#ff9f1c; font-weight:bold;">110 BPM</span>
-            </div>
-            <div class="controls-hint">
-                <strong style="color:#ff9f1c;">[H]</strong> Mantener: Correr | Micro-soltado (&lt;0.25s): Cambiar carril &nbsp;|&nbsp; <strong style="color:#ff9f1c;">[L]</strong> Golpear
+
+                <div class="monitor-bottom-bars">
+                    <div class="monitor-bar-group">
+                        <div class="monitor-bar-header">
+                            <span id="p2-progress-lbl" class="monitor-bar-title-cyan">RECORRIDO: 0.00 KM</span>
+                        </div>
+                        <div class="monitor-led-bar-bg led-bar-cyan">
+                            <div id="p2-progress-fill" class="monitor-led-fill-cyan" style="width:0%;"></div>
+                        </div>
+                    </div>
+                    <div class="monitor-bar-group">
+                        <div class="monitor-bar-header">
+                            <span class="monitor-bar-title-danger">MARGEN ANTE LA PERSECUCIÓN:</span>
+                        </div>
+                        <div class="monitor-led-bar-bg led-bar-danger">
+                            <div id="p2-pursuit-fill" class="monitor-led-fill-danger" style="width:100%;"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="monitor-crt-overlay"></div>
             </div>
         </div>
     </header>
 
-    <!-- Alertas en vivo de eliminación individual -->
-    <div id="p1-elimination-banner" class="elimination-banner elimination-p1 hidden">
+    <!-- Botón interactivo en el lado de P2 para tomar control manual -->
+    <div class="mp-p2-toggle-wrap">
+        <button id="btn-toggle-p2-control" type="button" class="mp-bot-toggle-btn">
+            🤖 P2: MODO AUTOMÁTICO (CLIC PARA USAR P2)
+        </button>
+    </div>
+
+    <!-- Guías discretas de control en la base de la pantalla -->
+    <div class="mp-controls-guide guide-p1">
+        <strong style="color:#2ec4b6;">P1 [CARRILES 1-3]:</strong> [A] Micro-soltado (&lt;0.25s) cambia carril &nbsp;|&nbsp; [F] Golpear
+    </div>
+    <div class="mp-controls-guide guide-p2">
+        <strong style="color:#ff9f1c;">P2 [CARRILES 4-6]:</strong> [H] Micro-soltado (&lt;0.25s) cambia carril &nbsp;|&nbsp; [L] Golpear
+    </div>
+
+    <!-- Alertas en vivo de eliminación -->
+    <div id="p1-elimination-tag" class="mp-elimination-tag p1-elim-tag hidden">
         💀 JUGADOR 1 ELIMINADO
     </div>
-    <div id="p2-elimination-banner" class="elimination-banner elimination-p2 hidden">
+    <div id="p2-elimination-tag" class="mp-elimination-tag p2-elim-tag hidden">
         💀 JUGADOR 2 ELIMINADO
     </div>
 
-    <!-- Pantalla de Fin de Partida / Game Over Dual (Puro texto retro vertical) -->
-    <section id="mp-gameover-overlay" class="hidden">
-        <h1 class="mp-modal-title">FIN DE LA CARRERA</h1>
-        <div id="mp-winner-announcement" class="mp-winner-announcement">¡VICTORIA!</div>
-        <div id="mp-stats-summary" class="mp-stats-summary"></div>
+    <!-- Overlay de Resultados de la Carrera -->
+    <section id="mp-results-overlay" class="hidden">
+        <h1 class="mp-result-title">FIN DE LA CARRERA</h1>
+        <div id="mp-result-winner" class="mp-result-winner">¡VICTORIA!</div>
+        <div id="mp-result-details" class="mp-result-details"></div>
 
-        <div class="mp-actions-column">
-            <button id="mp-btn-restart" type="button" class="mp-action-btn mp-btn-restart">REINICIAR PARTIDA [R]</button>
-            <a href="index.html" class="mp-action-btn mp-btn-exit">VOLVER AL MODO INDIVIDUAL</a>
+        <div class="mp-results-menu">
+            <button id="btn-rematch" type="button" class="mp-menu-btn btn-rematch">REINICIAR PARTIDA [R]</button>
+            <a href="index.html" class="mp-menu-btn btn-back-single">VOLVER AL MODO INDIVIDUAL</a>
         </div>
     </section>
 
