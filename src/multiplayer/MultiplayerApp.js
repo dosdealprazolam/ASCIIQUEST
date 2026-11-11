@@ -42,9 +42,12 @@
             SWITCH_LERP_SPEED: 21.0
         },
         SPEED: {
-            INITIAL: 920,        // Comienza con velocidad verdaderamente rápida y vertiginosa
-            MAX: 1080,           // Velocidad punta intensa
-            ACCEL_RATE: 1100     // Aceleración inmediata hacia velocidad punta
+            INITIAL: 1250,       // Velocidad vertiginosa inicial (mucho más rápida)
+            MAX: 1560,           // Velocidad punta electrizante
+            ACCEL_RATE: 2800,    // Aceleración instantánea y reactiva al pulsar/mantener
+            DECEL_RATE: 1600,    // Desaceleración al soltar la tecla
+            GRACE_DECEL: 340,    // Desaceleración casi nula durante micro-soltados de cambio de carril
+            MOMENTUM_GRACE_MS: 400
         },
         COMBAT: {
             INITIAL_LIVES: 3,
@@ -235,12 +238,16 @@
             this.p1Ctrl = new PlayerInputController(0, 3, MP_CONFIG.LANES.P1_DEFAULT);
             this.p2Ctrl = new PlayerInputController(3, 3, MP_CONFIG.LANES.P2_DEFAULT);
 
-            // Estado Jugador 1
+            // Estado Jugador 1 (Velocidad, posición Z y distancia 100% independientes)
             this.p1 = {
                 id: 1,
                 name: 'JUGADOR 1',
                 lane: MP_CONFIG.LANES.P1_DEFAULT,
                 visualLane: MP_CONFIG.LANES.P1_DEFAULT,
+                speed: MP_CONFIG.SPEED.INITIAL,
+                maxSpeed: MP_CONFIG.SPEED.MAX,
+                z: 0,
+                distanceMeters: 0,
                 lives: MP_CONFIG.COMBAT.INITIAL_LIVES,
                 isAlive: true,
                 isAuto: true,
@@ -254,12 +261,16 @@
                 botCooldown: 0
             };
 
-            // Estado Jugador 2
+            // Estado Jugador 2 (Velocidad, posición Z y distancia 100% independientes)
             this.p2 = {
                 id: 2,
                 name: 'JUGADOR 2',
                 lane: MP_CONFIG.LANES.P2_DEFAULT,
                 visualLane: MP_CONFIG.LANES.P2_DEFAULT,
+                speed: MP_CONFIG.SPEED.INITIAL,
+                maxSpeed: MP_CONFIG.SPEED.MAX,
+                z: 0,
+                distanceMeters: 0,
                 lives: MP_CONFIG.COMBAT.INITIAL_LIVES,
                 isAlive: true,
                 isAuto: true,
@@ -277,8 +288,13 @@
             this.extraLives = [];
             this.particles = [];
             this.nextObsId = 1;
-            this.nextSpawnZ = 1400;
-            this.nextHeartZ = 2800; // Primer corazón a buena distancia para que sea muy ocasional
+
+            // Spawns independientes por corredor
+            this.nextSpawnZP1 = 1400;
+            this.nextSpawnZP2 = 1400;
+            this.nextHeartZP1 = 2800;
+            this.nextHeartZP2 = 2800;
+
             this.matchElapsed = 0;
             this.WARMUP_DURATION = 11.0; // 10-12 segundos de calentamiento inicial
 
@@ -548,14 +564,16 @@
         }
 
         _executeStrike(player) {
-            // Rango dinámico generoso calibrado para velocidad alta (920-1080 u/s)
-            // A 1000 u/s, otorga aprox. 390ms de tiempo de reacción justo para reflejos humanos
-            const speedFactor = Math.max(1.0, this.currentSpeed / 520);
-            const range = Math.max(380, Math.round(MP_CONFIG.COMBAT.INTERACTION_RANGE * speedFactor));
+            // Rango dinámico generoso calibrado para velocidad independiente alta (hasta 1560 u/s)
+            // A 1500 u/s, otorga aprox. 320-380ms de tiempo de reacción justo y fluido
+            const speedFactor = Math.max(1.0, player.speed / 500);
+            const range = Math.max(420, Math.round(MP_CONFIG.COMBAT.INTERACTION_RANGE * speedFactor));
+            const isP1 = (player.id === 1);
 
             const target = this.obstacles.find(obs => {
                 if (obs.state === 'SHATTERED' || obs.state === 'COLLAPSED') return false;
                 if (obs.state === 'TOPPLING') return false;
+                if (isP1 ? obs.lane >= 3 : obs.lane < 3) return false;
 
                 // Tolerancia fluida de carril (comprueba carril destino y carril visual en transición)
                 const distToTargetLane = Math.abs(obs.lane - player.lane);
@@ -563,7 +581,7 @@
                 const laneDist = Math.min(distToTargetLane, distToVisualLane);
                 if (laneDist > 0.65) return false;
 
-                const relZ = obs.z - this.worldZ;
+                const relZ = obs.z - player.z;
                 return relZ >= -42 && relZ <= range;
             });
 
@@ -612,36 +630,37 @@
             const nearbyHeart = this.extraLives.find(h => {
                 if (h.collected) return false;
                 if (!validLanes.includes(h.lane)) return false;
-                const relZ = h.z - this.worldZ;
-                return relZ >= 40 && relZ <= 320;
+                const relZ = h.z - player.z;
+                return relZ >= 40 && relZ <= 380;
             });
 
             if (nearbyHeart && player.botCooldown <= 0 && player.lane !== nearbyHeart.lane) {
                 player.lane = nearbyHeart.lane;
                 ctrl.currentLane = player.lane;
-                player.botCooldown = 0.40;
+                player.botCooldown = 0.35;
                 return;
             }
 
             const upcoming = this.obstacles.find(obs => {
                 if (obs.state === 'SHATTERED' || obs.state === 'COLLAPSED' || obs.state === 'TOPPLING') return false;
+                if (!validLanes.includes(obs.lane)) return false;
                 const laneDist = Math.abs(obs.lane - player.lane);
                 if (laneDist > 0.45) return false;
-                const relZ = obs.z - this.worldZ;
-                return relZ >= 30 && relZ <= 230;
+                const relZ = obs.z - player.z;
+                return relZ >= 30 && relZ <= 340;
             });
 
             if (upcoming) {
-                const relZ = upcoming.z - this.worldZ;
+                const relZ = upcoming.z - player.z;
                 if (upcoming.type === 'MONOLITH') {
                     if (player.botCooldown <= 0) {
                         const curIdx = player.lane - validLanes[0];
                         const nextRel = (curIdx + 1) % validLanes.length;
                         player.lane = validLanes[nextRel];
                         ctrl.currentLane = player.lane;
-                        player.botCooldown = 0.42;
+                        player.botCooldown = 0.38;
                     }
-                } else if (relZ <= 180) {
+                } else if (relZ <= 260) {
                     player.bActionTimer = 0.16;
                     this._executeStrike(player);
                 }
@@ -663,7 +682,8 @@
 
             const y = horizonY + (playerScreenY - horizonY) * perspective;
 
-            const warpX = Math.sin((relZ + this.worldZ) * 0.0032) * (20 * (1 - perspective));
+            const refZ = (laneFloat < 3) ? (this.p1.z || 0) : (this.p2.z || 0);
+            const warpX = Math.sin((relZ + refZ) * 0.0032) * (20 * (1 - perspective));
 
             const trackWidthAtPlayer = Math.min(this.width * 0.94, MP_CONFIG.VISUALS.TRACK_MAX_WIDTH);
             const currentTrackWidth = trackWidthAtPlayer * perspective;
@@ -690,56 +710,74 @@
         _spawnWorldEntities() {
             const inWarmup = this.matchElapsed < this.WARMUP_DURATION;
 
-            while (this.nextSpawnZ < this.worldZ + 1800) {
-                const z = this.nextSpawnZ;
-
+            // 1. Spawning para carril JUGADOR 1 (según la velocidad y avance Z de P1)
+            while (this.nextSpawnZP1 < this.p1.z + 2200) {
+                const z = this.nextSpawnZP1;
                 if (inWarmup) {
-                    // Primeros 4.5 segundos: pista 100% libre para adaptarse al frenetismo y postura
-                    // De 4.5 a 11.0 segundos: calentamiento con barricadas individuales suaves para probar [F] y [L]
-                    if (this.matchElapsed >= 4.5) {
-                        if (Math.random() < 0.45) {
-                            const lP1 = Math.floor(Math.random() * 3);
-                            this._createWarmupBarricade(lP1, z);
-                        }
-                        if (Math.random() < 0.45) {
-                            const lP2 = 3 + Math.floor(Math.random() * 3);
-                            this._createWarmupBarricade(lP2, z);
-                        }
+                    if (this.matchElapsed >= 4.5 && Math.random() < 0.45) {
+                        const lP1 = Math.floor(Math.random() * 3);
+                        this._createWarmupBarricade(lP1, z);
                     }
-                    this.nextSpawnZ += 1150; // Espaciado holgado durante calentamiento
-                    continue;
+                    this.nextSpawnZP1 += 1150;
+                } else {
+                    if (Math.random() < MP_CONFIG.SPAWN.OBSTACLE_CHANCE) {
+                        const lP1 = Math.floor(Math.random() * 3);
+                        this._createObstacle(lP1, z, MP_CONFIG.LANES.P1_LANES);
+                    }
+                    this.nextSpawnZP1 += MP_CONFIG.SPAWN.STEP;
                 }
-
-                // Generación regular completa tras el calentamiento
-                if (Math.random() < MP_CONFIG.SPAWN.OBSTACLE_CHANCE) {
-                    const lP1 = Math.floor(Math.random() * 3);
-                    this._createObstacle(lP1, z, MP_CONFIG.LANES.P1_LANES);
-                }
-
-                if (Math.random() < MP_CONFIG.SPAWN.OBSTACLE_CHANCE) {
-                    const lP2 = 3 + Math.floor(Math.random() * 3);
-                    this._createObstacle(lP2, z, MP_CONFIG.LANES.P2_LANES);
-                }
-
-                this.nextSpawnZ += MP_CONFIG.SPAWN.STEP;
             }
 
-            while (this.nextHeartZ < this.worldZ + 1800) {
-                if (Math.random() < MP_CONFIG.SPAWN.EXTRA_LIFE_CHANCE) {
-                    const side = Math.random() < 0.5 ? 0 : 3;
-                    const lane = side + Math.floor(Math.random() * 3);
+            // 2. Spawning para carril JUGADOR 2 (según la velocidad y avance Z de P2)
+            while (this.nextSpawnZP2 < this.p2.z + 2200) {
+                const z = this.nextSpawnZP2;
+                if (inWarmup) {
+                    if (this.matchElapsed >= 4.5 && Math.random() < 0.45) {
+                        const lP2 = 3 + Math.floor(Math.random() * 3);
+                        this._createWarmupBarricade(lP2, z);
+                    }
+                    this.nextSpawnZP2 += 1150;
+                } else {
+                    if (Math.random() < MP_CONFIG.SPAWN.OBSTACLE_CHANCE) {
+                        const lP2 = 3 + Math.floor(Math.random() * 3);
+                        this._createObstacle(lP2, z, MP_CONFIG.LANES.P2_LANES);
+                    }
+                    this.nextSpawnZP2 += MP_CONFIG.SPAWN.STEP;
+                }
+            }
 
-                    const hasConflict = this.obstacles.some(o => o.lane === lane && Math.abs(o.z - this.nextHeartZ) < 140);
+            // 3. Vidas extra independientes para P1
+            while (this.nextHeartZP1 < this.p1.z + 2400) {
+                if (Math.random() < MP_CONFIG.SPAWN.EXTRA_LIFE_CHANCE) {
+                    const lane = Math.floor(Math.random() * 3);
+                    const hasConflict = this.obstacles.some(o => o.lane === lane && Math.abs(o.z - this.nextHeartZP1) < 140);
                     if (!hasConflict) {
                         this.extraLives.push({
                             id: this.nextObsId++,
                             lane,
-                            z: this.nextHeartZ,
+                            z: this.nextHeartZP1,
                             collected: false
                         });
                     }
                 }
-                this.nextHeartZ += MP_CONFIG.SPAWN.EXTRA_LIFE_STEP + Math.floor(Math.random() * 1200);
+                this.nextHeartZP1 += MP_CONFIG.SPAWN.EXTRA_LIFE_STEP + Math.floor(Math.random() * 1200);
+            }
+
+            // 4. Vidas extra independientes para P2
+            while (this.nextHeartZP2 < this.p2.z + 2400) {
+                if (Math.random() < MP_CONFIG.SPAWN.EXTRA_LIFE_CHANCE) {
+                    const lane = 3 + Math.floor(Math.random() * 3);
+                    const hasConflict = this.obstacles.some(o => o.lane === lane && Math.abs(o.z - this.nextHeartZP2) < 140);
+                    if (!hasConflict) {
+                        this.extraLives.push({
+                            id: this.nextObsId++,
+                            lane,
+                            z: this.nextHeartZP2,
+                            collected: false
+                        });
+                    }
+                }
+                this.nextHeartZP2 += MP_CONFIG.SPAWN.EXTRA_LIFE_STEP + Math.floor(Math.random() * 1200);
             }
         }
 
@@ -822,13 +860,6 @@
         }
 
         _update(dt, now) {
-            if (this.currentSpeed < MP_CONFIG.SPEED.MAX) {
-                this.currentSpeed = Math.min(MP_CONFIG.SPEED.MAX, this.currentSpeed + MP_CONFIG.SPEED.ACCEL_RATE * dt);
-            }
-
-            const activeSpeed = (this.p1.isAlive || this.p2.isAlive) ? this.currentSpeed : 0;
-            this.worldZ += activeSpeed * dt;
-            this.distanceMeters = Math.floor(this.worldZ / 10);
             this.matchElapsed += dt;
 
             if (this.shakeIntensity > 0) {
@@ -868,19 +899,50 @@
         }
 
         _updatePlayerState(player, dt, now) {
-            if (!player.isAlive) return;
+            if (!player.isAlive) {
+                player.speed = Math.max(0, player.speed - MP_CONFIG.SPEED.DECEL_RATE * dt);
+                return;
+            }
+
+            const ctrl = (player.id === 1) ? this.p1Ctrl : this.p2Ctrl;
+            const isHoldingRun = player.isAuto ? true : ctrl.isHoldingRun;
+            const timeSinceRelease = now - ctrl.releaseTime;
+            const inMomentumGrace = !isHoldingRun && (timeSinceRelease <= MP_CONFIG.SPEED.MOMENTUM_GRACE_MS);
+
+            // Aceleración y velocidad completamente independiente por corredor
+            if (isHoldingRun) {
+                if (player.speed < player.maxSpeed) {
+                    player.speed = Math.min(player.maxSpeed, player.speed + MP_CONFIG.SPEED.ACCEL_RATE * dt);
+                }
+            } else if (inMomentumGrace) {
+                // Micro-soltado (<0.25s) conserva casi toda la inercia sin perder vértigo
+                const minGraceSpeed = player.maxSpeed * 0.88;
+                player.speed = Math.max(minGraceSpeed, player.speed - MP_CONFIG.SPEED.GRACE_DECEL * dt);
+            } else {
+                // Al soltar por completo la tecla de carrera, desacelera suavemente
+                player.speed = Math.max(0, player.speed - MP_CONFIG.SPEED.DECEL_RATE * dt);
+            }
+
+            if (player.speed > 0) {
+                player.z += player.speed * dt;
+                player.distanceMeters = Math.floor(player.z / 10);
+            }
 
             const diff = player.lane - player.visualLane;
             player.visualLane += diff * Math.min(1, MP_CONFIG.LANES.SWITCH_LERP_SPEED * dt);
 
-            player.stridePhase += dt * (this.currentSpeed * 0.018);
+            player.stridePhase += dt * (player.speed * 0.019);
 
             if (player.bActionTimer > 0) player.bActionTimer -= dt;
             if (player.invulnerableTimer > 0) player.invulnerableTimer -= dt;
 
+            // Fisiología de BPM idéntica a campaña:
+            // Sube progresivamente de 110 hasta 180 BPM conforme corre a máxima velocidad
+            const speedRatio = player.maxSpeed > 0 ? (player.speed / player.maxSpeed) : 0;
+            const targetBpm = 110 + Math.floor(speedRatio * 70);
+            player.bpm = Math.round(player.bpm + (targetBpm - player.bpm) * Math.min(1, dt * 2.8));
+
             player.heartPulsePhase += dt * (player.bpm / 60) * Math.PI * 2;
-            const targetBpm = 110 + Math.floor((this.currentSpeed / MP_CONFIG.SPEED.MAX) * 70);
-            player.bpm = Math.round(player.bpm + (targetBpm - player.bpm) * Math.min(1, dt * 2.0));
         }
 
         _updateObstacles(dt) {
@@ -897,7 +959,9 @@
                     obs.shatterProgress = Math.min(1.0, obs.shatterProgress + dt * 4.2);
                 }
 
-                if (obs.z < this.worldZ - 200) {
+                // Limpieza independiente según el corredor de ese lado
+                const playerRefZ = (obs.lane < 3) ? this.p1.z : this.p2.z;
+                if (obs.z < playerRefZ - 200) {
                     this.obstacles.splice(i, 1);
                 }
             }
@@ -906,7 +970,8 @@
         _updateExtraLives(dt) {
             for (let i = this.extraLives.length - 1; i >= 0; i--) {
                 const item = this.extraLives[i];
-                if (item.collected || item.z < this.worldZ - 200) {
+                const playerRefZ = (item.lane < 3) ? this.p1.z : this.p2.z;
+                if (item.collected || item.z < playerRefZ - 200) {
                     this.extraLives.splice(i, 1);
                 }
             }
@@ -915,11 +980,15 @@
         _checkCollisions(player) {
             if (!player.isAlive) return;
 
+            const isP1 = (player.id === 1);
+
             // 1. Recolección de Vida Extra (Corazón)
             for (const item of this.extraLives) {
                 if (item.collected) continue;
+                if (isP1 ? item.lane >= 3 : item.lane < 3) continue;
+
                 const laneDist = Math.abs(player.visualLane - item.lane);
-                const relZ = item.z - this.worldZ;
+                const relZ = item.z - player.z;
 
                 if (laneDist <= 0.40 && Math.abs(relZ) <= 38) {
                     item.collected = true;
@@ -937,6 +1006,7 @@
 
             for (const obs of this.obstacles) {
                 if (obs.state === 'SHATTERED') continue;
+                if (isP1 ? obs.lane >= 3 : obs.lane < 3) continue;
 
                 // Si la estructura fue golpeada con [B] y está cayendo (TOPPLING),
                 // el carril original ya quedó 100% despejado y aún no termina de aplastar el destino
@@ -957,7 +1027,7 @@
                 const laneDist = Math.abs(player.visualLane - effectiveObsLane);
                 if (laneDist > 0.34) continue; // Tolerancia estricta y calibrada para evitar choques falsos
 
-                const relZ = obs.z - this.worldZ;
+                const relZ = obs.z - player.z;
                 if (relZ >= -18 && relZ <= 34) {
                     player.lives--;
                     player.invulnerableTimer = MP_CONFIG.COMBAT.INVULNERABLE_DURATION;
@@ -990,11 +1060,17 @@
             let winnerText = '¡EMPATE!';
             let winnerColor = '#ffffff';
 
-            if (this.p1.lives > this.p2.lives) {
-                winnerText = '¡VICTORIA DEL JUGADOR 1!';
+            if (this.p1.lives > 0 && this.p2.lives <= 0) {
+                winnerText = '¡VICTORIA DEL JUGADOR 1 (SUPERVIVENCIA)!';
                 winnerColor = '#2ec4b6';
-            } else if (this.p2.lives > this.p1.lives) {
-                winnerText = '¡VICTORIA DEL JUGADOR 2!';
+            } else if (this.p2.lives > 0 && this.p1.lives <= 0) {
+                winnerText = '¡VICTORIA DEL JUGADOR 2 (SUPERVIVENCIA)!';
+                winnerColor = '#ff9f1c';
+            } else if (this.p1.distanceMeters > this.p2.distanceMeters) {
+                winnerText = `¡VICTORIA DEL JUGADOR 1 (+${this.p1.distanceMeters - this.p2.distanceMeters}m)!`;
+                winnerColor = '#2ec4b6';
+            } else if (this.p2.distanceMeters > this.p1.distanceMeters) {
+                winnerText = `¡VICTORIA DEL JUGADOR 2 (+${this.p2.distanceMeters - this.p1.distanceMeters}m)!`;
                 winnerColor = '#ff9f1c';
             }
 
@@ -1004,10 +1080,11 @@
             }
 
             if (this.dom.resultDetails) {
-                const km = (this.distanceMeters / 1000).toFixed(2);
+                const km1 = (this.p1.distanceMeters / 1000).toFixed(2);
+                const km2 = (this.p2.distanceMeters / 1000).toFixed(2);
                 this.dom.resultDetails.innerHTML = `
-                    DISTANCIA TOTAL: <strong style="color:#ffffff;">${km} km</strong> (${this.distanceMeters} m)<br/>
-                    P1: ${this.p1.lives} VIDAS &nbsp;|&nbsp; P2: ${this.p2.lives} VIDAS
+                    P1: <strong style="color:#2ec4b6;">${km1} km</strong> (${Math.round(this.p1.speed)} u/s - ${this.p1.lives} vidas)<br/>
+                    P2: <strong style="color:#ff9f1c;">${km2} km</strong> (${Math.round(this.p2.speed)} u/s - ${this.p2.lives} vidas)
                 `;
             }
 
@@ -1017,15 +1094,15 @@
         }
 
         rematch() {
-            this.currentSpeed = MP_CONFIG.SPEED.INITIAL;
-            this.worldZ = 0;
-            this.distanceMeters = 0;
             this.isMatchOver = false;
             this.shakeIntensity = 0;
             this.flashAlpha = 0;
 
             this.p1.lane = MP_CONFIG.LANES.P1_DEFAULT;
             this.p1.visualLane = MP_CONFIG.LANES.P1_DEFAULT;
+            this.p1.speed = MP_CONFIG.SPEED.INITIAL;
+            this.p1.z = 0;
+            this.p1.distanceMeters = 0;
             this.p1.lives = MP_CONFIG.COMBAT.INITIAL_LIVES;
             this.p1.isAlive = true;
             this.p1.isAuto = true;
@@ -1034,6 +1111,9 @@
 
             this.p2.lane = MP_CONFIG.LANES.P2_DEFAULT;
             this.p2.visualLane = MP_CONFIG.LANES.P2_DEFAULT;
+            this.p2.speed = MP_CONFIG.SPEED.INITIAL;
+            this.p2.z = 0;
+            this.p2.distanceMeters = 0;
             this.p2.lives = MP_CONFIG.COMBAT.INITIAL_LIVES;
             this.p2.isAlive = true;
             this.p2.isAuto = true;
@@ -1044,8 +1124,12 @@
             this.extraLives = [];
             this.particles = [];
             this.nextObsId = 1;
-            this.nextSpawnZ = 1400;
-            this.nextHeartZ = 2800; // Primer corazón a buena distancia para que sea muy ocasional
+
+            this.nextSpawnZP1 = 1400;
+            this.nextSpawnZP2 = 1400;
+            this.nextHeartZP1 = 2800;
+            this.nextHeartZP2 = 2800;
+
             this.matchElapsed = 0;
             this.WARMUP_DURATION = 11.0; // 10-12 segundos de calentamiento inicial
 
@@ -1059,9 +1143,22 @@
         }
 
         _updateHudText() {
-            const kmStr = (this.distanceMeters / 1000).toFixed(2);
+            const kmStr1 = (this.p1.distanceMeters / 1000).toFixed(2);
+            const kmStr2 = (this.p2.distanceMeters / 1000).toFixed(2);
 
-            if (this.dom.odometer) this.dom.odometer.textContent = `${kmStr} km`;
+            // Odómetro Central: Comparador en vivo de ventaja en metros y velocidad
+            if (this.dom.odometer) {
+                const d1 = this.p1.distanceMeters;
+                const d2 = this.p2.distanceMeters;
+                const lead = d1 - d2;
+                if (lead > 0) {
+                    this.dom.odometer.innerHTML = `<span style="color:#2ec4b6; font-weight:bold;">▲ P1 +${lead}m</span> &nbsp;<span style="color:#94a3b8; font-size:11px;">(${kmStr1} km)</span>`;
+                } else if (lead < 0) {
+                    this.dom.odometer.innerHTML = `<span style="color:#ff9f1c; font-weight:bold;">▲ P2 +${-lead}m</span> &nbsp;<span style="color:#94a3b8; font-size:11px;">(${kmStr2} km)</span>`;
+                } else {
+                    this.dom.odometer.innerHTML = `<span style="color:#06d6a0;">EMPATE</span> &nbsp;<span style="color:#94a3b8; font-size:11px;">(${kmStr1} km)</span>`;
+                }
+            }
 
             if (this.dom.p1Lives) {
                 this.dom.p1Lives.innerHTML = '♥ '.repeat(this.p1.lives).trim() || '💀 0';
@@ -1080,18 +1177,25 @@
                 this.dom.p2Lane.textContent = MP_CONFIG.LANES.NAMES[this.p2.lane];
             }
 
-            if (this.dom.p1ProgressLbl) this.dom.p1ProgressLbl.textContent = `RECORRIDO: ${kmStr} KM`;
-            if (this.dom.p2ProgressLbl) this.dom.p2ProgressLbl.textContent = `RECORRIDO: ${kmStr} KM`;
+            if (this.dom.p1ProgressLbl) {
+                this.dom.p1ProgressLbl.textContent = `RECORRIDO: ${kmStr1} KM (${Math.round(this.p1.speed)} u/s)`;
+            }
+            if (this.dom.p2ProgressLbl) {
+                this.dom.p2ProgressLbl.textContent = `RECORRIDO: ${kmStr2} KM (${Math.round(this.p2.speed)} u/s)`;
+            }
 
-            const progPct = Math.min(100, (this.distanceMeters / 10000) * 100).toFixed(1);
-            if (this.dom.p1ProgressFill) this.dom.p1ProgressFill.style.width = `${progPct}%`;
-            if (this.dom.p2ProgressFill) this.dom.p2ProgressFill.style.width = `${progPct}%`;
+            const progPct1 = Math.min(100, (this.p1.distanceMeters / 10000) * 100).toFixed(1);
+            const progPct2 = Math.min(100, (this.p2.distanceMeters / 10000) * 100).toFixed(1);
+            if (this.dom.p1ProgressFill) this.dom.p1ProgressFill.style.width = `${progPct1}%`;
+            if (this.dom.p2ProgressFill) this.dom.p2ProgressFill.style.width = `${progPct2}%`;
 
             if (this.dom.p1PursuitFill) {
-                this.dom.p1PursuitFill.style.width = this.p1.isAlive ? '100%' : '0%';
+                const ratio1 = Math.round((this.p1.speed / this.p1.maxSpeed) * 100);
+                this.dom.p1PursuitFill.style.width = this.p1.isAlive ? `${ratio1}%` : '0%';
             }
             if (this.dom.p2PursuitFill) {
-                this.dom.p2PursuitFill.style.width = this.p2.isAlive ? '100%' : '0%';
+                const ratio2 = Math.round((this.p2.speed / this.p2.maxSpeed) * 100);
+                this.dom.p2PursuitFill.style.width = this.p2.isAlive ? `${ratio2}%` : '0%';
             }
         }
 
@@ -1268,16 +1372,27 @@
             ctx.fillRect(0, 0, this.width, this.height);
 
             const horizonY = this.height * 0.23;
-            const pulse = Math.sin(now * 0.0035) * 8;
+            // Sol rojo palpitante al ritmo del corazón de campaña
+            const maxBpm = Math.max(this.p1.bpm || 110, this.p2.bpm || 110);
+            const pulse = Math.sin(now * 0.0055 * (maxBpm / 110)) * 14;
             const rad = ctx.createRadialGradient(
                 this.width * 0.5, horizonY, 8,
-                this.width * 0.5, horizonY, 230 + pulse
+                this.width * 0.5, horizonY, 240 + pulse
             );
-            rad.addColorStop(0, 'rgba(195, 20, 45, 0.32)');
-            rad.addColorStop(0.55, 'rgba(55, 10, 25, 0.09)');
+            rad.addColorStop(0, 'rgba(215, 25, 50, 0.45)');
+            rad.addColorStop(0.35, 'rgba(145, 15, 35, 0.22)');
+            rad.addColorStop(0.70, 'rgba(45, 8, 20, 0.08)');
             rad.addColorStop(1, 'rgba(0, 0, 0, 0)');
             ctx.fillStyle = rad;
-            ctx.fillRect(0, 0, this.width, this.height * 0.55);
+            ctx.fillRect(0, 0, this.width, this.height * 0.58);
+
+            // Grieta carmesí en el horizonte (efecto de campaña)
+            ctx.strokeStyle = 'rgba(255, 45, 80, 0.35)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(this.width * 0.28, horizonY);
+            ctx.lineTo(this.width * 0.72, horizonY);
+            ctx.stroke();
         }
 
         _drawAsciiRoadside(ctx, now) {
@@ -1285,7 +1400,9 @@
             ctx.textAlign = 'center';
 
             for (const node of this.asciiBackgroundNodes) {
-                let relZ = (node.z - (this.worldZ % MP_CONFIG.VISUALS.HORIZON_Z));
+                // Cada lado del mundo avanza a la velocidad independiente de su corredor
+                const playerRefZ = (node.side < 0) ? this.p1.z : this.p2.z;
+                let relZ = (node.z - (playerRefZ % MP_CONFIG.VISUALS.HORIZON_Z));
                 if (relZ < -120) relZ += MP_CONFIG.VISUALS.HORIZON_Z;
 
                 const lanePos = 2.5 + node.side * node.offsetFactor * 2.8;
@@ -1326,17 +1443,48 @@
             ctx.closePath();
             ctx.fill();
 
-            // Líneas transversales de asfalto a alta velocidad (sensación de vértigo)
-            const stepZ = 85;
-            const offsetZ = stepZ - (this.worldZ % stepZ) - stepZ * 2;
-            for (let z = offsetZ; z < MP_CONFIG.VISUALS.HORIZON_Z; z += stepZ) {
+            // Bordes exteriores carmesí brillantes (efecto de campaña)
+            ctx.save();
+            ctx.strokeStyle = '#d90429';
+            ctx.lineWidth = Math.max(2, 3.5 * nearP.scale);
+            ctx.shadowColor = '#ff2a4b';
+            ctx.shadowBlur = 12;
+            ctx.beginPath();
+            ctx.moveTo(farP.centerX - farP.currentTrackWidth * 0.5, farP.y);
+            ctx.lineTo(nearP.centerX - nearP.currentTrackWidth * 0.5, nearP.y);
+            ctx.moveTo(farP.centerX + farP.currentTrackWidth * 0.5, farP.y);
+            ctx.lineTo(nearP.centerX + nearP.currentTrackWidth * 0.5, nearP.y);
+            ctx.stroke();
+            ctx.restore();
+
+            const stepZ = 80;
+
+            // 1. Líneas transversales de asfalto para JUGADOR 1 (Carriles 0, 1, 2)
+            // Se mueven a la velocidad INDEPENDIENTE de P1 (this.p1.z)
+            const offsetZ1 = stepZ - (this.p1.z % stepZ) - stepZ * 2;
+            for (let z = offsetZ1; z < MP_CONFIG.VISUALS.HORIZON_Z; z += stepZ) {
                 if (z < -120) continue;
-                const p = this.project(2.5, z);
-                const alpha = Math.min(0.32, p.scale * 0.42);
-                ctx.strokeStyle = `rgba(140, 140, 170, ${alpha})`;
+                const p = this.project(1.0, z);
+                const alpha = Math.min(0.38, p.scale * 0.48);
+                ctx.strokeStyle = `rgba(46, 196, 182, ${alpha})`;
                 ctx.lineWidth = Math.max(1, 2.2 * p.scale);
                 ctx.beginPath();
                 ctx.moveTo(p.centerX - p.currentTrackWidth * 0.5, p.y);
+                ctx.lineTo(p.centerX, p.y);
+                ctx.stroke();
+            }
+
+            // 2. Líneas transversales de asfalto para JUGADOR 2 (Carriles 3, 4, 5)
+            // Se mueven a la velocidad INDEPENDIENTE de P2 (this.p2.z)
+            const offsetZ2 = stepZ - (this.p2.z % stepZ) - stepZ * 2;
+            for (let z = offsetZ2; z < MP_CONFIG.VISUALS.HORIZON_Z; z += stepZ) {
+                if (z < -120) continue;
+                const p = this.project(4.0, z);
+                const alpha = Math.min(0.38, p.scale * 0.48);
+                ctx.strokeStyle = `rgba(255, 159, 28, ${alpha})`;
+                ctx.lineWidth = Math.max(1, 2.2 * p.scale);
+                ctx.beginPath();
+                ctx.moveTo(p.centerX, p.y);
                 ctx.lineTo(p.centerX + p.currentTrackWidth * 0.5, p.y);
                 ctx.stroke();
             }
@@ -1405,10 +1553,12 @@
         }
 
         _drawContextualReachZone(ctx, player) {
-            const speedFactor = Math.max(1.0, this.currentSpeed / 520);
-            const reachRange = Math.max(380, Math.round(MP_CONFIG.COMBAT.INTERACTION_RANGE * speedFactor));
-            const nearP = this.project(player.visualLane, 12);
-            const farP = this.project(player.visualLane, reachRange);
+            const speedFactor = Math.max(1.0, player.speed / 500);
+            const reachRange = Math.max(420, Math.round(MP_CONFIG.COMBAT.INTERACTION_RANGE * speedFactor));
+            const leadDelta = (player.id === 1) ? (this.p1.z - this.p2.z) : (this.p2.z - this.p1.z);
+            const visualLeadZ = Math.max(-45, Math.min(65, leadDelta * 0.12));
+            const nearP = this.project(player.visualLane, visualLeadZ + 12);
+            const farP = this.project(player.visualLane, visualLeadZ + reachRange);
 
             const isUsingB = player.bActionTimer > 0;
             const alpha = isUsingB ? 0.38 : 0.09;
@@ -1432,10 +1582,16 @@
             const entities = [
                 ...this.obstacles.map(o => ({ kind: 'OBS', z: o.z, data: o })),
                 ...this.extraLives.map(h => ({ kind: 'HEART', z: h.z, data: h }))
-            ].sort((a, b) => b.z - a.z);
+            ].sort((a, b) => {
+                const relA = a.z - (a.data.lane < 3 ? this.p1.z : this.p2.z);
+                const relB = b.z - (b.data.lane < 3 ? this.p1.z : this.p2.z);
+                return relB - relA;
+            });
 
             for (const item of entities) {
-                const relZ = item.z - this.worldZ;
+                const isP1 = (item.data.lane < 3);
+                const playerRefZ = isP1 ? this.p1.z : this.p2.z;
+                const relZ = item.z - playerRefZ;
                 if (relZ < -100 || relZ > MP_CONFIG.VISUALS.HORIZON_Z) continue;
 
                 if (item.kind === 'OBS') {
@@ -1669,10 +1825,13 @@
                 return;
             }
 
-            const p = this.project(player.visualLane, 0);
+            // Posición visual relativa según ventaja/desventaja en metros
+            const leadDelta = (player.id === 1) ? (this.p1.z - this.p2.z) : (this.p2.z - this.p1.z);
+            const visualLeadZ = Math.max(-45, Math.min(65, leadDelta * 0.12));
+            const p = this.project(player.visualLane, visualLeadZ);
 
-            const speedRatio = this.currentSpeed / MP_CONFIG.SPEED.MAX;
-            const bobY = Math.abs(Math.sin(player.stridePhase)) * 10 * speedRatio;
+            const speedRatio = player.maxSpeed > 0 ? (player.speed / player.maxSpeed) : 0;
+            const bobY = Math.abs(Math.sin(player.stridePhase)) * 12 * speedRatio;
             const tiltX = (player.lane - player.visualLane) * 0.28;
 
             ctx.save();
@@ -1752,7 +1911,10 @@
         // ====================================================================
 
         _drawPursuitVignette(ctx, now) {
-            const threat = 0.55;
+            // Pulsación biológica conectada al BPM más alto (efecto de campaña)
+            const maxBpm = Math.max(this.p1.bpm || 110, this.p2.bpm || 110);
+            const pulse = Math.sin(now * 0.0055 * (maxBpm / 110)) * 0.08;
+            const threat = Math.min(0.85, Math.max(0.40, 0.55 + pulse));
             const baseVignette = 0.45 + threat * 0.45;
 
             const rad = ctx.createRadialGradient(
