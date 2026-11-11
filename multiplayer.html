@@ -6,6 +6,8 @@
     <title>SURVIVAL RUNNER — MULTIJUGADOR LOCAL (6 CARRILES / P1 vs P2)</title>
     <link rel="stylesheet" href="css/style.css" />
     <link rel="stylesheet" href="css/multiplayer.css" />
+    <!-- PeerJS para salas P2P remotas entre amigos sin necesidad de backend -->
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 </head>
 <body>
     <!-- Lienzo Principal 2.5D con 6 Carriles -->
@@ -72,11 +74,11 @@
             </div>
         </div>
 
-        <!-- 2. CENTRO SUPERIOR: ODÓMETRO Y RETORNO -->
+        <!-- 2. CENTRO SUPERIOR: TIEMPO RECORRIDO Y OPCIONES -->
         <div id="mp-center-dock">
             <div class="mp-center-badge">PRUEBA 2P (6 CARRILES)</div>
-            <div id="mp-odometer" class="mp-odometer">0.00 km</div>
-            <a href="index.html" class="mp-return-link">◀ MODO INDIVIDUAL</a>
+            <div id="mp-odometer" class="mp-odometer">TIEMPO: 00:00.0</div>
+            <button id="mp-options-btn" type="button" class="mp-options-link">OPCIONES</button>
         </div>
 
         <!-- 3. MONITOR MÉDICO CONTEC — JUGADOR 2 -->
@@ -163,9 +165,59 @@
 
         <div class="mp-results-menu">
             <button id="btn-rematch" type="button" class="mp-menu-btn btn-rematch">REINICIAR PARTIDA [R]</button>
-            <a href="index.html" class="mp-menu-btn btn-back-single">VOLVER AL MODO INDIVIDUAL</a>
+            <a href="index.html" class="mp-menu-btn btn-back-single">VOLVER AL MENÚ</a>
         </div>
     </section>
+
+    <!-- Modal de Opciones y Sala Remota con Amigo (Party WebRTC P2P) -->
+    <div id="mp-options-modal" class="hidden">
+        <div id="mp-modal-backdrop" class="mp-modal-backdrop"></div>
+        <div class="mp-modal-box">
+            <div class="mp-modal-header">
+                <span class="mp-modal-title">OPCIONES Y SALA REMOTA (PARTY)</span>
+                <button id="mp-modal-close" type="button" class="mp-modal-close-btn" title="Cerrar">&times;</button>
+            </div>
+            
+            <div class="mp-modal-body">
+                <p class="mp-modal-desc">
+                    Juega en local en el mismo teclado o conéctate con un amigo a distancia mediante un <strong>Código de Party</strong> en tiempo real.
+                </p>
+
+                <!-- SECCIÓN A: CREAR SALA (HOST / JUGADOR 1) -->
+                <div class="mp-party-card">
+                    <div class="mp-party-heading">1. CREAR SALA (JUGADOR 1 / HOST)</div>
+                    <p class="mp-party-subtext">Genera un código de party y compártelo con tu amigo para que juegue como Jugador 2.</p>
+                    <div class="mp-party-actions-row">
+                        <button id="btn-party-create" type="button" class="mp-party-btn btn-party-host">CREAR CÓDIGO DE PARTY</button>
+                    </div>
+                    <div id="party-created-box" class="mp-party-info-box hidden">
+                        <span class="mp-party-label">CÓDIGO DE TU PARTY:</span>
+                        <div class="mp-code-row">
+                            <span id="party-code-val" class="mp-party-code-text">------</span>
+                            <button id="btn-party-copy" type="button" class="mp-party-copy-btn">COPIAR</button>
+                        </div>
+                        <div id="party-host-status" class="mp-party-status-indicator">ESPERANDO A TU COMPAÑERO...</div>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN B: UNIRSE A SALA (INVITADO / JUGADOR 2) -->
+                <div class="mp-party-card">
+                    <div class="mp-party-heading">2. UNIRSE CON CÓDIGO (JUGADOR 2 / AMIGO)</div>
+                    <p class="mp-party-subtext">Pega el código de party que te pasó tu amigo para conectarte a su partida.</p>
+                    <div class="mp-party-join-row">
+                        <input id="party-join-input" type="text" class="mp-party-input" placeholder="Ej: AQ-4928" maxlength="24" spellcheck="false" autocomplete="off" />
+                        <button id="btn-party-join" type="button" class="mp-party-btn btn-party-join">UNIRSE A SALA</button>
+                    </div>
+                    <div id="party-guest-status" class="mp-party-status-indicator hidden"></div>
+                </div>
+
+                <!-- SECCIÓN C: VOLVER AL MENÚ -->
+                <div class="mp-party-footer">
+                    <a href="index.html" class="mp-party-menu-link">VOLVER AL MENÚ</a>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Script de lógica y renderizado multijugador -->
     <script src="src/multiplayer/MultiplayerApp.js"></script>

@@ -324,6 +324,18 @@
                 p1PursuitFill: document.getElementById('p1-pursuit-fill'),
                 p2PursuitFill: document.getElementById('p2-pursuit-fill'),
                 odometer: document.getElementById('mp-odometer'),
+                optionsBtn: document.getElementById('mp-options-btn'),
+                optionsModal: document.getElementById('mp-options-modal'),
+                modalBackdrop: document.getElementById('mp-modal-backdrop'),
+                modalClose: document.getElementById('mp-modal-close'),
+                btnPartyCreate: document.getElementById('btn-party-create'),
+                partyCreatedBox: document.getElementById('party-created-box'),
+                partyCodeVal: document.getElementById('party-code-val'),
+                btnPartyCopy: document.getElementById('btn-party-copy'),
+                partyHostStatus: document.getElementById('party-host-status'),
+                partyJoinInput: document.getElementById('party-join-input'),
+                btnPartyJoin: document.getElementById('btn-party-join'),
+                partyGuestStatus: document.getElementById('party-guest-status'),
                 p1ElimTag: document.getElementById('p1-elimination-tag'),
                 p2ElimTag: document.getElementById('p2-elimination-tag'),
                 resultsOverlay: document.getElementById('mp-results-overlay'),
@@ -336,6 +348,7 @@
             this._setupResize();
             this._bindKeyboard();
             this._bindUI();
+            this._initPartyNetworking();
         }
 
         _loadAssets() {
@@ -454,6 +467,7 @@
 
                 this.sound.startMusic();
 
+                // Jugador 1 (Local o Host): [A] micro-soltado para carril | [F] golpe
                 if (key === 'a') {
                     if (this.p1.isAuto) this.takeControlP1();
                     this.p1Ctrl.onKeyDown(now);
@@ -462,12 +476,24 @@
                     this._triggerActionP1();
                 }
 
-                if (key === 'h') {
-                    if (this.p2.isAuto) this.takeControlP2();
-                    this.p2Ctrl.onKeyDown(now);
-                } else if (key === 'l') {
-                    if (this.p2.isAuto) this.takeControlP2();
-                    this._triggerActionP2();
+                // Jugador 2: [H] micro-soltado para carril | [L] golpe
+                // Si este navegador está conectado como Guest a una sala remota, reenvía la pulsación al Host
+                if (key === 'h' || (this.isGuest && (key === 'arrowleft' || key === 'a'))) {
+                    if (this.isGuest && this.netConn && this.netConn.open) {
+                        this.netConn.send({ type: 'guest_input', key: 'h', event: 'down' });
+                    }
+                    if (!this.isGuest) {
+                        if (this.p2.isAuto) this.takeControlP2();
+                        this.p2Ctrl.onKeyDown(now);
+                    }
+                } else if (key === 'l' || (this.isGuest && (key === 'arrowright' || key === ' ' || key === 'f'))) {
+                    if (this.isGuest && this.netConn && this.netConn.open) {
+                        this.netConn.send({ type: 'guest_input', key: 'l', event: 'action' });
+                    }
+                    if (!this.isGuest) {
+                        if (this.p2.isAuto) this.takeControlP2();
+                        this._triggerActionP2();
+                    }
                 }
 
                 if (key === 'r') {
@@ -482,9 +508,14 @@
                 if (key === 'a') {
                     this.p1Ctrl.onKeyUp(now);
                     if (!this.p1.isAuto) this.p1.lane = this.p1Ctrl.currentLane;
-                } else if (key === 'h') {
-                    this.p2Ctrl.onKeyUp(now);
-                    if (!this.p2.isAuto) this.p2.lane = this.p2Ctrl.currentLane;
+                } else if (key === 'h' || (this.isGuest && (key === 'arrowleft' || key === 'a'))) {
+                    if (this.isGuest && this.netConn && this.netConn.open) {
+                        this.netConn.send({ type: 'guest_input', key: 'h', event: 'up' });
+                    }
+                    if (!this.isGuest) {
+                        this.p2Ctrl.onKeyUp(now);
+                        if (!this.p2.isAuto) this.p2.lane = this.p2Ctrl.currentLane;
+                    }
                 }
             });
         }
@@ -513,6 +544,269 @@
             window.addEventListener('click', () => {
                 this.sound.startMusic();
             }, { once: true });
+        }
+
+        _initPartyNetworking() {
+            this.isHost = false;
+            this.isGuest = false;
+            this.netConn = null;
+            this.peer = null;
+            this.lastNetSync = 0;
+            this.partyCode = null;
+
+            // Botón "OPCIONES" en dock superior central
+            if (this.dom.optionsBtn) {
+                this.dom.optionsBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this._toggleOptionsModal(true);
+                });
+            }
+
+            // Cerrar modal
+            if (this.dom.modalClose) {
+                this.dom.modalClose.addEventListener('click', () => {
+                    this._toggleOptionsModal(false);
+                });
+            }
+
+            if (this.dom.modalBackdrop) {
+                this.dom.modalBackdrop.addEventListener('click', () => {
+                    this._toggleOptionsModal(false);
+                });
+            }
+
+            // CREAR SALA (HOST / JUGADOR 1)
+            if (this.dom.btnPartyCreate) {
+                this.dom.btnPartyCreate.addEventListener('click', () => {
+                    this._createPartyRoom();
+                });
+            }
+
+            // COPIAR CÓDIGO
+            if (this.dom.btnPartyCopy) {
+                this.dom.btnPartyCopy.addEventListener('click', () => {
+                    if (this.partyCode && navigator.clipboard) {
+                        navigator.clipboard.writeText(this.partyCode);
+                        this.dom.btnPartyCopy.textContent = '¡COPIADO!';
+                        setTimeout(() => {
+                            if (this.dom.btnPartyCopy) this.dom.btnPartyCopy.textContent = 'COPIAR';
+                        }, 1800);
+                    }
+                });
+            }
+
+            // UNIRSE A SALA (INVITADO / JUGADOR 2)
+            if (this.dom.btnPartyJoin) {
+                this.dom.btnPartyJoin.addEventListener('click', () => {
+                    const raw = this.dom.partyJoinInput ? this.dom.partyJoinInput.value.trim() : '';
+                    if (!raw) return;
+                    this._joinPartyRoom(raw);
+                });
+            }
+        }
+
+        _toggleOptionsModal(show) {
+            if (!this.dom.optionsModal) return;
+            if (show) {
+                this.dom.optionsModal.classList.remove('hidden');
+            } else {
+                this.dom.optionsModal.classList.add('hidden');
+            }
+        }
+
+        _createPartyRoom() {
+            if (typeof Peer === 'undefined') {
+                alert('No se pudo inicializar la conexión remota WebRTC. Asegúrate de tener conexión a Internet para cargar PeerJS.');
+                return;
+            }
+
+            const codeDigits = Math.floor(1000 + Math.random() * 9000);
+            this.partyCode = `AQ-${codeDigits}`;
+            const peerId = `ascii-party-code-${codeDigits}`;
+
+            if (this.peer) {
+                try { this.peer.destroy(); } catch (err) {}
+            }
+
+            if (this.dom.partyHostStatus) {
+                this.dom.partyHostStatus.textContent = 'INICIALIZANDO SALA WEBRTC...';
+            }
+            if (this.dom.partyCreatedBox) {
+                this.dom.partyCreatedBox.classList.remove('hidden');
+            }
+            if (this.dom.partyCodeVal) {
+                this.dom.partyCodeVal.textContent = this.partyCode;
+            }
+
+            try {
+                this.peer = new Peer(peerId, { debug: 1 });
+            } catch (err) {
+                console.error('Error creando Peer:', err);
+                if (this.dom.partyHostStatus) {
+                    this.dom.partyHostStatus.textContent = 'ERROR AL CREAR SALA. REINTENTA.';
+                }
+                return;
+            }
+
+            this.peer.on('open', (id) => {
+                this.isHost = true;
+                this.isGuest = false;
+                if (this.dom.partyHostStatus) {
+                    this.dom.partyHostStatus.innerHTML = `🟢 SALA CREADA. ESPERANDO A TU AMIGO...`;
+                }
+            });
+
+            this.peer.on('connection', (conn) => {
+                this.netConn = conn;
+                this.p2.isAuto = false;
+                if (this.dom.partyHostStatus) {
+                    this.dom.partyHostStatus.innerHTML = `<span style="color:#06d6a0;">🟢 ¡AMIGO CONECTADO! (P2 REMOTO EN VIVO)</span>`;
+                }
+                if (this.dom.p2ModeTag) {
+                    this.dom.p2ModeTag.textContent = 'P2 (REMOTO)';
+                    this.dom.p2ModeTag.style.color = '#ff9f1c';
+                }
+                if (this.dom.p2StatusText) {
+                    this.dom.p2StatusText.innerHTML = '<span style="color:#ff9f1c; font-weight:bold;">🟢 P2 CONECTADO A DISTANCIA</span>';
+                }
+
+                conn.on('data', (data) => {
+                    this._handleRemoteGuestInput(data);
+                });
+
+                conn.on('close', () => {
+                    if (this.dom.partyHostStatus) {
+                        this.dom.partyHostStatus.textContent = '🔴 EL AMIGO SE HA DESCONECTADO';
+                    }
+                });
+
+                setTimeout(() => {
+                    this._toggleOptionsModal(false);
+                }, 1500);
+            });
+
+            this.peer.on('error', (err) => {
+                console.warn('Peer host error:', err);
+                if (this.dom.partyHostStatus) {
+                    this.dom.partyHostStatus.textContent = `ESTADO: ${err.type || 'Error de conexión'}. Reintentando con otro código...`;
+                }
+            });
+        }
+
+        _joinPartyRoom(rawCode) {
+            if (typeof Peer === 'undefined') {
+                alert('No se pudo inicializar la conexión remota WebRTC. Asegúrate de tener conexión a Internet.');
+                return;
+            }
+
+            const cleanDigits = rawCode.replace(/\D/g, '');
+            if (!cleanDigits) {
+                alert('Por favor ingresa un código válido (ejemplo: AQ-4921 o 4921)');
+                return;
+            }
+
+            const targetPeerId = `ascii-party-code-${cleanDigits}`;
+
+            if (this.peer) {
+                try { this.peer.destroy(); } catch (err) {}
+            }
+
+            if (this.dom.partyGuestStatus) {
+                this.dom.partyGuestStatus.classList.remove('hidden');
+                this.dom.partyGuestStatus.textContent = `CONECTANDO CON EL CÓDIGO AQ-${cleanDigits}...`;
+            }
+
+            this.peer = new Peer({ debug: 1 });
+
+            this.peer.on('open', () => {
+                const conn = this.peer.connect(targetPeerId);
+                this.netConn = conn;
+                this.isGuest = true;
+                this.isHost = false;
+                this.p2.isAuto = false;
+
+                conn.on('open', () => {
+                    if (this.dom.partyGuestStatus) {
+                        this.dom.partyGuestStatus.innerHTML = `<span style="color:#06d6a0;">🟢 ¡CONECTADO AL HOST! ERES EL JUGADOR 2</span>`;
+                    }
+                    if (this.dom.p2ModeTag) {
+                        this.dom.p2ModeTag.textContent = 'P2 (TÚ / REMOTO)';
+                        this.dom.p2ModeTag.style.color = '#ff9f1c';
+                    }
+                    if (this.dom.p1ModeTag) {
+                        this.dom.p1ModeTag.textContent = 'P1 (HOST)';
+                    }
+                    if (this.dom.p2StatusText) {
+                        this.dom.p2StatusText.innerHTML = '<span style="color:#ff9f1c; font-weight:bold;">TÚ ERES P2: [H] CAMBIAR | [L] GOLPE</span>';
+                    }
+
+                    setTimeout(() => {
+                        this._toggleOptionsModal(false);
+                    }, 1400);
+                });
+
+                conn.on('data', (data) => {
+                    this._handleHostSyncData(data);
+                });
+
+                conn.on('close', () => {
+                    if (this.dom.partyGuestStatus) {
+                        this.dom.partyGuestStatus.textContent = '🔴 SE PERDIÓ LA CONEXIÓN CON EL HOST';
+                    }
+                });
+            });
+
+            this.peer.on('error', (err) => {
+                console.warn('Peer guest error:', err);
+                if (this.dom.partyGuestStatus) {
+                    this.dom.partyGuestStatus.textContent = 'NO SE PUDO ENCONTRAR LA SALA. VERIFICA EL CÓDIGO.';
+                }
+            });
+        }
+
+        _handleRemoteGuestInput(data) {
+            if (!data || data.type !== 'guest_input') return;
+            const now = performance.now();
+            if (data.key === 'h') {
+                if (data.event === 'down') {
+                    this.p2Ctrl.onKeyDown(now);
+                } else if (data.event === 'up') {
+                    this.p2Ctrl.onKeyUp(now);
+                    this.p2.lane = this.p2Ctrl.currentLane;
+                }
+            } else if (data.key === 'l' && data.event === 'action') {
+                this._triggerActionP2();
+            }
+        }
+
+        _handleHostSyncData(data) {
+            if (!data || data.type !== 'host_sync') return;
+            if (data.p1) {
+                this.p1.lane = data.p1.lane;
+                this.p1.x = data.p1.x;
+                this.p1.targetX = data.p1.targetX;
+                this.p1.speed = data.p1.speed;
+                this.p1.lives = data.p1.lives;
+                this.p1.bpm = data.p1.bpm;
+                this.p1.isAlive = data.p1.isAlive;
+                this.p1.distanceMeters = data.p1.distanceMeters;
+            }
+            if (data.p2) {
+                this.p2.lane = data.p2.lane;
+                this.p2.x = data.p2.x;
+                this.p2.targetX = data.p2.targetX;
+                this.p2.speed = data.p2.speed;
+                this.p2.lives = data.p2.lives;
+                this.p2.bpm = data.p2.bpm;
+                this.p2.isAlive = data.p2.isAlive;
+                this.p2.distanceMeters = data.p2.distanceMeters;
+            }
+            if (typeof data.matchElapsed === 'number') {
+                this.matchElapsed = data.matchElapsed;
+            }
+            if (typeof data.shake === 'number' && data.shake > this.shakeIntensity) {
+                this.shakeIntensity = data.shake;
+            }
         }
 
         takeControlP1() {
@@ -889,6 +1183,40 @@
             this._checkCollisions(this.p1);
             this._checkCollisions(this.p2);
 
+            // Sincronización WebRTC Host -> Guest a ~30 FPS
+            if (this.isHost && this.netConn && this.netConn.open) {
+                if (now - this.lastNetSync > 33) {
+                    this.lastNetSync = now;
+                    try {
+                        this.netConn.send({
+                            type: 'host_sync',
+                            matchElapsed: this.matchElapsed,
+                            shake: this.shakeIntensity,
+                            p1: {
+                                lane: this.p1.lane,
+                                x: this.p1.x,
+                                targetX: this.p1.targetX,
+                                speed: this.p1.speed,
+                                lives: this.p1.lives,
+                                bpm: this.p1.bpm,
+                                isAlive: this.p1.isAlive,
+                                distanceMeters: this.p1.distanceMeters
+                            },
+                            p2: {
+                                lane: this.p2.lane,
+                                x: this.p2.x,
+                                targetX: this.p2.targetX,
+                                speed: this.p2.speed,
+                                lives: this.p2.lives,
+                                bpm: this.p2.bpm,
+                                isAlive: this.p2.isAlive,
+                                distanceMeters: this.p2.distanceMeters
+                            }
+                        });
+                    } catch (err) {}
+                }
+            }
+
             this._updateHudText();
             this._drawEcg(this.p1EcgCtx, this.p1, this.p1EcgCanvas);
             this._drawEcg(this.p2EcgCtx, this.p2, this.p2EcgCanvas);
@@ -1080,11 +1408,15 @@
             }
 
             if (this.dom.resultDetails) {
-                const km1 = (this.p1.distanceMeters / 1000).toFixed(2);
-                const km2 = (this.p2.distanceMeters / 1000).toFixed(2);
+                const totalSec = this.matchElapsed || 0;
+                const m = Math.floor(totalSec / 60);
+                const s = Math.floor(totalSec % 60);
+                const ds = Math.floor((totalSec % 1) * 10);
+                const timeStr = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${ds}`;
                 this.dom.resultDetails.innerHTML = `
-                    P1: <strong style="color:#2ec4b6;">${km1} km</strong> (${Math.round(this.p1.speed)} u/s - ${this.p1.lives} vidas)<br/>
-                    P2: <strong style="color:#ff9f1c;">${km2} km</strong> (${Math.round(this.p2.speed)} u/s - ${this.p2.lives} vidas)
+                    TIEMPO RECORRIDO: <strong style="color:#ffffff;">${timeStr}</strong><br/>
+                    P1: <strong style="color:#2ec4b6;">${Math.round(this.p1.speed)} u/s</strong> (${this.p1.lives} vidas)<br/>
+                    P2: <strong style="color:#ff9f1c;">${Math.round(this.p2.speed)} u/s</strong> (${this.p2.lives} vidas)
                 `;
             }
 
@@ -1143,21 +1475,15 @@
         }
 
         _updateHudText() {
-            const kmStr1 = (this.p1.distanceMeters / 1000).toFixed(2);
-            const kmStr2 = (this.p2.distanceMeters / 1000).toFixed(2);
+            const totalSec = this.matchElapsed || 0;
+            const m = Math.floor(totalSec / 60);
+            const s = Math.floor(totalSec % 60);
+            const ds = Math.floor((totalSec % 1) * 10);
+            const timeStr = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${ds}`;
 
-            // Odómetro Central: Comparador en vivo de ventaja en metros y velocidad
+            // Odómetro Central: TIEMPO RECORRIDO (en lugar de km)
             if (this.dom.odometer) {
-                const d1 = this.p1.distanceMeters;
-                const d2 = this.p2.distanceMeters;
-                const lead = d1 - d2;
-                if (lead > 0) {
-                    this.dom.odometer.innerHTML = `<span style="color:#2ec4b6; font-weight:bold;">▲ P1 +${lead}m</span> &nbsp;<span style="color:#94a3b8; font-size:11px;">(${kmStr1} km)</span>`;
-                } else if (lead < 0) {
-                    this.dom.odometer.innerHTML = `<span style="color:#ff9f1c; font-weight:bold;">▲ P2 +${-lead}m</span> &nbsp;<span style="color:#94a3b8; font-size:11px;">(${kmStr2} km)</span>`;
-                } else {
-                    this.dom.odometer.innerHTML = `<span style="color:#06d6a0;">EMPATE</span> &nbsp;<span style="color:#94a3b8; font-size:11px;">(${kmStr1} km)</span>`;
-                }
+                this.dom.odometer.innerHTML = `TIEMPO: <span style="color:#ffffff;">${timeStr}</span>`;
             }
 
             if (this.dom.p1Lives) {
@@ -1178,10 +1504,10 @@
             }
 
             if (this.dom.p1ProgressLbl) {
-                this.dom.p1ProgressLbl.textContent = `RECORRIDO: ${kmStr1} KM (${Math.round(this.p1.speed)} u/s)`;
+                this.dom.p1ProgressLbl.textContent = `TIEMPO: ${timeStr} (${Math.round(this.p1.speed)} u/s)`;
             }
             if (this.dom.p2ProgressLbl) {
-                this.dom.p2ProgressLbl.textContent = `RECORRIDO: ${kmStr2} KM (${Math.round(this.p2.speed)} u/s)`;
+                this.dom.p2ProgressLbl.textContent = `TIEMPO: ${timeStr} (${Math.round(this.p2.speed)} u/s)`;
             }
 
             const progPct1 = Math.min(100, (this.p1.distanceMeters / 10000) * 100).toFixed(1);

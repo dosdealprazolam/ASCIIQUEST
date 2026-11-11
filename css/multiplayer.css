@@ -102,20 +102,24 @@ html, body {
     text-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
 }
 
-.mp-return-link {
-    font-size: 9.5px;
-    letter-spacing: 1px;
+.mp-options-link {
+    background: none !important;
+    border: none !important;
+    padding: 2px 0;
+    margin: 0;
+    font-family: inherit;
+    font-size: 10px;
+    letter-spacing: 2px;
     color: #94a3b8;
-    text-decoration: none;
-    border: 1px dashed rgba(148, 163, 184, 0.4);
-    padding: 2px 6px;
-    border-radius: 2px;
-    transition: color 0.15s, border-color 0.15s;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: color 0.15s, text-shadow 0.15s;
+    outline: none;
 }
 
-.mp-return-link:hover {
-    color: #2ec4b6;
-    border-color: #2ec4b6;
+.mp-options-link:hover {
+    color: #ff9f1c;
+    text-shadow: 0 0 8px rgba(255, 159, 28, 0.7);
 }
 
 /* Banners de estado de controles (Manual vs Auto) */
@@ -256,4 +260,241 @@ html, body {
 
 .hidden {
     display: none !important;
+}
+
+/* =========================================================
+   MODAL DE OPCIONES Y SALA REMOTA (PARTY P2P)
+   ========================================================= */
+#mp-options-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.mp-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(3, 5, 8, 0.85);
+    backdrop-filter: blur(4px);
+}
+
+.mp-modal-box {
+    position: relative;
+    z-index: 1000;
+    width: 100%;
+    max-width: 520px;
+    background: #090d14;
+    border: 1px solid #1e293b;
+    border-top: 3px solid #ff9f1c;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8), 0 0 25px rgba(255, 159, 28, 0.15);
+    padding: 22px 24px;
+    color: #cbd5e1;
+    font-family: inherit;
+}
+
+.mp-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #1e293b;
+    padding-bottom: 10px;
+    margin-bottom: 14px;
+}
+
+.mp-modal-title {
+    font-size: 13px;
+    letter-spacing: 2px;
+    font-weight: bold;
+    color: #ff9f1c;
+    text-shadow: 0 0 8px rgba(255, 159, 28, 0.5);
+}
+
+.mp-modal-close-btn {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 0.15s;
+}
+
+.mp-modal-close-btn:hover {
+    color: #ff2a4b;
+}
+
+.mp-modal-desc {
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: #94a3b8;
+    margin-bottom: 16px;
+}
+
+.mp-party-card {
+    background: #0d121c;
+    border: 1px solid #1e293b;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    border-radius: 2px;
+}
+
+.mp-party-heading {
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 1.5px;
+    color: #2ec4b6;
+    margin-bottom: 4px;
+}
+
+.mp-party-subtext {
+    font-size: 10px;
+    color: #64748b;
+    margin-bottom: 10px;
+    line-height: 1.4;
+}
+
+.mp-party-actions-row,
+.mp-party-join-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.mp-party-btn {
+    background: transparent;
+    border: 1px solid;
+    padding: 7px 14px;
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-party-host {
+    border-color: #2ec4b6;
+    color: #2ec4b6;
+}
+
+.btn-party-host:hover {
+    background: rgba(46, 196, 182, 0.15);
+    color: #ffffff;
+    box-shadow: 0 0 10px rgba(46, 196, 182, 0.5);
+}
+
+.btn-party-join {
+    border-color: #ff9f1c;
+    color: #ff9f1c;
+    white-space: nowrap;
+}
+
+.btn-party-join:hover {
+    background: rgba(255, 159, 28, 0.15);
+    color: #ffffff;
+    box-shadow: 0 0 10px rgba(255, 159, 28, 0.5);
+}
+
+.mp-party-input {
+    flex: 1;
+    background: #06090e;
+    border: 1px solid #334155;
+    color: #ffffff;
+    padding: 7px 10px;
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.mp-party-input:focus {
+    border-color: #ff9f1c;
+    box-shadow: 0 0 6px rgba(255, 159, 28, 0.4);
+}
+
+.mp-party-info-box {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed #1e293b;
+}
+
+.mp-party-label {
+    font-size: 9.5px;
+    letter-spacing: 1.5px;
+    color: #94a3b8;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.mp-code-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.mp-party-code-text {
+    font-size: 18px;
+    font-weight: bold;
+    letter-spacing: 3px;
+    color: #ffffff;
+    background: #040608;
+    padding: 5px 12px;
+    border: 1px solid #2ec4b6;
+    text-shadow: 0 0 8px rgba(46, 196, 182, 0.7);
+    user-select: all;
+}
+
+.mp-party-copy-btn {
+    background: #1e293b;
+    border: 1px solid #475569;
+    color: #cbd5e1;
+    padding: 5px 12px;
+    font-family: inherit;
+    font-size: 10px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.mp-party-copy-btn:hover {
+    background: #2ec4b6;
+    color: #030508;
+    font-weight: bold;
+}
+
+.mp-party-status-indicator {
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: #ff9f1c;
+    padding: 3px 0;
+    text-transform: uppercase;
+}
+
+.mp-party-footer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid #1e293b;
+}
+
+.mp-party-menu-link {
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: #94a3b8;
+    text-decoration: none;
+    text-transform: uppercase;
+    transition: color 0.15s, text-shadow 0.15s;
+}
+
+.mp-party-menu-link:hover {
+    color: #ff2a4b;
+    text-shadow: 0 0 8px rgba(255, 42, 75, 0.6);
 }

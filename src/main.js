@@ -97,6 +97,7 @@ class GameApp {
         this.pauseOverlay = document.getElementById('pause-overlay');
         this.btnPauseResume = document.getElementById('btn-pause-resume');
         this.btnPauseRestart = document.getElementById('btn-pause-restart');
+        this.btnPauseMenu = document.getElementById('btn-pause-menu');
         this.btnPauseInfo = document.getElementById('btn-pause-info');
         this.pauseInfoPanel = document.getElementById('pause-info-panel');
         this.btnClosePauseInfo = document.getElementById('btn-close-pause-info');
@@ -437,6 +438,17 @@ class GameApp {
                 e.stopPropagation();
                 this.unpauseGame();
                 this.resetRun();
+            });
+        }
+
+        if (this.btnPauseMenu) {
+            this.btnPauseMenu.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.unpauseGame();
+                this.resetRun();
+                if (this.titleOverlay) {
+                    this.titleOverlay.classList.remove('hidden', 'fade-out');
+                }
             });
         }
 
