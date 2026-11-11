@@ -68,6 +68,14 @@ class GameApp {
         this.uiBottomBar = document.getElementById('bottom-bar');
         this.uiFeedback = document.getElementById('hud-feedback');
 
+        // Pantalla de Carga / Portada de Inicio con opciones verticales
+        this.titleOverlay = document.getElementById('title-loading-overlay');
+        this.btnTitleStory = document.getElementById('btn-title-story');
+        this.btnTitleMultiplayer = document.getElementById('btn-title-multiplayer');
+        this.btnTitleInfo = document.getElementById('btn-title-info');
+        this.titleInfoModal = document.getElementById('title-info-modal');
+        this.btnCloseTitleInfo = document.getElementById('btn-close-title-info');
+
         // Apartado chiquito de Nombre + botones exclusivos de DevUser
         this.btnHudPause = document.getElementById('btn-hud-pause');
         this.btnContecPhysPause = document.getElementById('btn-contec-phys-pause');
@@ -350,6 +358,41 @@ class GameApp {
                 }
             });
         }
+
+        // --- Pantalla de Carga / Portada de Inicio con opciones verticales ---
+        if (this.btnTitleStory) {
+            this.btnTitleStory.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this._dismissTitleScreen();
+            });
+        }
+
+        if (this.btnTitleInfo) {
+            this.btnTitleInfo.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (this.titleInfoModal) {
+                    this.titleInfoModal.classList.toggle('hidden');
+                }
+            });
+        }
+
+        if (this.btnCloseTitleInfo) {
+            this.btnCloseTitleInfo.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (this.titleInfoModal) {
+                    this.titleInfoModal.classList.add('hidden');
+                }
+            });
+        }
+
+        // Si pulsa Enter mientras la portada está activa, arranca la historia
+        window.addEventListener('keydown', (e) => {
+            if (this.titleOverlay && !this.titleOverlay.classList.contains('hidden') && !this.titleOverlay.classList.contains('fade-out')) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    this._dismissTitleScreen();
+                }
+            }
+        });
 
         // Botón superior de Pausa en el HUD (tanto en pantalla CRT como sobre botonera física CONTEC)
         if (this.btnHudPause) {
@@ -830,6 +873,17 @@ class GameApp {
         }
         if (this.victoryOverlay) {
             this.victoryOverlay.classList.remove('hidden');
+        }
+    }
+
+    _dismissTitleScreen() {
+        if (!this.titleOverlay) return;
+        this.titleOverlay.classList.add('fade-out');
+        setTimeout(() => {
+            if (this.titleOverlay) this.titleOverlay.classList.add('hidden');
+        }, 480);
+        if (this.musicManager && this.musicManager.audio) {
+            this.musicManager.startRunningMusic && this.musicManager.startRunningMusic();
         }
     }
 

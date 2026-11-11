@@ -42,9 +42,9 @@
             SWITCH_LERP_SPEED: 21.0
         },
         SPEED: {
-            INITIAL: 780,        // Comienza con velocidad alta de carrera
-            MAX: 860,            // Idéntico a MAX_RUN_SPEED en GameConfig.js
-            ACCEL_RATE: 850      // Aceleración rápida hacia velocidad punta
+            INITIAL: 920,        // Comienza con velocidad verdaderamente rápida y vertiginosa
+            MAX: 1080,           // Velocidad punta intensa
+            ACCEL_RATE: 1100     // Aceleración inmediata hacia velocidad punta
         },
         COMBAT: {
             INITIAL_LIVES: 3,
@@ -616,28 +616,28 @@
 
             if (!target) return;
 
-            target.hitFlashTimer = 0.22;
+            target.hitFlashTimer = 0.25;
 
             if (target.type === 'TOWER') {
                 target.state = 'TOPPLING';
                 target.toppleProgress = 0;
                 target.lane = target.fallTargetLane;
-                this.addShake(3.8);
-                this._triggerFlash('#ffbf69', 0.16);
+                this.addShake(4.5);
+                this._triggerFlash('#ffbf69', 0.22);
                 this.sound.playSmash();
-                this._spawnImpactParticles(target.lane, target.z, '#ff9f1c', 28, target.tiltDir * 1.5);
+                this._spawnImpactParticles(target.lane, target.z, '#ff9f1c', 28, (target.fallTargetLane - target.lane) * 1.8);
             } else if (target.type === 'BARRICADE') {
                 target.state = 'SHATTERED';
                 target.shatterProgress = 0;
-                this.addShake(4.2);
-                this._triggerFlash('#ffbf69', 0.18);
+                this.addShake(4.8);
+                this._triggerFlash('#ff9f1c', 0.24);
                 this.sound.playSmash();
-                this._spawnImpactParticles(target.lane, target.z, '#cbd5e1', 28, 0);
+                this._spawnImpactParticles(target.lane, target.z, '#e71d36', 28, 0);
             } else if (target.type === 'MONOLITH') {
-                target.flashTimer = 0.18;
-                this.addShake(2.5);
+                target.flashTimer = 0.20;
+                this.addShake(2.8);
                 this.sound.playDamage();
-                this._spawnImpactParticles(target.lane, target.z, '#ef4444', 16, 0);
+                this._spawnImpactParticles(target.lane, target.z, '#ffffff', 16, 0);
             }
         }
 
@@ -957,9 +957,9 @@
 
                     obs.state = 'SHATTERED';
                     this.sound.playDamage();
-                    this.addShake(4.5);
-                    this._triggerFlash('#ff1e38', 0.30);
-                    this._spawnImpactParticles(obs.lane, obs.z, '#ff1e38', 28, 0);
+                    this.addShake(5.5);
+                    this._triggerFlash('#ff2a4b', 0.38);
+                    this._spawnImpactParticles(obs.lane, obs.z, '#ff5964', 28, 0);
 
                     if (player.lives <= 0) {
                         player.lives = 0;

@@ -321,6 +321,40 @@
         </div>
     </section>
 
+    <!-- Pantalla de Carga / Portada de Inicio (Imagen oficial + Opciones verticales clickeables) -->
+    <section id="title-loading-overlay" class="title-loading-overlay">
+        <img src="img/title_screen.jpg" alt="Portada" class="title-loading-bg" />
+        <div class="title-loading-vignette"></div>
+
+        <div class="title-loading-content">
+            <h1 class="title-game-logo">ASCIIQUEST</h1>
+            <p class="title-game-sub">PSYCHOLOGICAL SURVIVAL RUNNER</p>
+
+            <!-- Opciones en formato vertical puro y texto clickeable -->
+            <nav class="title-vertical-menu">
+                <button id="btn-title-story" type="button" class="title-menu-btn">HISTORIA</button>
+                <a id="btn-title-multiplayer" href="multiplayer.html" class="title-menu-btn">MULTIPLAYER</a>
+                <button id="btn-title-info" type="button" class="title-menu-btn">INFO</button>
+            </nav>
+
+            <!-- Subpanel de Información vertical emergente -->
+            <div id="title-info-modal" class="title-info-modal hidden">
+                <div class="title-info-header">
+                    <span>INFORMACIÓN & REGLAS</span>
+                    <button id="btn-close-title-info" type="button" class="title-info-close-btn">VOLVER</button>
+                </div>
+                <div class="title-info-body">
+                    <p><strong>HISTORIA:</strong> Atrapado en un corredor abismal de monolitos ancestrales, debes sobrevivir a una entidad que te persigue implacablemente a lo largo de 10.2 kilómetros.</p>
+                    <p><strong>CONTROLES:</strong><br>
+                    • <code>[A]</code> Mantener para correr. Soltar un micro-instante (&lt;0.25s) y volver a pulsar para cambiar de carril.<br>
+                    • <code>[B]</code> Acción contextual / Golpe: Rompe barricadas frágiles y empuja torres colapsables hacia otro carril.<br>
+                    • <code>[P]</code> Pausa &nbsp;|&nbsp; <code>[R]</code> Reiniciar recorrido.</p>
+                    <p><strong>MULTIPLAYER:</strong> Modo local de 2 jugadores en el mismo teclado con 6 carriles, velocidad vertiginosa y barrera física central (P1: [A]/[F] | P2: [H]/[L]).</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- Carga modular ordenada -->
     <script src="src/config/GameConfig.js"></script>
     <script src="src/core/EventBus.js"></script>
